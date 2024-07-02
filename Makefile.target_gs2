@@ -1,7 +1,16 @@
+# Here we list all the serial targets
+serial_targets := ingen #Input file checker
+serial_targets += write_default_input_file #Writes each namelist with default values
+serial_targets += dump_grids #Initialises grids and writes to file
+serial_targets += ball #Program to calculate ideal MHD ballooning stability
+serial_targets += eiktest #Program to calculate eikcoeffs (geometry coefficients) and dump
+serial_targets += ideal_ball #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
+serial_targets += mat_inv_benchmark #Matrix inverse benchmark
+serial_targets += rungridgen #Driver program for gridgen?
+
 # Replace the parallel mp with serial version in dependencies of codes
 # we want to be serial
 ifdef GK_BUILD_SERIAL_TOOLS_AS_SERIAL
-serial_targets := ingen write_default_input_file dump_grids
 make_serial = $(subst $(OBJDIR)/mp.o,$(OBJDIR)/mp_serial.o,$(1))
 # Call make_serial on each of serial_targets to replace mp.o with mp_serial.o
 ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mod := $(call make_serial, $($(tmp_target)_mod))))
@@ -21,181 +30,22 @@ needs_git_hash := gs2 multigs2 ingen write_default_input_file dump_grids dump_re
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
+# Here we have the parallel targets
+parallel_targets := gs2 #Main code
+parallel_targets += multigs2 #Multi-gs2 runner
+parallel_targets += box_to_ballooning_space #Reports the equivalent ballooning space setup for a box mode run.
+parallel_targets += dump_response #Calculates the field response matrix for current input file and writes to file
+parallel_targets += ffttester #A program which test the fft transforms used in GS2
+parallel_targets += generate_fftw_wisdom #Utility to produce fftw wisdom files for given problem size
+
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
-gs2_all: dump_grids ideal_ball write_default_input_file
+gs2_all: $(serial_targets) $(parallel_targets)
 
-#Main code
-$(BINDIR)/gs2: $(gs2_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
-
-.PHONY: gs2
-gs2: $(BINDIR)/gs2
-
-#Main code
-$(BINDIR)/gs2.x: $(gs2_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: gs2.x
-gs2.x: $(BINDIR)/gs2.x
-
-#Multi-gs2 runner
-$(BINDIR)/multigs2: $(multigs2_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: multigs2
-multigs2: $(BINDIR)/multigs2
-
-#Mat inv benchmark
-$(BINDIR)/mat_inv_benchmark: $(mat_inv_benchmark_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: mat_inv_benchmark
-mat_inv_benchmark: $(BINDIR)/mat_inv_benchmark
-
-#Input file checker
-$(BINDIR)/ingen: $(ingen_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: ingen
-ingen: $(BINDIR)/ingen
-
-#Utility to produce fftw wisdom files for given problem size
-$(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
-
-.PHONY: generate_fftw_wisdom
-generate_fftw_wisdom: $(BINDIR)/generate_fftw_wisdom
-
-#Calculates the field response matrix for current input file and writes to file
-$(BINDIR)/dump_response: $(dump_response_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
-
-.PHONY: dump_response
-dump_response: $(BINDIR)/dump_response
-
-#Initialises theta, kx, ky, lambda and energy grids and writes to file
-$(BINDIR)/dump_grids: $(dump_grids_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: dump_grids
-dump_grids: $(BINDIR)/dump_grids
-
-#Reports the equivalent ballooning space setup for a box mode run.
-$(BINDIR)/box_to_ballooning_space: $(box_to_ballooning_space_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
-
-.PHONY: box_to_ballooning_space
-box_to_ballooning_space: $(BINDIR)/box_to_ballooning_space
-
-#Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
-$(BINDIR)/ideal_ball: $(ideal_ball_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
-
-.PHONY: ideal_ball
-ideal_ball: $(BINDIR)/ideal_ball
-
-#Driver program for gridgen?
-$(BINDIR)/rungridgen: $(rungridgen_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: rungridgen
-rungridgen: $(BINDIR)/rungridgen
-
-#A simple program to test linear regression on random data || Not at all gs2 specific!
-$(BINDIR)/regress: $(drive_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: regress
-regress: $(BINDIR)/regress
-
-#A program which test the fft transforms used in GS2 | DOES NOT COMPILE
-$(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: ffttester
-ffttester: $(BINDIR)/ffttester
-
-#Program to calculate ideal MHD ballooning stability | DOES NOT COMPILE
-$(BINDIR)/ball: $(ball_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: ball
-ball: $(BINDIR)/ball
-
-#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
-$(BINDIR)/eiktest: $(eiktest_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: eiktest
-eiktest: $(BINDIR)/eiktest
-
-#Writes an instance of each namelist with default values
-$(BINDIR)/write_default_input_file: $(write_default_input_file_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
-	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: write_default_input_file
-write_default_input_file: $(BINDIR)/write_default_input_file
+$(foreach prog,$(parallel_targets),$(eval $(call build_program,$(prog),$(LDFLAGS))))
+$(foreach prog,$(serial_targets),$(eval $(call build_program,$(prog),$(SERIAL_LDFLAGS))))
 
 ############################################################################# LIBRARIES
-.PHONY: modules utils_all geo_all libgs2_all
-
-# Order-only prerequisites need to be specified separately for this to
-# work properly
-modules: | $(UTILS_SENTINEL)
-modules: utils.a geo.a libgs2.a diagnostics
-
-### UTILS
-utils_all: | $(UTILS_SENTINEL)
-utils_all: utils.a
-
-UTIL_OBJ_LIST := spl.o constants.o file_utils.o runtime_tests.o constant_random.o
-ifdef USE_NETCDF
-UTIL_OBJ_LIST += netcdf_utils.o
-endif
-UTIL_OBJ := $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
-$(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
-$(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
-	$(QUIETSYM)$(RANLIB) $@
-
-.PHONY: utils.a
-utils.a: $(LIBDIR)/utils.a
-
-### GEO
-geo_all: geo.a eiktest ball
-
-GEO_OBJ_LIST := geometry.o geq.o eeq.o peq.o leq.o deq.o ideq.o ceq.o read_chease.o
-GEO_OBJ = $(addprefix $(OBJDIR)/, $(GEO_OBJ_LIST))
-
-$(LIBDIR)/geo.a: $(GEO_OBJ) |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
-	$(QUIETSYM)$(RANLIB) $@
-
-.PHONY: geo.a
-geo.a: $(LIBDIR)/geo.a
-
 ### LIBGS2
-libgs2_all: $(LIBDIR)/libgs2.a
-
 $(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
@@ -203,15 +53,3 @@ $(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) |$(LIBDIR)
 
 .PHONY: libgs2.a
 libgs2.a: $(LIBDIR)/libgs2.a
-
-############################################################################# CLEANUP
-distclean:
-	$(call messageRm,"Executables")
-	-$(QUIETSYM)rm -f gs2 gs2.x
-	-$(QUIETSYM)rm -f ingen rungridgen regress
-	-$(QUIETSYM)rm -f ball eiktest
-	-$(QUIETSYM)rm -f ffttester
-	-$(QUIETSYM)rm -f dump_response
-	-$(QUIETSYM)rm -f dump_grids
-	-$(QUIETSYM)rm -f ideal_ball
-	-$(QUIETSYM)rm -f generate_fftw_wisdom

@@ -6,7 +6,6 @@
 module gs2_layouts
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
-  use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
   use layouts_type, only: xxf_layout_type, yxf_layout_type
@@ -17,60 +16,34 @@ module gs2_layouts
 
   private
 
-  public :: factors
-  public :: pe_layout, layout, local_field_solve
-  
-  public :: init_dist_fn_layouts, init_gs2_layouts
-  public :: finish_dist_fn_layouts
-  public :: finish_gs2_layouts
-  public :: wnml_gs2_layouts
-  public :: init_parity_layouts
-  public :: g_lo
-  public :: p_lo
-
-  public :: finish_layouts
-
-  public :: set_overrides
-
+  public :: factors, pe_layout, layout, local_field_solve, set_overrides
+  public :: init_gs2_layouts, finish_gs2_layouts, wnml_gs2_layouts, finish_layouts
+  public :: init_dist_fn_layouts, finish_dist_fn_layouts, init_parity_layouts
+  public :: g_lo, p_lo
   public :: finish_fields_layouts, finish_jfields_layouts
-
-  public :: init_fields_layouts
-  public :: f_lo, f_layout_type
-
-  public :: init_jfields_layouts
-  public :: jf_lo, jf_layout_type
-
-  public :: init_lambda_layouts
-  public :: lz_lo
-
-  public :: init_energy_layouts
-  public :: e_lo
-
-  public :: init_le_layouts
-  public :: le_lo
-
-  public :: init_gf_layouts
-  public :: gf_lo
+  public :: init_fields_layouts, f_lo, f_layout_type
+  public :: init_jfields_layouts, jf_lo, jf_layout_type
+  public :: init_lambda_layouts, lz_lo
+  public :: init_energy_layouts, e_lo
+  public :: init_le_layouts, le_lo
+  public :: init_gf_layouts, gf_lo
 
   public :: init_x_transform_layouts, init_y_transform_layouts
   public :: calculate_unbalanced_x, calculate_unbalanced_y, calculate_idle_processes
   public :: xxf_lo, xxf_layout_type, yxf_lo, yxf_layout_type
-  public :: gidx2xxfidx, xxfidx2yxfidx
 
   public :: init_accel_transform_layouts
   public :: accel_lo, accel_layout_type, dealiasing
   public :: accelx_lo, accelx_layout_type
 
   public :: ig_idx, ik_idx, it_idx, il_idx, ie_idx, is_idx, if_idx, isign_idx
-  public :: im_idx, in_idx, ij_idx, ifield_idx
-  public :: idx, proc_id, idx_local
+  public :: im_idx, in_idx, ij_idx, ifield_idx, idx, proc_id, idx_local
 
   public :: opt_local_copy
   public :: intmom_sub !Do we use sub-communicators in velocity space?
   public :: intspec_sub !Do we use sub-communicators in integrate_species?
 
   public :: fft_use_wisdom, fft_wisdom_file, fft_measure_plan
-
   public :: simple_gf_decomposition, gf_local_fields
 
   public :: layouts_config_type
@@ -105,19 +78,13 @@ module gs2_layouts
   logical :: simple_gf_decomposition
   logical :: gf_local_fields
 
-  type (g_layout_type) :: g_lo
-  type (le_layout_type) :: le_lo
-  !> layout for fields_gf_local and gf_lo integration
-  type (gf_layout_type) :: gf_lo
-  type (p_layout_type) :: p_lo
-
   !> FIXME : Add documentation  
   type :: f_layout_type
      integer :: iproc, nproc
      integer :: nidx, nfield, ntgrid, nindex, naky, ntheta0, M_class, N_class, i_class
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-     integer, dimension(:,:), pointer :: ik => null ()
-     integer, dimension(:,:), pointer :: it => null ()
+     integer, dimension(:,:), allocatable :: ik
+     integer, dimension(:,:), allocatable :: it
   end type f_layout_type
 
   type (f_layout_type), dimension(:), allocatable :: f_lo
@@ -132,18 +99,18 @@ module gs2_layouts
      integer, dimension(:,:), allocatable :: dj
   end type jf_layout_type
 
+
+  type (g_layout_type) :: g_lo
+  type (le_layout_type) :: le_lo
+  !> layout for fields_gf_local and gf_lo integration
+  type (gf_layout_type) :: gf_lo
+  type (p_layout_type) :: p_lo
   type (jf_layout_type) :: jf_lo
-
   type (lz_layout_type) :: lz_lo
-
   type (e_layout_type) :: e_lo
-
   type (xxf_layout_type) :: xxf_lo
-
   type (yxf_layout_type) :: yxf_lo
-
   type (accel_layout_type) :: accel_lo
-
   type (accelx_layout_type) :: accelx_lo
   
   !> Used to represent the input configuration of layouts
@@ -509,7 +476,7 @@ contains
 
   !> Handle nproc values outside valid range (i.e. <= 0 or > nproc_total).
   !> Values outside of this range are replaced with nproc_total
-  integer elemental function handle_processor_request(nproc_in, upper_limit) result(nproc)
+  elemental integer function handle_processor_request(nproc_in, upper_limit) result(nproc)
     implicit none
     integer, intent(in) :: nproc_in, upper_limit
     if(nproc_in <= 0 .or. nproc_in > upper_limit) then
@@ -838,8 +805,6 @@ contains
     lambda_local = .false.    
                        
 100 deallocate (facs)
-
-
   end subroutine check_llocal
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -876,7 +841,7 @@ contains
     integer :: nproc_tmp, idim, tmp, i
     real :: tmp_r
 #ifdef SHMEM
-    integer nxy, les, xyb, nd_les, llim_nd, left_lim_nd, ind, sfft
+    integer nxy, les, xyb, nd_les, llim_nd, ind
 #endif
     integer,dimension(5) :: nproc_dim
     integer,dimension(:),allocatable :: les_kxky_range
@@ -1575,63 +1540,56 @@ contains
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
-  elemental function is_idx_g (lo, i)
+  elemental integer function is_idx_g (lo, i)
     implicit none
-    integer :: is_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_g=1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_g
 
   !> Return the lambda index, given g-layout and a global index
-  elemental function il_idx_g (lo, i)
+  elemental integer function il_idx_g (lo, i)
     implicit none
-    integer :: il_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_g=1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_g
 
   !> Return the energy index, given g-layout and a global index
-  elemental function ie_idx_g (lo, i)
+  elemental integer function ie_idx_g (lo, i)
     implicit none
-    integer :: ie_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_g=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_g
 
   !> Return the kx index, given g-layout and a global index
-  elemental function it_idx_g (lo, i)
+  elemental integer function it_idx_g (lo, i)
     implicit none
-    integer :: it_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_g=1+mod((i-lo%llim_world)/lo%it_comp,lo%ntheta0)
   end function it_idx_g
 
   !> Return the ky index, given g-layout and a global index
-  elemental function ik_idx_g (lo, i)
+  elemental integer function ik_idx_g (lo, i)
     implicit none
-    integer :: ik_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_g=1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
   end function ik_idx_g
 
   !> Return the processor id that has the point i in the g_lo layout
-  elemental function proc_id_g (lo, i)
+  elemental integer function proc_id_g (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
 #endif
     implicit none
-    integer :: proc_id_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
 #ifdef SHMEM
-    integer k
-
+    integer :: k
     proc_id_g = nproc - 1
     do k =1, nproc-1
        if ( i < lo%proc_map(k)) then 
@@ -1640,15 +1598,13 @@ contains
        endif
     enddo
 #else
-    proc_id_g = i/lo%blocksize
+    proc_id_g = i / lo%blocksize
 #endif
-
   end function proc_id_g
 
   !> Return the global index in the g_lo layout given the dimensional indices
-  elemental function idx_g (lo, ik, it, il, ie, is)
+  elemental integer function idx_g (lo, ik, it, il, ie, is)
     implicit none
-    integer :: idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
     integer, dimension(5) :: i
@@ -1658,25 +1614,21 @@ contains
     i(lo%ie_ord) = ie - 1
     i(lo%is_ord) = is - 1
     idx_g = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*i(5))))
-
   end function idx_g
 
   !> Return whether a point is local to a processor given the dimensional indices
-  elemental function idx_local_g (lo, ik, it, il, ie, is)
+  elemental logical function idx_local_g (lo, ik, it, il, ie, is)
     implicit none
-    logical :: idx_local_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
   !> Return whether a point is local to a processor given the global index
-  elemental function ig_local_g (lo, ig)
+  elemental logical function ig_local_g (lo, ig)
     implicit none
-    logical :: ig_local_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
 #ifndef SHMEM
     ig_local_g = lo%iproc == proc_id(lo, ig)
 #else
@@ -1761,8 +1713,8 @@ contains
     if(allocated(f_lo))then
        f_size = size(f_lo)
        do i=1,f_size
-          if(associated(f_lo(i)%ik)) deallocate (f_lo(i)%ik)
-          if(associated(f_lo(i)%it)) deallocate (f_lo(i)%it)
+          if(allocated(f_lo(i)%ik)) deallocate (f_lo(i)%ik)
+          if(allocated(f_lo(i)%it)) deallocate (f_lo(i)%it)
        enddo
        deallocate(f_lo)    
     endif
@@ -1794,119 +1746,102 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_dist_fn_layouts
-
     use layouts_type, only: deallocate_layout
-
     call deallocate_layout(g_lo)
     initialized_dist_fn_layouts = .false.
-
   end subroutine finish_dist_fn_layouts
 
   !> FIXME : Add documentation
-  function ik_idx_f (lo, i)
+  elemental integer function ik_idx_f (lo, i)
     implicit none
-    integer :: ik_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_f = lo%ik(im_idx(lo,i),in_idx(lo,i))
   end function ik_idx_f
 
   !> FIXME : Add documentation
-  function it_idx_f (lo, i)
+  elemental integer function it_idx_f (lo, i)
     implicit none
-    integer :: it_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_f = lo%it(im_idx(lo,i),in_idx(lo,i))
   end function it_idx_f
 
   !> FIXME : Add documentation  
-  function im_idx_f (lo, i)
+  elemental integer function im_idx_f (lo, i)
     implicit none
-    integer :: im_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     im_idx_f = 1 + mod((i - lo%llim_world)/lo%nindex, lo%M_class)
   end function im_idx_f
 
   !> FIXME : Add documentation  
-  function if_idx_f (lo, i)
+  elemental integer function if_idx_f (lo, i)
     implicit none
-    integer :: if_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     if_idx_f = 1 + mod(i - lo%llim_world, lo%nindex)
   end function if_idx_f
 
   !> FIXME : Add documentation  
-  function idx_f (lo, if, im)
+  elemental integer function idx_f (lo, if, im)
     implicit none
-    integer :: idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: if, im
     idx_f = if-1 + lo%nindex*(im-1)
   end function idx_f
 
   !> FIXME : Add documentation  
-  function proc_id_f (lo, i)
+  elemental integer function proc_id_f (lo, i)
     implicit none
-    integer :: proc_id_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-    proc_id_f = i/lo%blocksize
+    proc_id_f = i / lo%blocksize
   end function proc_id_f
 
   !> FIXME : Add documentation  
-  function idx_local_f (lo, if, im)
+  elemental logical function idx_local_f (lo, if, im)
     implicit none
-    logical :: idx_local_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: if, im
-
     idx_local_f = idx_local(lo, idx(lo, if, im))
   end function idx_local_f
 
   !> FIXME : Add documentation  
-  function ig_local_f (lo, ig)
+  elemental logical function ig_local_f (lo, ig)
     implicit none
-    logical :: ig_local_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_f = lo%iproc == proc_id(lo, ig)
   end function ig_local_f
 
   !> FIXME : Add documentation  
-  function in_idx_f (lo, i)
+  elemental integer function in_idx_f (lo, i)
     implicit none
-    integer :: in_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     in_idx_f = 1 + mod((i - lo%llim_world)/lo%nidx, lo%N_class)
   end function in_idx_f
 
   !> FIXME : Add documentation  
-  function ig_idx_f (lo, i)
+  elemental integer function ig_idx_f (lo, i)
     implicit none
-    integer :: ig_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_f = -lo%ntgrid + mod((i - lo%llim_world)/lo%nfield, (2*lo%ntgrid+1))
   end function ig_idx_f
 
   !> FIXME : Add documentation  
-  function ij_idx_f (lo, ig, if, n)
+  elemental integer function ij_idx_f (lo, ig, if, n)
     implicit none
-    integer :: ij_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, if, n
     ij_idx_f = ig+lo%ntgrid + (2*lo%ntgrid+1)*(if-1 + lo%nfield*(n-1))
   end function ij_idx_f
 
   !> FIXME : Add documentation  
-  function ifield_idx_f (lo, i)
+  elemental integer function ifield_idx_f (lo, i)
     implicit none
-    integer :: ifield_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ifield_idx_f = 1 + mod((i - lo%llim_world), lo%nfield)
@@ -1979,18 +1914,16 @@ contains
   end subroutine finish_jfields_layouts
 
   !> FIXME : Add documentation  
-  function ik_idx_jf (lo, i)
+  elemental integer function ik_idx_jf (lo, i)
     implicit none
-    integer :: ik_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_jf = 1 + mod((i - lo%llim_world)/lo%nindex/lo%ntheta0, lo%naky)
   end function ik_idx_jf
 
   !> FIXME : Add documentation  
-  function it_idx_jf (lo, i)
+  elemental integer function it_idx_jf (lo, i)
     implicit none
-    integer :: it_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_jf = 1 + mod((i - lo%llim_world)/lo%nindex, lo%ntheta0)
@@ -1999,76 +1932,66 @@ contains
   !> FIXME : Add documentation
   !!
   !! @note Here if is the compound theta*field index
-  function if_idx_jf (lo, i)
+  elemental integer function if_idx_jf (lo, i)
     implicit none
-    integer :: if_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     if_idx_jf = 1 + mod(i - lo%llim_world, lo%nindex)
   end function if_idx_jf
 
   !> FIXME : Add documentation
-  function ig_idx_jf (lo, i)
+  elemental integer function ig_idx_jf (lo, i)
     implicit none
-    integer :: ig_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_jf = -lo%ntgrid + mod(i - lo%llim_world, lo%ntgrid*2+1)
   end function ig_idx_jf
 
   !> FIXME : Add documentation
-  function ifield_idx_jf (lo, i)
+  elemental integer function ifield_idx_jf (lo, i)
     implicit none
-    integer :: ifield_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ifield_idx_jf = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid+1), lo%nfield)
   end function ifield_idx_jf
 
   !> FIXME : Add documentation  
-  function idx_jf (lo, if, ik, it)
+  elemental integer function idx_jf (lo, if, ik, it)
     implicit none
-    integer :: idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: if, ik, it
     idx_jf = if-1 + lo%nindex*(it-1 + lo%ntheta0*(ik-1))
   end function idx_jf
 
   !> FIXME : Add documentation  
-  function ij_idx_jf (lo, ig, if, ik, it)
+  elemental integer function ij_idx_jf (lo, ig, if, ik, it)
     implicit none
-    integer :: ij_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, if, ik, it
     ij_idx_jf = ig+lo%ntgrid + (2*lo%ntgrid+1)*(if-1+lo%nfield*(it-1+lo%ntheta0*(ik-1)))
   end function ij_idx_jf
 
   !> FIXME : Add documentation  
-  function proc_id_jf (lo, i)
+  elemental integer function proc_id_jf (lo, i)
     implicit none
-    integer :: proc_id_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-    proc_id_jf = i/lo%blocksize
+    proc_id_jf = i / lo%blocksize
   end function proc_id_jf
 
   !> FIXME : Add documentation  
-  function idx_local_jf (lo, if, ik, it)
+  elemental logical function idx_local_jf (lo, if, ik, it)
     implicit none
-    logical :: idx_local_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: if, ik, it
-
     idx_local_jf = idx_local(lo, idx(lo, if, ik, it))
   end function idx_local_jf
 
   !> FIXME : Add documentation  
-  function ig_local_jf (lo, ig)
+  elemental logical function ig_local_jf (lo, ig)
     implicit none
-    logical :: ig_local_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_jf = lo%iproc == proc_id(lo, ig)
   end function ig_local_jf
 
@@ -2202,45 +2125,40 @@ contains
   end subroutine init_le_layouts
 
   !> FIXME : Add documentation  
-  elemental function is_idx_le (lo, i)
+  elemental integer function is_idx_le (lo, i)
     implicit none
-    integer :: is_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_le = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_le
 
   !> FIXME : Add documentation    
-  elemental function it_idx_le (lo, i)
+  elemental integer function it_idx_le (lo, i)
     implicit none
-    integer :: it_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_le = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
   end function it_idx_le
 
   !> FIXME : Add documentation    
-  elemental function ik_idx_le (lo, i)
+  elemental integer function ik_idx_le (lo, i)
     implicit none
-    integer :: ik_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_le = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_le
 
   !> FIXME : Add documentation  
-  elemental function ig_idx_le (lo, i)
+  elemental integer function ig_idx_le (lo, i)
     implicit none
-    integer :: ig_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_le = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_le
 
   !> FIXME : Add documentation    
-  elemental function idx_le (lo, ig, ik, it, is)
+  elemental integer function idx_le (lo, ig, ik, it, is)
     implicit none
-    integer :: idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
     integer, dimension(4) :: i
@@ -2252,29 +2170,24 @@ contains
   end function idx_le
 
   !> FIXME : Add documentation  
-  elemental function proc_id_le (lo, i)
+  elemental integer function proc_id_le (lo, i)
     implicit none
-    integer :: proc_id_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     proc_id_le = i / lo%blocksize
-
   end function proc_id_le
 
   !> FIXME : Add documentation    
-  elemental function idx_local_le (lo, ig, ik, it, is)
+  elemental logical function idx_local_le (lo, ig, ik, it, is)
     implicit none
-    logical :: idx_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
     idx_local_le = idx_local(lo, idx(lo, ig, ik, it, is))
   end function idx_local_le
 
   !> FIXME : Add documentation  
-  elemental function ig_local_le (lo, ig)
+  elemental logical function ig_local_le (lo, ig)
     implicit none
-    logical :: ig_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
     ig_local_le = lo%iproc == proc_id(lo, ig)
@@ -2294,7 +2207,6 @@ contains
        result(gf_lo)
     use mp, only: mp_abort
     use file_utils, only: error_unit
-    use layouts_type, only: ikit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
     
@@ -2438,59 +2350,64 @@ contains
   end subroutine init_gf_layouts
 
   !> FIXME : Add documentation    
-  elemental function it_idx_gf (lo, i)
+  elemental integer function it_idx_gf (lo, i)
     implicit none
-    integer :: it_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_gf = 1 + mod((i - lo%llim_world), lo%ntheta0)
   end function it_idx_gf
 
   !> FIXME : Add documentation    
-  elemental function ik_idx_gf (lo, i)
+  elemental integer function ik_idx_gf (lo, i)
     implicit none
-    integer :: ik_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_gf = 1 + ((i - lo%llim_world)/lo%ntheta0)
   end function ik_idx_gf
 
   !> FIXME : Add documentation    
-  elemental function idx_gf (lo, ik, it)
+  elemental integer function idx_gf (lo, ik, it)
     implicit none
-    integer :: idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
     idx_gf = (ik-1)*lo%ntheta0 + it
   end function idx_gf
 
   !> FIXME : Add documentation  
-  elemental function proc_id_gf (lo, i)
+  elemental integer function proc_id_gf (lo, i)
     implicit none
-    integer :: proc_id_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
-! For this scenario we have more blocks than processes so each process has multiple blocks, but the number of blocks
-! does not exactly divide by the number of processes, so some have larger blocks than others.
-    if(lo%largeblocksize .gt. 1) then
-       if(i .gt. lo%largeregionlimit) then
-           proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world)/lo%smallblocksize) + lo%largeblocklimit)
+    ! For this scenario we have more blocks than processes so each
+    ! process has multiple blocks, but the number of blocks does not
+    ! exactly divide by the number of processes, so some have larger
+    ! blocks than others.
+    if (lo%largeblocksize > 1) then
+       if (i > lo%largeregionlimit) then
+          proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world) &
+               / lo%smallblocksize) + lo%largeblocklimit)
        else
            proc_id_gf = (i - lo%llim_world) / lo%largeblocksize
        end if
-! For this scenario we have less blocks than processes so we try to spread the blocks between processes.
-    else if(lo%largeblocksize .eq. 1) then
-       if(i .gt. lo%largeblocklimit) then
-          proc_id_gf = lo%largeregionlimit + ((i - lo%largeblocklimit - lo%llim_world)*lo%smallgapsize)
+       ! For this scenario we have less blocks than processes so we try to
+       ! spread the blocks between processes.
+    else if (lo%largeblocksize == 1) then
+       if (i > lo%largeblocklimit) then
+          proc_id_gf = lo%largeregionlimit &
+               + ((i - lo%largeblocklimit - lo%llim_world)*lo%smallgapsize)
        else
           proc_id_gf = (i - lo%llim_world) * lo%largegapsize
        end if
-! For this scenario we either have exactly the same number of blocks as processes, or the number of blocks divides exactly
-! by the number of processes so each process has the same size blocks of the domain.
-! It is also used by the "simple_gf_decomposition" functionality for the scenario where we have less blocks than processes and we 
-! are not trying to distributed those blocks through the whole process space, just assigning them to the first n processes 
-! (where n is the number of xypoints we have in the gf_lo domain).
+       ! For this scenario we either have exactly the same number of
+       ! blocks as processes, or the number of blocks divides exactly
+       ! by the number of processes so each process has the same size
+       ! blocks of the domain.  It is also used by the
+       ! "simple_gf_decomposition" functionality for the scenario
+       ! where we have less blocks than processes and we are not
+       ! trying to distributed those blocks through the whole process
+       ! space, just assigning them to the first n processes (where n
+       ! is the number of xypoints we have in the gf_lo domain).
     else
        proc_id_gf = (i - lo%llim_world) / lo%smallblocksize
     end if
@@ -2498,18 +2415,16 @@ contains
   end function proc_id_gf
 
   !> FIXME : Add documentation    
-  elemental function idx_local_gf (lo, ik, it)
+  elemental logical function idx_local_gf (lo, ik, it)
     implicit none
-    logical :: idx_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
     idx_local_gf = idx_local(lo, idx(lo, ik, it))
   end function idx_local_gf
 
   !> FIXME : Add documentation  
-  elemental function ig_local_gf (lo, ig)
+  elemental logical function ig_local_gf (lo, ig)
     implicit none
-    logical :: ig_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
     ig_local_gf = lo%iproc == proc_id(lo, ig)
@@ -2593,64 +2508,56 @@ contains
   end subroutine init_energy_layouts
 
   !> FIXME : Add documentation    
-  elemental function is_idx_e (lo, i)
+  elemental integer function is_idx_e (lo, i)
     implicit none
-    integer :: is_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_e = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_e
 
   !> FIXME : Add documentation    
-  elemental function il_idx_e (lo, i)
+  elemental integer function il_idx_e (lo, i)
     implicit none
-    integer :: il_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_e = 1 + mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
   end function il_idx_e
 
   !> FIXME : Add documentation
-  elemental function isign_idx_e (lo, i)
+  elemental integer function isign_idx_e (lo, i)
     implicit none
-    integer :: isign_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     isign_idx_e = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid + 1),lo%nsign)
   end function isign_idx_e
 
   !> FIXME : Add documentation    
-  elemental function it_idx_e (lo, i)
+  elemental integer function it_idx_e (lo, i)
     implicit none
-    integer :: it_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_e = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
   end function it_idx_e
 
   !> FIXME : Add documentation    
-  elemental function ik_idx_e (lo, i)
+  elemental integer function ik_idx_e (lo, i)
     implicit none
-    integer :: ik_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_e = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_e
 
   !> FIXME : Add documentation
-  elemental function ig_idx_e (lo, i)
+  elemental integer function ig_idx_e (lo, i)
     implicit none
-    integer :: ig_idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_e = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_e
 
   !> FIXME : Add documentation    
-  elemental function idx_e (lo, ig, isign, ik, it, il, is)
+  elemental integer function idx_e (lo, ig, isign, ik, it, il, is)
     implicit none
-    integer :: idx_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
     integer, dimension(6) :: i
@@ -2664,29 +2571,24 @@ contains
   end function idx_e
 
   !> FIXME : Add documentation  
-  elemental function proc_id_e (lo, i)
+  elemental integer function proc_id_e (lo, i)
     implicit none
-    integer :: proc_id_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
-    proc_id_e = i/lo%blocksize
-
+    proc_id_e = i / lo%blocksize
   end function proc_id_e
 
   !> FIXME : Add documentation
-  elemental function idx_local_e (lo, ig, isign, ik, it, il, is)
+  elemental logical function idx_local_e (lo, ig, isign, ik, it, il, is)
     implicit none
-    logical :: idx_local_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, it, il, is
     idx_local_e = idx_local(lo, idx(lo, ig, isign, ik, it, il, is))
   end function idx_local_e
 
   !> FIXME : Add documentation  
-  elemental function ig_local_e (lo, ig)
+  elemental logical function ig_local_e (lo, ig)
     implicit none
-    logical :: ig_local_e
     type (e_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
     ig_local_e = lo%iproc == proc_id(lo, ig)
@@ -2801,54 +2703,48 @@ contains
   end subroutine init_lambda_layouts
 
   !> FIXME : Add documentation    
-  elemental function is_idx_lz (lo, i)
+  elemental integer function is_idx_lz (lo, i)
     implicit none
-    integer :: is_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_lz = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_lz
 
   !> FIXME : Add documentation    
-  elemental function ie_idx_lz (lo, i)
+  elemental integer function ie_idx_lz (lo, i)
     implicit none
-    integer :: ie_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_lz = 1 + mod((i - lo%llim_world)/lo%ie_comp, lo%negrid)
   end function ie_idx_lz
 
   !> FIXME : Add documentation    
-  elemental function it_idx_lz (lo, i)
+  elemental integer function it_idx_lz (lo, i)
     implicit none
-    integer :: it_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_lz = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
   end function it_idx_lz
 
   !> FIXME : Add documentation    
-  elemental function ik_idx_lz (lo, i)
+  elemental integer function ik_idx_lz (lo, i)
     implicit none
-    integer :: ik_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_lz = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_lz
 
   !> FIXME : Add documentation  
-  elemental function ig_idx_lz (lo, i)
+  elemental integer function ig_idx_lz (lo, i)
     implicit none
-    integer :: ig_idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_lz = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_lz
 
   !> FIXME : Add documentation    
-  elemental function idx_lz (lo, ig, ik, it, ie, is)
+  elemental integer function idx_lz (lo, ig, ik, it, ie, is)
     implicit none
-    integer :: idx_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
     integer, dimension(5) :: i
@@ -2861,33 +2757,28 @@ contains
   end function idx_lz
 
   !> FIXME : Add documentation  
-  elemental function proc_id_lz (lo, i)
+  elemental integer function proc_id_lz (lo, i)
     implicit none
-    integer :: proc_id_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     if (lambda_local) then
        proc_id_lz = (i/lo%gsize)*lo%nprocset + mod(i, lo%gsize)/lo%nset
     else
        proc_id_lz = i/lo%blocksize
     end if
-
   end function proc_id_lz
 
   !> FIXME : Add documentation    
-  elemental function idx_local_lz (lo, ig, ik, it, ie, is)
+  elemental logical function idx_local_lz (lo, ig, ik, it, ie, is)
     implicit none
-    logical :: idx_local_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, ie, is
     idx_local_lz = idx_local(lo, idx(lo, ig, ik, it, ie, is))
   end function idx_local_lz
 
   !> FIXME : Add documentation  
-  elemental function ig_local_lz (lo, ig)
+  elemental logical function ig_local_lz (lo, ig)
     implicit none
-    logical :: ig_local_lz
     type (lz_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
     ig_local_lz = lo%iproc == proc_id(lo, ig)
@@ -2991,9 +2882,8 @@ contains
   end subroutine init_parity_layouts
 
   !> FIXME : Add documentation  
-  elemental function idx_parity (lo, ik, il, ie, is)
+  elemental integer function idx_parity (lo, ik, il, ie, is)
     implicit none
-    integer :: idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, il, ie, is
     select case (layout)
@@ -3013,71 +2903,56 @@ contains
   end function idx_parity
 
   !> FIXME : Add documentation  
-  elemental function idx_local_parity (lo, ik, il, ie, is)
+  elemental logical function idx_local_parity (lo, ik, il, ie, is)
     implicit none
-    logical :: idx_local_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, il, ie, is
-
     idx_local_parity = idx_local(lo, idx(lo, ik, il, ie, is))
   end function idx_local_parity
 
   !> FIXME : Add documentation  
-  elemental function ig_local_parity (lo, ip)
+  elemental logical function ig_local_parity (lo, ip)
     implicit none
-    logical :: ig_local_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: ip
-
     ig_local_parity = lo%iproc == proc_id(lo, ip)
   end function ig_local_parity
 
   !> FIXME : Add documentation  
-  elemental function proc_id_parity (lo, i)
+  elemental integer function proc_id_parity (lo, i)
     implicit none
-    integer :: proc_id_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     proc_id_parity = i/lo%blocksize
   end function proc_id_parity
 
   !> FIXME : Add documentation  
-  elemental function ik_idx_parity (lo, i)
+  elemental integer function ik_idx_parity (lo, i)
     implicit none
-    integer :: ik_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_parity = 1+mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_parity
 
   !> FIXME : Add documentation  
-  elemental function is_idx_parity (lo, i)
-    
+  elemental integer function is_idx_parity (lo, i)
     implicit none
-
-    integer :: is_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_parity = 1+mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_parity
 
   !> FIXME : Add documentation  
-  elemental function il_idx_parity (lo, i)
-
+  elemental integer function il_idx_parity (lo, i)
     implicit none
-
-    integer :: il_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_parity = 1+mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
   end function il_idx_parity
 
   !> FIXME : Add documentation  
-  elemental function ie_idx_parity (lo, i)
-
+  elemental integer function ie_idx_parity (lo, i)
     implicit none
-
-    integer :: ie_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_parity = 1+mod((i - lo%llim_world)/lo%ie_comp, lo%negrid)
@@ -3152,7 +3027,6 @@ contains
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
     if (accel_lxyes) then
-
        xxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
@@ -3198,23 +3072,17 @@ contains
        ! calculated imbalance was too large then use the original
        ! decomposition.
        if (.not. unbalanced_xxf) then
-
-          !write (*,*) 'XXF_LO%ulim_world', xxf_lo%ulim_world, nproc
           xxf_lo%blocksize = xxf_lo%ulim_world/nproc + 1
           xxf_lo%llim_proc = xxf_lo%blocksize*iproc
           xxf_lo%ulim_proc &
                = min(xxf_lo%ulim_world, xxf_lo%llim_proc + xxf_lo%blocksize - 1)
           xxf_lo%ulim_alloc = max(xxf_lo%llim_proc, xxf_lo%ulim_proc)
-
        else
-
-          if(proc0) then
+          if (proc0) then
              write(*, fmt="('Using unbalanced decomposition for xxf. ',&
               & 'Unbalanced fraction',F6.2)") unbalanced_amount
           end if
-
        end if
-
     end if
   end function setup_x_transform_layouts
 
@@ -3231,29 +3099,29 @@ contains
          negrid, nspec, nx, nproc_xxf_lo, iproc)
   end subroutine init_x_transform_layouts
 
-  !> This subroutine (calculate_unbalanced_x) wraps up all the 
-  !! functionality required to calculate the xxf blocksizes and 
-  !! work out if and unbalanced decomposition should be used, and if so 
-  !! the size of the unbalanced blocks.
-  !!
-  !! This routine takes the number of processes to be used and the rank 
-  !! of the calling process and returns the amount of unbalance in the 
-  !! calculate decomposition (in a real variable with a range between 
-  !! 0.0 and 1.0 where 1.0 is a 100% difference between the small and 
-  !! large block size and 0.0 is no difference between the small and 
-  !! large block sizes).
-  !!
-  !! This routine can be called from routines within the gs2_layouts
-  !! module (specifically init_x_transform_layouts) or from outside 
-  !! this module (specifically it is currently called from ingen to 
-  !! provide suggestions for unbalanced decompositions and process 
-  !! counts).  However, this routine relies on init_x_transform_layouts 
-  !! having been called to initialise some of the values it used 
-  !! (those in xxf_lo%) which is why there is a check whether the 
-  !! initialize_x_transform variable has been set to true.  If not this 
-  !! routine will not run and will notify the user of the problem.
-  !!
-  !! AJ, November 2011: New code from DCSE project  
+  !> This subroutine (calculate_unbalanced_x) wraps up all the
+  !> functionality required to calculate the xxf blocksizes and
+  !> work out if and unbalanced decomposition should be used, and if so
+  !> the size of the unbalanced blocks.
+  !>
+  !> This routine takes the number of processes to be used and the rank
+  !> of the calling process and returns the amount of unbalance in the
+  !> calculate decomposition (in a real variable with a range between
+  !> 0.0 and 1.0 where 1.0 is a 100% difference between the small and
+  !> large block size and 0.0 is no difference between the small and
+  !> large block sizes).
+  !>
+  !> This routine can be called from routines within the gs2_layouts
+  !> module (specifically init_x_transform_layouts) or from outside
+  !> this module (specifically it is currently called from ingen to
+  !> provide suggestions for unbalanced decompositions and process
+  !> counts).  However, this routine relies on init_x_transform_layouts
+  !> having been called to initialise some of the values it used
+  !> (those in xxf_lo%) which is why there is a check whether the
+  !> initialize_x_transform variable has been set to true.  If not this
+  !> routine will not run and will notify the user of the problem.
+  !>
+  !> AJ, November 2011: New code from DCSE project
   subroutine calculate_unbalanced_x(nproc, iproc, unbalanced_amount)
     implicit none
     integer, intent (in) :: nproc, iproc
@@ -3275,7 +3143,6 @@ contains
     xxf_lo%blocksize = xxf_lo%ulim_world/nproc + 1
     xxf_lo%small_block_balance_factor = 1
     xxf_lo%large_block_balance_factor = 1                                                        
-    
     ! Initialise the number of processors/cores used in the
     ! decomposition as the total number available.
     level_proc_num = nproc
@@ -3297,8 +3164,7 @@ contains
     ! the factor we are looking to divide so we have reached the
     ! point where we can't divide anymore and can now build the
     ! decomposition.
-    if(j .eq. 0) then
-       
+    if(j == 0) then
        ! If we have got to this point then k is larger than the
        ! number of processes we have so we can try and split it
        ! up over the processes.
@@ -3312,8 +3178,8 @@ contains
        ! If m does not equal zero then we keep the current number
        ! of processes and pass the factor (k) on to the next
        ! level of the decomposition.
-       if(m .eq. 0) then
-          level_proc_num = level_proc_num/k
+       if(m == 0) then
+          level_proc_num = level_proc_num / k
           k = 1
        end if
        
@@ -3346,10 +3212,9 @@ contains
        ! of "if(i .ne. 0) then" below.
        call calculate_block_breakdown(k, i, m, j, level_proc_num)
        
-       if(j .eq. 0) then
-          
-          if(m .eq. 0) then
-             level_proc_num = level_proc_num/k
+       if(j == 0) then
+          if(m == 0) then
+             level_proc_num = level_proc_num / k
              k = 1
           end if
           
@@ -3362,30 +3227,27 @@ contains
           
           call calculate_block_breakdown(k, i, m, j, level_proc_num)
           
-          if(j .eq. 0) then
-             
-             if(m .eq. 0) then
-                level_proc_num = level_proc_num/k
+          if(j == 0) then
+             if(m == 0) then
+                level_proc_num = level_proc_num / k
                 k = 1
              end if
              
              k = xxf_lo%nsign * k
              call calculate_block_breakdown(k, i, m, j, level_proc_num)
              
-             if(j .eq. 0) then
-                
-                if(m .eq. 0) then
-                   level_proc_num = level_proc_num/k
+             if(j == 0) then
+                if(m == 0) then
+                   level_proc_num = level_proc_num / k
                    k = 1
                 end if
                 
                 k = xxf_lo%ntgridtotal * k
                 call calculate_block_breakdown(k, i, m, j, level_proc_num)
                 
-                if(j .eq. 0) then
-                   
-                   if(m .eq. 0) then
-                      level_proc_num = level_proc_num/k
+                if(j == 0) then
+                   if(m == 0) then
+                      level_proc_num = level_proc_num / k
                       k = 1
                    end if
                    
@@ -3402,219 +3264,247 @@ contains
                    ! by level_proc_num.  This means we cannot evenly divide
                    ! the decomposition over the processes we have available so
                    ! we need to find a way to create a different decomposition.
-                   if(i .ne. 0) then
-                      
-                      ! Calculate the least unbalanced split of k over level_proc_num and also
-                      ! how what factor of processes are assigned to each block size.
-                      call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, level_proc_num)
-                      ! Calculate the actual block sizes using the factors calculated above and the remaining data space to be
-                      ! decomposed.  In this instance we are at the lowest level of the decomposition so there is nothing left to decompose
-                      ! so the remaining data space is 1.  For other levels of the decomposition this 1 is replaced by the part
-                      ! of the data space that has not been split up yet.
-                      call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-                           1, xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, &
-                           xxf_lo%ulim_alloc)
-                      
+                   if(i /= 0) then
+                      ! Calculate the least unbalanced split of k over
+                      ! level_proc_num and also how what factor of
+                      ! processes are assigned to each block size.
+                      call calculate_unbalanced_decomposition(k, &
+                           xxf_lo%small_block_balance_factor, &
+                           xxf_lo%large_block_balance_factor, xxf_lo%num_small, &
+                           xxf_lo%num_large, level_proc_num)
+                      ! Calculate the actual block sizes using the
+                      ! factors calculated above and the remaining
+                      ! data space to be decomposed.  In this instance
+                      ! we are at the lowest level of the
+                      ! decomposition so there is nothing left to
+                      ! decompose so the remaining data space is 1.
+                      ! For other levels of the decomposition this 1
+                      ! is replaced by the part of the data space that
+                      ! has not been split up yet.
+                      call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+                           xxf_lo%small_block_balance_factor, &
+                           xxf_lo%large_block_balance_factor, &
+                           1, xxf_lo%blocksize, xxf_lo%small_block_size, &
+                           xxf_lo%large_block_size, xxf_lo%block_multiple, &
+                           xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
                    end if
                    
                 else
                    
-                   if(i .ne. 0) then
-                      
-                      call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, level_proc_num)     
-                      ! Calculate the block sizes using the factor of the decomposition that has not yet been split up, namely
-                      ! naky for this level of the decomposition.
-                      call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-                           xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, xxf_lo%block_multiple,  xxf_lo%llim_proc, xxf_lo%ulim_proc, &
-                           xxf_lo%ulim_alloc)
-                      
+                   if(i /= 0) then
+                      call calculate_unbalanced_decomposition(k, &
+                           xxf_lo%small_block_balance_factor, &
+                           xxf_lo%large_block_balance_factor, xxf_lo%num_small, &
+                           xxf_lo%num_large, level_proc_num)
+                      ! Calculate the block sizes using the factor of
+                      ! the decomposition that has not yet been split
+                      ! up, namely naky for this level of the
+                      ! decomposition.
+                      call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+                           xxf_lo%small_block_balance_factor, &
+                           xxf_lo%large_block_balance_factor, &
+                           xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, &
+                           xxf_lo%large_block_size, xxf_lo%block_multiple, &
+                           xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
                    end if
-                   
                 end if
                 
              else
                 
-                if(i .ne. 0) then
-                   
-                   call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, level_proc_num)                         
-                   ! Calculate the block sizes using the factor of the decomposition that has not yet been split up, namely
-                   ! naky,ntgridtotal for this level of the decomposition.
-                   call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-                        xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, xxf_lo%block_multiple, &
-                        xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
-                   
+                if(i /= 0) then
+                   call calculate_unbalanced_decomposition(k, &
+                        xxf_lo%small_block_balance_factor, &
+                        xxf_lo%large_block_balance_factor, xxf_lo%num_small, &
+                        xxf_lo%num_large, level_proc_num)
+                   ! Calculate the block sizes using the factor of the
+                   ! decomposition that has not yet been split up,
+                   ! namely naky,ntgridtotal for this level of the
+                   ! decomposition.
+                   call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+                        xxf_lo%small_block_balance_factor, &
+                        xxf_lo%large_block_balance_factor, &
+                        xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, &
+                        xxf_lo%small_block_size, xxf_lo%large_block_size, &
+                        xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, &
+                        xxf_lo%ulim_alloc)
                 end if
-                
              end if
-             
              
           else
              
-             if(i .ne. 0) then
-                
-                call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, level_proc_num)
-                ! Calculate the block sizes using the factor of the decomposition that has not yet been split up, namely
-                ! naky,ntgridtotal,nsign for this level of the decomposition.
-                call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-                     xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, xxf_lo%block_multiple, &
-                     xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
-                
+             if(i /= 0) then
+                call calculate_unbalanced_decomposition(k, &
+                     xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
+                     xxf_lo%num_small, xxf_lo%num_large, level_proc_num)
+                ! Calculate the block sizes using the factor of the
+                ! decomposition that has not yet been split up, namely
+                ! naky,ntgridtotal,nsign for this level of the
+                ! decomposition.
+                call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+                     xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
+                     xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, &
+                     xxf_lo%small_block_size, xxf_lo%large_block_size, &
+                     xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, &
+                     xxf_lo%ulim_alloc)
              end if
-             
           end if
           
        else
           
-          if(i .ne. 0) then
-             
-             call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, level_proc_num)
+          if(i /= 0) then
+             call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, &
+                  xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, &
+                  level_proc_num)
              
              select case(layout)
              case('yxels')
-                ! Calculate the block sizes using the factor of the decomposition that has not yet been split up, namely
-                ! naky,ntgridtotal,nsign,negrid for this layout and level of the decomposition.
-                call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-                     xxf_lo%negrid*xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, &
-                     xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
+                ! Calculate the block sizes using the factor of the
+                ! decomposition that has not yet been split up, namely
+                ! naky,ntgridtotal,nsign,negrid for this layout and
+                ! level of the decomposition.
+                call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+                     xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
+                     xxf_lo%negrid*xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, &
+                     xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, &
+                     xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, &
+                     xxf_lo%ulim_alloc)
              case default
-                ! Calculate the block sizes using the factor of the decomposition that has not yet been split up, namely
-                ! naky,ntgridtotal,nsign,nlambda for these layouts and this level of the decomposition.
-                call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-                     xxf_lo%nlambda*xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, &
-                     xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
+                ! Calculate the block sizes using the factor of the
+                ! decomposition that has not yet been split up, namely
+                ! naky,ntgridtotal,nsign,nlambda for these layouts and
+                ! this level of the decomposition.
+                call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+                     xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
+                     xxf_lo%nlambda*xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, &
+                     xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, &
+                     xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, &
+                     xxf_lo%ulim_alloc)
              end select
-             
           end if
-          
        end if
        
     else
        
-       if(i .ne. 0) then
-          
-          call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, level_proc_num)
-          ! Calculate the block sizes using the factor of the decomposition that has not yet been split up, namely
-          ! naky,ntgridtotal,nsign,nlambda,negrid for this level of the decomposition.
-          call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
-               xxf_lo%negrid*xxf_lo%nlambda*xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, xxf_lo%blocksize, xxf_lo%small_block_size, &
-               xxf_lo%large_block_size, xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
-          
+       if(i /= 0) then
+          call calculate_unbalanced_decomposition(k, xxf_lo%small_block_balance_factor, &
+               xxf_lo%large_block_balance_factor, xxf_lo%num_small, xxf_lo%num_large, &
+               level_proc_num)
+          ! Calculate the block sizes using the factor of the
+          ! decomposition that has not yet been split up, namely
+          ! naky,ntgridtotal,nsign,nlambda,negrid for this level of
+          ! the decomposition.
+          call calculate_block_size(iproc, xxf_lo%num_small, xxf_lo%num_large, &
+               xxf_lo%small_block_balance_factor, xxf_lo%large_block_balance_factor, &
+               xxf_lo%negrid*xxf_lo%nlambda*xxf_lo%nsign*xxf_lo%ntgridtotal*xxf_lo%naky, &
+               xxf_lo%blocksize, xxf_lo%small_block_size, xxf_lo%large_block_size, &
+               xxf_lo%block_multiple, xxf_lo%llim_proc, xxf_lo%ulim_proc, xxf_lo%ulim_alloc)
        end if
-       
     end if
     
-    
-    ! If the decomposition has calculated that the large block and small blocks are equal then
-    ! we don't have an unbalanced decomposition so set the unbalanced_amount to 0.
-    ! large_block_balance_factor and small_block_balance_factor are initialised to 1 at
-    ! the start of this decomposition code so if they haven't been changed we already
-    ! have a balanced decomposition.
-    if(xxf_lo%large_block_balance_factor .eq. 1 .and. xxf_lo%small_block_balance_factor .eq. 1) then
-       
+    ! If the decomposition has calculated that the large block and
+    ! small blocks are equal then we don't have an unbalanced
+    ! decomposition so set the unbalanced_amount to 0.
+    ! large_block_balance_factor and small_block_balance_factor are
+    ! initialised to 1 at the start of this decomposition code so if
+    ! they haven't been changed we already have a balanced
+    ! decomposition.
+    if(xxf_lo%large_block_balance_factor == 1 .and. &
+         xxf_lo%small_block_balance_factor == 1) then
        unbalanced_amount = 0
-       
     else 
-       
-       ! If there is an unbalanced decomposition work out the percentage of
-       ! difference between the two blocks.  This is used to ensure that
-       ! we don't create decompositions that have significant differences
-       ! between the two block sizes which would impact the amount of
-       ! computation the different groups of processes have to perform.
-       unbalanced_amount = real(xxf_lo%large_block_size)/real(xxf_lo%small_block_size)
+       ! If there is an unbalanced decomposition work out the
+       ! percentage of difference between the two blocks.  This is
+       ! used to ensure that we don't create decompositions that have
+       ! significant differences between the two block sizes which
+       ! would impact the amount of computation the different groups
+       ! of processes have to perform.
+       unbalanced_amount = real(xxf_lo%large_block_size) / real(xxf_lo%small_block_size)
        unbalanced_amount = unbalanced_amount - 1
-       
     end if
     
-    ! If we calculate that there is not an unbalanced decomposition or that the
-    ! amount of unbalance is larger than a integer the user sets in the input file
-    ! called: max_unbalanced_xxf ; then do not use the unbalanced decomposition.
-    if (unbalanced_amount .gt. max_unbalanced_xxf .or. unbalanced_amount .eq. 0) then
-       
+    ! If we calculate that there is not an unbalanced decomposition or
+    ! that the amount of unbalance is larger than a integer the user
+    ! sets in the input file called: max_unbalanced_xxf ; then do not
+    ! use the unbalanced decomposition.
+    if(unbalanced_amount > max_unbalanced_xxf .or. unbalanced_amount == 0) then
        unbalanced_xxf = .false.       
-       
     end if
-    
-    
   end subroutine calculate_unbalanced_x
   
   !> This subroutine (calculate_block_breakdown) is used in the code
-  !! to create unbalanced xxf and yxf layouts to address MPI
-  !! communication overheads in the redistribution of data for the
-  !! FFTs used in the nonlinear calculations to move from Fourier
-  !! space to real space and back again.
-  !!
-  !! The routine calculates the factor k divided by a provided number
-  !! of processors/cores and returns it in integer j.  As j is an
-  !! integer the number returned will be more than zero if k is larger
-  !! than level_proc_num and zero if k is smaller than level_proc_num.
-  !!
-  !! The integer i that is returned is the remained when k is divided
-  !! by level_proc_num.  This is used in the unbalanced decomposition
-  !! code to work out whether the factor divides exactly by the number
-  !! of procs  (in level_proc_num).  If it does then it is not an
-  !! unbalanced decomposition (so the original decomposition can be
-  !! used.
-  !!
-  !! The integer m which is returned by this subroutine is the remainder
-  !! of level_proc_num divided by k.  This is used in the unbalanced
-  !! decomposition code to work out if the factor k exactly divides
-  !! the number of processors/cores in level_proc_num.  If it does
-  !! (i.e. m is zero) then the decomposition code can perform this
-  !! division and move on to the next factor.  If it does not then
-  !! the code keeps the factor k and multiplies it by the next factor
-  !! and checks that one (and so on).
-  !!
-  !! AJ, November 2011: New code from DCSE project  
-  subroutine calculate_block_breakdown (k, i, m, j, level_proc_num)
+  !> to create unbalanced xxf and yxf layouts to address MPI
+  !> communication overheads in the redistribution of data for the
+  !> FFTs used in the nonlinear calculations to move from Fourier
+  !> space to real space and back again.
+  !>
+  !> The routine calculates the factor k divided by a provided number
+  !> of processors/cores and returns it in integer j.  As j is an
+  !> integer the number returned will be more than zero if k is larger
+  !> than level_proc_num and zero if k is smaller than level_proc_num.
+  !>
+  !> The integer i that is returned is the remained when k is divided
+  !> by level_proc_num.  This is used in the unbalanced decomposition
+  !> code to work out whether the factor divides exactly by the number
+  !> of procs  (in level_proc_num).  If it does then it is not an
+  !> unbalanced decomposition (so the original decomposition can be
+  !> used.
+  !>
+  !> The integer m which is returned by this subroutine is the remainder
+  !> of level_proc_num divided by k.  This is used in the unbalanced
+  !> decomposition code to work out if the factor k exactly divides
+  !> the number of processors/cores in level_proc_num.  If it does
+  !> (i.e. m is zero) then the decomposition code can perform this
+  !> division and move on to the next factor.  If it does not then
+  !> the code keeps the factor k and multiplies it by the next factor
+  !> and checks that one (and so on).
+  !>
+  !> AJ, November 2011: New code from DCSE project
+  pure subroutine calculate_block_breakdown (k, i, m, j, level_proc_num)
     implicit none
-   
     integer, intent(in) :: k, level_proc_num
     integer, intent(out) :: i, m, j
 
     i = mod(k, level_proc_num)
     m = mod(level_proc_num, k)
-    j = k/level_proc_num
-
+    j = k / level_proc_num
   end subroutine calculate_block_breakdown
 
-
   !> This subroutine (calculate_unbalanced_decomposition) is used in the code
-  !! to create unbalanced xxf and yxf layouts to address MPI
-  !! communication overheads in the redistribution of data for the
-  !! FFTs used in the nonlinear calculations to move from Fourier
-  !! space to real space and back again.
-  !!
-  !! k is an integer input which is the factor that needs to be decomposed
-  !! across the number of processes (the input integer localprocs)
-  !! that we have at this point in the decomposition.
-  !!
-  !! When this subroutine is called k is larger than
-  !! localprocs (this is enforced through the if and else statements
-  !! in the code that calls this routine).  It is also only called when
-  !! localprocs does not completely/equally divide k (so k/localprocs
-  !! will not given a round number).
-  !!
-  !! The subroutine returns four integers; i, j, numlarge, and numsmall
-  !!
-  !! j is calculated as the integer division of k/localprocs.  As this
-  !! is an integer division the result is rounded down (remembering
-  !! that k/localprocs will not be an equal division).  j is used by the
-  !! small block factor (the relative size of the small block).
-  !!
-  !! i is the large block factor.  As j is the rounded down division,
-  !! i = j + 1.  This gives two different block sizes (when these are
-  !! later calculated).
-  !!
-  !! numlarge is used to work out how many processes will use the large
-  !! block size in the decomposition.
-  !!
-  !! numsmall is used to work out how many processes will use the small
-  !! block size in the decomposition.
-  !!
-  !! AJ, November 2011: New code from DCSE project
-  subroutine calculate_unbalanced_decomposition(k, j, i, numsmall, numlarge, localprocs)
+  !> to create unbalanced xxf and yxf layouts to address MPI
+  !> communication overheads in the redistribution of data for the
+  !> FFTs used in the nonlinear calculations to move from Fourier
+  !> space to real space and back again.
+  !>
+  !> k is an integer input which is the factor that needs to be decomposed
+  !> across the number of processes (the input integer localprocs)
+  !> that we have at this point in the decomposition.
+  !>
+  !> When this subroutine is called k is larger than
+  !> localprocs (this is enforced through the if and else statements
+  !> in the code that calls this routine).  It is also only called when
+  !> localprocs does not completely/equally divide k (so k/localprocs
+  !> will not given a round number).
+  !>
+  !> The subroutine returns four integers; i, j, numlarge, and numsmall
+  !>
+  !> j is calculated as the integer division of k/localprocs.  As this
+  !> is an integer division the result is rounded down (remembering
+  !> that k/localprocs will not be an equal division).  j is used by the
+  !> small block factor (the relative size of the small block).
+  !>
+  !> i is the large block factor.  As j is the rounded down division,
+  !> i = j + 1.  This gives two different block sizes (when these are
+  !> later calculated).
+  !>
+  !> numlarge is used to work out how many processes will use the large
+  !> block size in the decomposition.
+  !>
+  !> numsmall is used to work out how many processes will use the small
+  !> block size in the decomposition.
+  !>
+  !> AJ, November 2011: New code from DCSE project
+  pure subroutine calculate_unbalanced_decomposition(k, j, i, numsmall, numlarge, localprocs)
     implicit none
-
     integer, intent(in) :: k, localprocs
     integer, intent(out) :: i, j, numlarge, numsmall
 
@@ -3630,63 +3520,63 @@ contains
     ! in the actual division as opposed to the integer division (i.e
     ! the factor we have removed and replaced with small and large
     ! sizes, so replacing 20 2/3 by 1/3 x 20 and 2/3 * 21.
-    numlarge = mod(k,localprocs)
-    j  = k/localprocs
+    numlarge = mod(k, localprocs)
+    j  = k / localprocs
     i = j + 1  
     numsmall = localprocs - numlarge
-
   end subroutine calculate_unbalanced_decomposition
 
   !> This subroutine (calculate_block_size) is used in the code
-  !! to create unbalanced xxf and yxf layouts to address MPI
-  !! communication overheads in the redistribution of data for the
-  !! FFTs used in the nonlinear calculations to move from Fourier
-  !! space to real space and back again.
-  !!
-  !! Input iproc is this processes MPI id.
-  !!
-  !! Input numsmall is the number of processes that will use the small
-  !! block size (calculated in subroutine
-  !! calculate_unbalanced_decomposition).
-  !!
-  !! Input numlarge is the number of processes that will use the large
-  !! block size (calculated in suboutine
-  !! calcuate_unbalanced_decomposition).
-  !!
-  !! Input smalldecomp is the small_block_balance_factor of the
-  !! decomposition (calculated in subroutine
-  !! calculate_unbalanced_decomposition where it is referred to as j.
-  !!
-  !! Input largedecomp is the large_block_balance_factor of the
-  !! decomposition (calculated in subroutine
-  !! calculate_unbalanced_decomposition where it is referred to as i.
-  !!
-  !! Input sizeblock is the factor that needs to be split over the
-  !! cores/processors we have (i.e. everything that has not yet been
-  !! decomposed).
-  !!
-  !! Output blocksize is the blocksize assigned to this actual process
-  !! (to be used throughout the code of the decompositions).
-  !!
-  !! Output smallblocksize is the small block size.
-  !!
-  !! Output largeblocksize is the large block size.
-  !!
-  !! Output block_multiple is the size of the small block and large block
-  !! added together.  This is used to calculate which process owns a particular
-  !! data point at later points in the code (particular in the subroutine 
-  !! proc_id).
-  !! 
-  !! Output llim is the lower limit of the data block for this process.
-  !!
-  !! Output ulim is the upper limit of the data block for this process.
-  !!
-  !! Output ulim_alloc is the upper allocation limit for this processes block.
-  !!
-  !! AJ, November 2011: New code from DCSE project
-  subroutine calculate_block_size(iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock, blocksize, smallblocksize, largeblocksize, block_multiple, llim, ulim, ulim_alloc)
+  !> to create unbalanced xxf and yxf layouts to address MPI
+  !> communication overheads in the redistribution of data for the
+  !> FFTs used in the nonlinear calculations to move from Fourier
+  !> space to real space and back again.
+  !>
+  !> Input iproc is this processes MPI id.
+  !>
+  !> Input numsmall is the number of processes that will use the small
+  !> block size (calculated in subroutine
+  !> calculate_unbalanced_decomposition).
+  !>
+  !> Input numlarge is the number of processes that will use the large
+  !> block size (calculated in suboutine
+  !> calcuate_unbalanced_decomposition).
+  !>
+  !> Input smalldecomp is the small_block_balance_factor of the
+  !> decomposition (calculated in subroutine
+  !> calculate_unbalanced_decomposition where it is referred to as j.
+  !>
+  !> Input largedecomp is the large_block_balance_factor of the
+  !> decomposition (calculated in subroutine
+  !> calculate_unbalanced_decomposition where it is referred to as i.
+  !>
+  !> Input sizeblock is the factor that needs to be split over the
+  !> cores/processors we have (i.e. everything that has not yet been
+  !> decomposed).
+  !>
+  !> Output blocksize is the blocksize assigned to this actual process
+  !> (to be used throughout the code of the decompositions).
+  !>
+  !> Output smallblocksize is the small block size.
+  !>
+  !> Output largeblocksize is the large block size.
+  !>
+  !> Output block_multiple is the size of the small block and large block
+  !> added together.  This is used to calculate which process owns a particular
+  !> data point at later points in the code (particular in the subroutine
+  !> proc_id).
+  !>
+  !> Output llim is the lower limit of the data block for this process.
+  !>
+  !> Output ulim is the upper limit of the data block for this process.
+  !>
+  !> Output ulim_alloc is the upper allocation limit for this processes block.
+  !>
+  !> AJ, November 2011: New code from DCSE project
+  pure subroutine calculate_block_size(iproc, numsmall, numlarge, smalldecomp, largedecomp, &
+       sizeblock, blocksize, smallblocksize, largeblocksize, block_multiple, &
+       llim, ulim, ulim_alloc)
     implicit none
-
     integer, intent(in) :: iproc, numsmall, numlarge, smalldecomp, largedecomp, sizeblock
     integer, intent(out) :: blocksize, smallblocksize, largeblocksize, block_multiple, llim, ulim, ulim_alloc
     integer :: modproc, procfactors
@@ -3724,7 +3614,7 @@ contains
 
     ! Set this processes blocksize depending if it is to use the smallblock
     ! or large block.
-    if(modproc .lt. numsmall) then
+    if(modproc < numsmall) then
        blocksize = smallblocksize
     else
        blocksize = largeblocksize
@@ -3732,8 +3622,8 @@ contains
 
     ! Calculate the lower limit to the block this process owns
     llim = ((iproc / procfactors) * block_multiple)
-    if(modproc .ne. 0) then
-       if(modproc .lt. numsmall) then
+    if(modproc /= 0) then
+       if(modproc < numsmall) then
           llim = llim + smallblocksize * (modproc)
        else
           llim = llim + (smallblocksize * numsmall) + (largeblocksize  * (modproc - numsmall))
@@ -3750,22 +3640,21 @@ contains
 
   end subroutine calculate_block_size
 
-  !> This subroutine (calculate_idle_processes) is used to calculate the 
-  !! difference between the number of processes used in the xxf and yxf
-  !! data layouts.  This is important as it can affect the amount of 
-  !! communication that the code has to undertake when moving between 
-  !! linear and non-linear calculations.  
-  !!
-  !! This routine is used by ingen when it is suggesting optimal process
-  !! counts for users to flag up when suggested process counts will 
-  !! results in there being a significant difference in the processes 
-  !! used in the two layouts, and therefore a significant communication 
-  !! overhead moving between the two layouts.
-  !!
-  !! AJ, November 2011: New code from DCSE project
+  !> This subroutine (calculate_idle_processes) is used to calculate the
+  !> difference between the number of processes used in the xxf and yxf
+  !> data layouts.  This is important as it can affect the amount of
+  !> communication that the code has to undertake when moving between
+  !> linear and non-linear calculations.
+  !>
+  !> This routine is used by ingen when it is suggesting optimal process
+  !> counts for users to flag up when suggested process counts will
+  !> results in there being a significant difference in the processes
+  !> used in the two layouts, and therefore a significant communication
+  !> overhead moving between the two layouts.
+  !>
+  !> AJ, November 2011: New code from DCSE project
   subroutine calculate_idle_processes(nprocs, idle_percentage)
     implicit none
-
     integer, intent(in) :: nprocs
     real, intent(out) :: idle_percentage
     integer :: xxf_blocksize, yxf_blocksize
@@ -3779,20 +3668,20 @@ contains
     if(.not. initialized_x_transform .and. .not. initialized_y_transform) then
        write(*,*) 'X and/or Y transform data structures not initialized so calculate_idle_processes will not operate correctly'
        write(*,*) 'Aborting subroutine calculate_idle_processes'
-       return
+       return  !Should this actually be abort?
     end if
 
-    if(nprocs .lt. 1) then
+    if(nprocs < 1) then
        write(*,*) 'nprocs value in calculate_idle_processes subroutine is less than 1 which is incorrect.'
        write(*,*) 'calculate_idle_processes aborting.'
-       return
+       return !Should this actually be abort?
     end if
 
     ! Calculate the standard xxf_blocksize
-    xxf_blocksize = xxf_lo%ulim_world/nprocs + 1
+    xxf_blocksize = xxf_lo%ulim_world / nprocs + 1
     ! Use the blocksize calculated above to calculate how many processes the
     ! xxf space maps to using this block size
-    xxf_usedprocs = (xxf_lo%ulim_world+1)/real(xxf_blocksize)  
+    xxf_usedprocs = (xxf_lo%ulim_world+1) / real(xxf_blocksize)
     ! Now work out how many processes do not have any xxf data space assigned
     ! to them.  This is calculated using real arthimetic so it will also 
     ! include partial data spaces (so for instance it will calculate where 
@@ -3800,10 +3689,10 @@ contains
     xxf_idleprocs = nprocs - xxf_usedprocs
  
     ! Calculate the standard yxf_blocksize
-    yxf_blocksize = yxf_lo%ulim_world/nprocs + 1
+    yxf_blocksize = yxf_lo%ulim_world / nprocs + 1
     ! Use the blocksize calculated above to calculate how many processes the
     ! yxf space maps to using this block size    
-    yxf_usedprocs = (yxf_lo%ulim_world+1)/real(yxf_blocksize)
+    yxf_usedprocs = (yxf_lo%ulim_world+1) / real(yxf_blocksize)
     ! Now work out how many processes do not have any yxf data space assigned
     ! to them.  This is calculated using real arthimetic so it will also 
     ! include partial data spaces (so for instance it will calculate where 
@@ -3821,69 +3710,62 @@ contains
     if ( delta_idle_procs .le. 1 ) then
        idle_percentage = 0.5d0 * delta_idle_procs
     else
-       idle_percentage = (1.0d0 - 1.0d0/(2.0d0 * delta_idle_procs))
+       idle_percentage = (1.0d0 - 1.0d0 / (2.0d0 * delta_idle_procs))
     end if
 
   end subroutine calculate_idle_processes
 
   !> Return the species index, given xxf-layout and a global index
-  elemental function is_idx_xxf (lo, i)
+  elemental integer function is_idx_xxf (lo, i)
     implicit none
-    integer :: is_idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_xxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_xxf
 
   !> Return the energy index, given xxf-layout and a global index
-  elemental function ie_idx_xxf (lo, i)
+  elemental integer function ie_idx_xxf (lo, i)
     implicit none
-    integer :: ie_idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_xxf=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_xxf
 
   !> Return the lambda index, given xxf-layout and a global index
-  elemental function il_idx_xxf (lo, i)
+  elemental integer function il_idx_xxf (lo, i)
     implicit none
-    integer :: il_idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_xxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_xxf
 
   !> Return the sign index, given xxf-layout and a global index
-  elemental function isign_idx_xxf (lo, i)
+  elemental integer function isign_idx_xxf (lo, i)
     implicit none
-    integer :: isign_idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     isign_idx_xxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_xxf
 
   !> Return the theta index, given xxf-layout and a global index
-  elemental function ig_idx_xxf (lo, i)
+  elemental integer function ig_idx_xxf (lo, i)
     implicit none
-    integer :: ig_idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_xxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_xxf
 
   !> Return the ky index, given xxf-layout and a global index
-  elemental function ik_idx_xxf (lo, i)
+  elemental integer function ik_idx_xxf (lo, i)
     implicit none
-    integer :: ik_idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_xxf = 1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
   end function ik_idx_xxf
 
   !> Return the global index in the xxf_lo layout given the dimensional indices
-  elemental function idx_xxf (lo, ig, isign, ik, il, ie, is)
+  elemental integer function idx_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
-    integer :: idx_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, il, ie, is
     integer, dimension(6) :: i
@@ -3898,9 +3780,8 @@ contains
   end function idx_xxf
 
   !> Return the processor id that has the point i in the xxf_lo layout
-  elemental function proc_id_xxf (lo, i)
+  elemental integer function proc_id_xxf (lo, i)
     implicit none
-    integer :: proc_id_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     integer :: block_offset, offset_block_number, j, k, tempi
@@ -3929,14 +3810,14 @@ contains
           !AJ Work through each block in the group of blocks and see if this i 
           !AJ is within that block.  If it is set the proc_id_xxf as this block 
           !AJ owner.          
-           do k=1,j
-             if(k .le. lo%num_small) then
+           do k = 1, j
+             if(k <= lo%num_small) then
                 !AJ TODO: The if-else construct used below could potentially be rationalised 
                 !AJ TODO: to a more efficient formula where:
                 !AJ TODO: proc_id_xxf = offset_block_number + tempi/lo%small_block_size
                 !AJ TODO: Although a method for selecting if tempi is in the small or large 
                 !AJ TODO: blocks would have to be provided.
-                if(tempi .lt. lo%small_block_size) then
+                if(tempi < lo%small_block_size) then
                    !AJ (k -1) is the number of blocks that we have already considered 
                    !AJ within this group of blocks we have selected. 
                    proc_id_xxf =  offset_block_number + (k - 1)
@@ -3952,7 +3833,7 @@ contains
                 !AJ TODO: proc_id_xxf = offset_block_number + tempi/lo%large_block_size
                 !AJ TODO: Although a method for selecting if tempi is in the small or large 
                 !AJ TODO: blocks would have to be provided.
-                if(tempi .lt. lo%large_block_size) then
+                if(tempi < lo%large_block_size) then
                    proc_id_xxf = offset_block_number + (k - 1)
                    exit 
                 else
@@ -3964,24 +3845,22 @@ contains
           end do
        else
           !AJ This code is called if the unbalanced decomposition is not being used.
-          proc_id_xxf = i/lo%blocksize
+          proc_id_xxf = i / lo%blocksize
        end if
     end if
   end function proc_id_xxf
 
   !> Return whether a point is local to a processor given the dimensional indices
-  elemental function idx_local_xxf (lo, ig, isign, ik, il, ie, is)
+  elemental logical function idx_local_xxf (lo, ig, isign, ik, il, ie, is)
     implicit none
-    logical :: idx_local_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, ik, il, ie, is
     idx_local_xxf = idx_local (lo, idx(lo, ig, isign, ik, il, ie, is))
   end function idx_local_xxf
 
   !> Return whether a point is local to a processor given the global index
-  elemental function ig_local_xxf (lo, i)
+  elemental logical function ig_local_xxf (lo, i)
     implicit none
-    logical ig_local_xxf
     type (xxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_local_xxf = lo%iproc == proc_id(lo, i)
@@ -4058,7 +3937,6 @@ contains
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
 
     if (accel_lxyes) then
-
        yxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
@@ -4100,28 +3978,21 @@ contains
        ! Please see init_x_transform_layouts for more details on the
        ! functionality below.
        if (unbalanced_yxf) then
-
           call calculate_unbalanced_y(nproc, iproc, unbalanced_amount)
-
        end if
 
        if (.not. unbalanced_yxf) then
-
           yxf_lo%blocksize = yxf_lo%ulim_world/nproc + 1
           yxf_lo%llim_proc = yxf_lo%blocksize*iproc
           yxf_lo%ulim_proc &
                = min(yxf_lo%ulim_world, yxf_lo%llim_proc + yxf_lo%blocksize - 1)
           yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
-
        else
-
-          if(proc0) then
+          if (proc0) then
              write(*, fmt="('Using unbalanced decomposition for yxf. ',&
              & 'Unbalanced fraction',F6.2)") unbalanced_amount
           end if
-
        end if
-
     end if
   end function setup_y_transform_layouts
 
@@ -4149,23 +4020,21 @@ contains
     if(.not. initialized_y_transform) then
        write(*,*) 'Y Transform data structures not initialized so calculate_unbalanced_y subroutine will not operate correctly'
        write(*,*) 'Aborting subroutine calculate_unbalanced_y'
-       return
+       return !Should this be an abort instead?
     end if
 
     yxf_lo%blocksize = yxf_lo%ulim_world/nproc + 1
     yxf_lo%small_block_balance_factor = 1
-    yxf_lo%large_block_balance_factor = 1                                                        
-    
+    yxf_lo%large_block_balance_factor = 1
     level_proc_num = nproc
 
     k = yxf_lo%nspec
 
     call calculate_block_breakdown(k, i, m, j, level_proc_num)
     
-    if(j .eq. 0) then
-       
-       if(m .eq. 0) then
-          level_proc_num = level_proc_num/k
+    if(j == 0) then
+       if(m == 0) then
+          level_proc_num = level_proc_num / k
           k = 1
        end if
        
@@ -4177,10 +4046,9 @@ contains
        end select
        call calculate_block_breakdown(k, i, m, j, level_proc_num)
        
-       if(j .eq. 0) then
-          
-          if(m .eq. 0) then
-             level_proc_num = level_proc_num/k
+       if(j == 0) then
+          if(m == 0) then
+             level_proc_num = level_proc_num / k
              k = 1
           end if
           
@@ -4193,196 +4061,194 @@ contains
           
           call calculate_block_breakdown(k, i, m, j, level_proc_num)
           
-          if(j .eq. 0) then
-             
-             if(m .eq. 0) then
-                level_proc_num = level_proc_num/k
+          if(j == 0) then
+             if(m == 0) then
+                level_proc_num = level_proc_num / k
                 k = 1
              end if
              
              k = yxf_lo%nsign * k
              call calculate_block_breakdown(k, i, m, j, level_proc_num)
              
-             if(j .eq. 0) then
-                
-                if(m .eq. 0) then
-                   level_proc_num = level_proc_num/k
+             if(j == 0) then
+                if(m == 0) then
+                   level_proc_num = level_proc_num / k
                    k = 1
                 end if
                 
                 k = yxf_lo%ntgridtotal * k
                 call calculate_block_breakdown(k, i, m, j, level_proc_num)
                 
-                if(j .eq. 0) then
-                   
-                   if(m .eq. 0) then
-                      level_proc_num = level_proc_num/k
+                if(j == 0) then ! Note calculate_block_breakdown can change j
+                   if(m == 0) then
+                      level_proc_num = level_proc_num / k
                       k = 1
                    end if
                    
                    k = yxf_lo%nx * k
                    call calculate_block_breakdown(k, i, m, j, level_proc_num)
                    
-                   if(i .ne. 0) then
-                      
-                      call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                           1, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                      
+                   if(i /= 0) then
+                      call calculate_unbalanced_decomposition(k, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, yxf_lo%num_small, &
+                           yxf_lo%num_large, level_proc_num)
+                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, &
+                           1, yxf_lo%blocksize, yxf_lo%small_block_size, &
+                           yxf_lo%large_block_size, yxf_lo%block_multiple, &
+                           yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
                    end if
                    
                 else
                    
-                   if(i .ne. 0) then
-                      
-                      call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)     
-                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                           yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                      
+                   if(i /= 0) then
+                      call calculate_unbalanced_decomposition(k, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, yxf_lo%num_small, &
+                           yxf_lo%num_large, level_proc_num)
+                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, &
+                           yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, &
+                           yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, &
+                           yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
                    end if
-                   
                 end if
                 
              else
                 
-                if(i .ne. 0) then
-                   
-                   call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)                         
-                   call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                        yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, &
-                        yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                   
+                if(i /= 0) then
+                   call calculate_unbalanced_decomposition(k, &
+                        yxf_lo%small_block_balance_factor, &
+                        yxf_lo%large_block_balance_factor, yxf_lo%num_small, &
+                        yxf_lo%num_large, level_proc_num)
+                   call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                        yxf_lo%small_block_balance_factor, &
+                        yxf_lo%large_block_balance_factor, yxf_lo%ntgridtotal*yxf_lo%nx, &
+                        yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                        yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                        yxf_lo%ulim_alloc)
                 end if
-                
              end if
-             
              
           else
              
-             if(i .ne. 0) then
-                
-                call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                     yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, &
-                     yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                
+             if(i /= 0) then
+                call calculate_unbalanced_decomposition(k, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
+                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, &
+                     yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                     yxf_lo%ulim_alloc)
              end if
-             
           end if
           
        else
           
-          if(i .ne. 0) then
-             
-             call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-             
+          if(i /= 0) then
+             call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, &
+                  yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, &
+                  level_proc_num)
              select case(layout)
              case('yxels')
-                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                     yxf_lo%negrid*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
-                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
+                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%negrid*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, &
+                     yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                     yxf_lo%ulim_alloc)
              case default
-                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                     yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
-                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
+                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, &
+                     yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                     yxf_lo%ulim_alloc)
              end select
-             
           end if
-          
        end if
        
     else
        
-       if(i .ne. 0) then
-          
+       if (i /= 0) then
           call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-          call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-               yxf_lo%negrid*yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, &
-               yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-          
+          call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+               yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+               yxf_lo%negrid*yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, &
+               yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+               yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
        end if
-       
     end if
     
-    
-    if(yxf_lo%large_block_balance_factor .eq. 1 .and. yxf_lo%small_block_balance_factor .eq. 1) then
-       
+    if(yxf_lo%large_block_balance_factor == 1 .and. &
+         yxf_lo%small_block_balance_factor == 1) then
        unbalanced_amount = 0
-       
     else 
-       
        unbalanced_amount = real(yxf_lo%large_block_size)/real(yxf_lo%small_block_size)
        unbalanced_amount = unbalanced_amount - 1
-              
     end if
     
-    if (unbalanced_amount .gt. max_unbalanced_yxf .or. unbalanced_amount .eq. 0) then
-       
+    if (unbalanced_amount > max_unbalanced_yxf .or. unbalanced_amount == 0) then
        unbalanced_yxf = .false.
-       
     end if
-    
-
   end subroutine calculate_unbalanced_y
 
   !> Return the species index, given yxf-layout and a global index
-  elemental function is_idx_yxf (lo, i)
+  elemental integer function is_idx_yxf (lo, i)
     implicit none
-    integer :: is_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_yxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_yxf
 
   !> Return the energy index, given yxf-layout and a global index
-  elemental function ie_idx_yxf (lo, i)
+  elemental integer function ie_idx_yxf (lo, i)
     implicit none
-    integer :: ie_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_yxf = 1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_yxf
 
   !> Return the lambda index, given yxf-layout and a global index
-  elemental function il_idx_yxf (lo, i)
+  elemental integer function il_idx_yxf (lo, i)
     implicit none
-    integer :: il_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_yxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_yxf
 
   !> Return the sign index, given yxf-layout and a global index
-  elemental function isign_idx_yxf (lo, i)
+  elemental integer function isign_idx_yxf (lo, i)
     implicit none
-    integer :: isign_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     isign_idx_yxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_yxf
  
   !> Return the theta index, given yxf-layout and a global index of a point on this proc
-  elemental function ig_idx_yxf (lo, i)
+  elemental integer function ig_idx_yxf (lo, i)
     implicit none
-    integer :: ig_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_yxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_yxf
 
   !> Return the kx index, given yxf-layout and a global index
-  elemental function it_idx_yxf (lo, i)
+  elemental integer function it_idx_yxf (lo, i)
     implicit none
-    integer :: it_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_yxf = 1+mod((i-lo%llim_world)/lo%it_comp,lo%nx)
   end function it_idx_yxf
 
   !> FIXME : Add documentation  
-  elemental function idx_accelx (lo, ik, it, il, ie, is)
+  elemental integer function idx_accelx (lo, ik, it, il, ie, is)
     implicit none
-    integer :: idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
 
@@ -4401,9 +4267,8 @@ contains
   end function idx_accelx
 
   !> Return the global index in the yxf_lo layout given the dimensional indices
-  elemental function idx_yxf (lo, ig, isign, it, il, ie, is)
+  elemental integer function idx_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
-    integer :: idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, it, il, ie, is
     integer, dimension(6) :: i
@@ -4417,17 +4282,15 @@ contains
     idx_yxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_yxf
 
-  elemental function proc_id_accelx (lo, i)
+  elemental integer function proc_id_accelx (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
 #endif
     implicit none
-    integer :: proc_id_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
 #ifdef SHMEM
-    integer k 
+    integer :: k
 
     proc_id_accelx = nproc - 1
     do k =1, nproc-1
@@ -4439,13 +4302,11 @@ contains
 #else
     proc_id_accelx = i/lo%blocksize
 #endif
-
   end function proc_id_accelx
 
   !> Return the processor id that has the point i in the yxf_lo layout
-  elemental function proc_id_yxf (lo, i)
+  elemental integer function proc_id_yxf (lo, i)
     implicit none
-    integer :: proc_id_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     integer :: block_offset, offset_block_number, j, k, tempi
@@ -4514,18 +4375,16 @@ contains
   end function proc_id_yxf
 
   !> FIXME : Add documentation  
-  elemental function idx_local_accelx (lo, ik, it, il, ie, is)
+  elemental logical function idx_local_accelx (lo, ik, it, il, ie, is)
     implicit none
-    logical :: idx_local_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
     idx_local_accelx = idx_local (lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_accelx
 
   !> FIXME : Add documentation  
-  elemental function ig_local_accelx (lo, i)
+  elemental logical function ig_local_accelx (lo, i)
     implicit none
-    logical ig_local_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 #ifndef SHMEM
@@ -4538,18 +4397,16 @@ contains
   end function ig_local_accelx
 
   !> Return whether a point is local to a processor given the dimensional indices
-  elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
+  elemental logical function idx_local_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
-    logical :: idx_local_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, it, il, ie, is
     idx_local_yxf = idx_local (lo, idx(lo, ig, isign, it, il, ie, is))
   end function idx_local_yxf
 
   !> Return whether a point is local to a processor given the global index
-  elemental function ig_local_yxf (lo, i)
+  elemental logical function ig_local_yxf (lo, i)
     implicit none
-    logical ig_local_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_local_yxf = lo%iproc == proc_id(lo, i)
@@ -4571,7 +4428,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
 #ifdef SHMEM
-    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind
 #endif
 
     accelx_lo%iproc = iproc
@@ -4646,7 +4503,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
 #ifdef SHMEM
-    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind
 #endif
 
     accel_lo%iproc = iproc
@@ -4730,18 +4587,16 @@ contains
   end subroutine init_accel_transform_layouts
 
   !> FIXME : Add documentation
-  elemental function is_idx_accelx (lo, i)
+  elemental integer function is_idx_accelx (lo, i)
     implicit none
-    integer :: is_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_accelx = 1 + mod((i - lo%llim_world)/lo%nxny/lo%negrid/lo%nlambda, lo%nspec)
   end function is_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function ie_idx_accelx (lo, i)
+  elemental integer function ie_idx_accelx (lo, i)
     implicit none
-    integer :: ie_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
@@ -4757,9 +4612,8 @@ contains
   end function ie_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function il_idx_accelx (lo, i)
+  elemental integer function il_idx_accelx (lo, i)
     implicit none
-    integer :: il_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
@@ -4775,12 +4629,10 @@ contains
   end function il_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function it_idx_accelx (lo, i)
+  elemental integer function it_idx_accelx (lo, i)
     implicit none
-    integer :: it_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     it_idx_accelx = 1 + mod((i - lo%llim_world)/lo%ny, lo%nx)
 !    select case (layout)
 !    case ('yxels')
@@ -4794,12 +4646,10 @@ contains
   end function it_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function ik_idx_accelx (lo, i)
+  elemental integer function ik_idx_accelx (lo, i)
     implicit none
-    integer :: ik_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     ik_idx_accelx = 1 + mod((i - lo%llim_world), lo%ny)
 !    select case (layout)
 !    case ('yxels')
@@ -4813,9 +4663,8 @@ contains
   end function ik_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function it_idx_accel (lo, i)
+  elemental integer function it_idx_accel (lo, i)
     implicit none
-    integer :: it_idx_accel
     type (accel_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_accel = 1 + mod((i - lo%llim_world)/lo%ndky, lo%nx)
@@ -4831,9 +4680,8 @@ contains
   end function it_idx_accel
 
   !> FIXME : Add documentation
-  elemental function ik_idx_accel (lo, i)
+  elemental integer function ik_idx_accel (lo, i)
     implicit none
-    integer :: ik_idx_accel
     type (accel_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_accel = 1 + mod(i - lo%llim_world, lo%ndky)
@@ -4849,57 +4697,20 @@ contains
   end function ik_idx_accel
 
   !> FIXME : Add documentation  
-  elemental function dealiasing (lo, ia)
+  elemental logical function dealiasing (lo, ia)
     implicit none
-    logical dealiasing
     type (accel_layout_type), intent (in) :: lo
     integer, intent (in) :: ia
-    
+    integer :: it
     dealiasing = .true.
-
-    if (it_idx(accel_lo, ia) > lo%ntheta0/2+1 &
-  .and. it_idx(accel_lo, ia) <= lo%nx-lo%ntheta0/2) return
+    it = it_idx(accel_lo, ia)
+    if (it > lo%ntheta0/2+1 .and. it <= lo%nx-lo%ntheta0/2) return
     if (ik_idx(accel_lo, ia) > lo%naky) return
-
     dealiasing = .false.
   end function dealiasing
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Transformation subroutines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !> FIXME : Add documentation    
-  elemental subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-    implicit none
-    integer, intent (in) :: ig, isign, iglo
-    type (g_layout_type), intent (in) :: g_lo
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    integer, intent (out) :: it, ixxf
-
-    it = it_idx(g_lo,iglo)
-    if (it > (xxf_lo%ntheta0+1)/2) then
-       it = it - xxf_lo%ntheta0 + xxf_lo%nx
-    end if
-
-    ixxf = idx(xxf_lo, ig, isign, ik_idx(g_lo,iglo), il_idx(g_lo,iglo), &
-         ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
-  end subroutine gidx2xxfidx
-  
   !> FIXME : Add documentation  
-  elemental subroutine xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
-    implicit none
-    integer, intent (in) :: it, ixxf
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    type (yxf_layout_type), intent (in) :: yxf_lo
-    integer, intent (out) :: ik, iyxf
-
-    ik = ik_idx(xxf_lo,ixxf)
-    iyxf = idx(yxf_lo, ig_idx(xxf_lo,ixxf), isign_idx(xxf_lo,ixxf), &
-         it, il_idx(xxf_lo,ixxf), ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
-  end subroutine xxfidx2yxfidx
-
-  !> FIXME : Add documentation  
-  subroutine pe_layout (char)
+  pure subroutine pe_layout (char)
     implicit none
     character (1), intent (out) :: char
 
@@ -4921,11 +4732,10 @@ contains
 ! y is fastest index, including in calls to 2D FFTs
        char = '?'    
     end select
-
   end subroutine pe_layout
 
   !> Get the factors of an integer n
-  subroutine factors (n, j, div)
+  pure subroutine factors (n, j, div)
     !> The number to factorize
     integer, intent (in) :: n
     !> The number of factors
@@ -4936,16 +4746,16 @@ contains
 
     ! find: i = lowest factor of n
     ! and therefore imax=n/i is the HIGHEST factor of n
-    do i=2,n
-       if (mod(n,i)==0) exit
+    do i = 2, n
+       if (mod(n,i) == 0) exit
     end do
-    imax = n/i
-    j=1
+    imax = n / i
+    j = 1
     ! loop over all possible factors of n, and return in div(j)
-    do i=1,imax
-       if (mod(n,i)==0) then
+    do i = 1, imax
+       if (mod(n,i) == 0) then
           div(j) = i
-          j=j+1
+          j = j + 1
        end if
     end do
     div(j) = n
@@ -4960,13 +4770,14 @@ contains
 
     ! Check input is the integers 1 to 5
     check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
 
-    lo%ie_ord=ie_ord
-    lo%il_ord=il_ord
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%is_ord=is_ord
+    lo%ie_ord = ie_ord
+    lo%il_ord = il_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_g
 
   !> Sets the order of x y th s in le_lo
@@ -4978,12 +4789,13 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ig_ord, it_ord, ik_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
 
-    lo%ig_ord=ig_ord
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%is_ord=is_ord
+    lo%ig_ord = ig_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_le
 
   !> Sets the order of x y e th s in lz_lo
@@ -4995,13 +4807,14 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ig_ord, it_ord, ik_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
 
-    lo%ig_ord=ig_ord
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%ie_ord=ie_ord    
-    lo%is_ord=is_ord
+    lo%ig_ord = ig_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%ie_ord = ie_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_lz
 
   !> Sets the order of th sgn x y l s in e_lo
@@ -5013,14 +4826,15 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (e_lo) is not unique integers 1 to 5')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (e_lo) is not unique integers 1 to 6')
 
-    lo%ig_ord=ig_ord
-    lo%isgn_ord=isgn_ord    
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%il_ord=il_ord    
-    lo%is_ord=is_ord
+    lo%ig_ord = ig_ord
+    lo%isgn_ord = isgn_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%il_ord = il_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_e
   
   !> Sets the order of y th sgn l e s in xxf_lo
@@ -5034,14 +4848,15 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
-    lo%ik_ord=ik_ord
-    lo%ig_ord=ig_ord
-    lo%isgn_ord=isgn_ord
-    lo%il_ord=il_ord
-    lo%ie_ord=ie_ord
-    lo%is_ord=is_ord
+    lo%ik_ord = ik_ord
+    lo%ig_ord = ig_ord
+    lo%isgn_ord = isgn_ord
+    lo%il_ord = il_ord
+    lo%ie_ord = ie_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_xxf
 
   !> Sets the order of x th sgn l e s in yxf_lo
@@ -5055,32 +4870,29 @@ contains
 
     ! Check input is the integers 1 to N
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
-    lo%it_ord=it_ord
-    lo%ig_ord=ig_ord
-    lo%isgn_ord=isgn_ord
-    lo%il_ord=il_ord
-    lo%ie_ord=ie_ord
-    lo%is_ord=is_ord
+    lo%it_ord = it_ord
+    lo%ig_ord = ig_ord
+    lo%isgn_ord = isgn_ord
+    lo%il_ord = il_ord
+    lo%ie_ord = ie_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
   !> aborts if not.
   subroutine check_unique_integers(array,message)
-
     use mp, only: mp_abort
     use sorting, only: quicksort
-
     implicit none
     !> Dimension of input 
-    integer, dimension(:), intent(inout) :: array
+    integer, dimension(:), intent(in out) :: array
     !> Error message
     character(*), intent(in) :: message
     integer, dimension(:), allocatable :: check
-    integer :: n
-    integer :: i
-
+    integer :: n, i
     n = size(array)
     ! Explicit allocation not necessary, but we get a warning from
     ! gfortran about 'check.offset used uninitialized' -- this is a
@@ -5088,11 +4900,8 @@ contains
     allocate(check(n))
     check = [(i, i = 1, n)]
 
-    call quicksort(n,array)
-    if (any(check.ne.array)) then
-      call mp_abort(message)
-    end if
-
+    call quicksort(n, array)
+    if (any(check /= array)) call mp_abort(message)
   end subroutine check_unique_integers
 
   !> Set the module level config type

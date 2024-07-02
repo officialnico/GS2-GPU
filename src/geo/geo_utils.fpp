@@ -799,6 +799,7 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, r_pos, z_pos
+    UNUSED_DUMMY(char)
     associate(dim_1 => self%eq_R, dim_2 => self%eq_Z)
       !Copy input r to avoid any modification
       r = r_in ; thet = mod2pi(theta_in)

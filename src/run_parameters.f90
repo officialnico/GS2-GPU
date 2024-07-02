@@ -12,7 +12,7 @@ module run_parameters
   public :: init_run_parameters, finish_run_parameters, check_run_parameters
   public :: wnml_run_parameters
   public :: beta, zeff, tite, reset, immediate_reset, delt, ieqzip, k0, user_comments
-  public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
+  public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar, progress_frequency
   public :: nstep, max_sim_time, wstar_units, rhostar, neo_test, ncheck_stop
   public :: delt_option_switch, delt_option_auto, avail_cpu_time, margin_cpu_time
   public :: do_eigsolve, save_timer_statistics, save_init_times
@@ -25,7 +25,7 @@ module run_parameters
   real :: beta, zeff, tite, fphi, fapar, fbpar, k0, rhostar
   logical :: has_phi, has_apar, has_bpar, neo_test
   real :: delt, avail_cpu_time, margin_cpu_time, max_sim_time
-  integer :: ncheck_stop, nstep, seed
+  integer :: ncheck_stop, nstep, seed, progress_frequency
   logical :: reset = .false., initialized = .false.
   logical :: immediate_reset, wstar_units, save_timer_statistics, save_init_times
   integer :: delt_option_switch
@@ -99,6 +99,9 @@ module run_parameters
      logical :: neo_test = .false.
      !> Maximum number of steps to take
      integer :: nstep = 100
+     !> How frequently, in integer steps, do we display a progress message.
+     !> If <= 0 then no progress messages are displayed
+     integer :: progress_frequency = 0
      !> Normalised gyro-radius, only used for low flow builds
      real :: rhostar = 3.0e-3
      !> If true then save init timer information to
@@ -317,6 +320,7 @@ contains
     ncheck_stop = knobs_config%ncheck_stop
     neo_test = knobs_config%neo_test
     nstep = knobs_config%nstep
+    progress_frequency = knobs_config%progress_frequency
     rhostar = knobs_config%rhostar
     save_init_times = knobs_config%save_init_times
     save_timer_statistics = knobs_config%save_timer_statistics
@@ -429,13 +433,13 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = :), allocatable :: user_comments
     character(len = 20) :: delt_option, eqzip_option
-    integer :: ncheck_stop, nstep, seed
+    integer :: ncheck_stop, nstep, progress_frequency, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
          use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, fbpar, fphi, k0, margin_cpu_time, max_sim_time, rhostar, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, fbpar, fphi, immediate_reset, k0, margin_cpu_time, max_sim_time, ncheck_stop, neo_test, nstep, rhostar, &
-         save_init_times, save_timer_statistics, seed, tite, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, fbpar, fphi, immediate_reset, k0, margin_cpu_time, max_sim_time, ncheck_stop, neo_test, nstep, progress_frequency, &
+         rhostar, save_init_times, save_timer_statistics, seed, tite, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -459,6 +463,7 @@ contains
     ncheck_stop = self%ncheck_stop
     neo_test = self%neo_test
     nstep = self%nstep
+    progress_frequency = self%progress_frequency
     rhostar = self%rhostar
     save_init_times = self%save_init_times
     save_timer_statistics = self%save_timer_statistics
@@ -490,6 +495,7 @@ contains
     self%ncheck_stop = ncheck_stop
     self%neo_test = neo_test
     self%nstep = nstep
+    self%progress_frequency = progress_frequency
     self%rhostar = rhostar
     self%save_init_times = save_init_times
     self%save_timer_statistics = save_timer_statistics
@@ -532,6 +538,7 @@ contains
     call self%write_key_val("ncheck_stop", self%ncheck_stop, unit_internal)
     call self%write_key_val("neo_test", self%neo_test, unit_internal)
     call self%write_key_val("nstep", self%nstep, unit_internal)
+    call self%write_key_val("progress_frequency", self%progress_frequency, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
     call self%write_key_val("save_init_times", self%save_init_times, unit_internal)
     call self%write_key_val("save_timer_statistics", self%save_timer_statistics, unit_internal)
@@ -579,6 +586,7 @@ contains
     call broadcast(self%ncheck_stop)
     call broadcast(self%neo_test)
     call broadcast(self%nstep)
+    call broadcast(self%progress_frequency)
     call broadcast(self%rhostar)
     call broadcast(self%save_init_times)
     call broadcast(self%save_timer_statistics)

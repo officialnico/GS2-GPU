@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> Analytic local equilibria via generalised forms of the Miller model
 !>
 !> Justin Ball's MIT Masters thesis and/or ["GS2 analytic geometry
@@ -117,6 +118,7 @@ contains
     !> Internal theta grid
     real, dimension(self%nt) :: mtheta
     real, dimension(self%nr) :: dim_1
+    UNUSED_DUMMY(r_in); UNUSED_DUMMY(char)
     dim_1 = [1, 2, 3] ; mtheta = self%eqth(1, :)
     thet = mod2pi(theta_in)
     istar = 2 !find_lower_bound(2.5, dim_1, 0)  !Make 2 < r < 3 here so istar == 2
@@ -377,6 +379,7 @@ contains
   pure real function rfun (self, r, theta)
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta
+    UNUSED_DUMMY(self); UNUSED_DUMMY(theta)    
     rfun = r
   end function rfun
 
@@ -384,6 +387,7 @@ contains
   pure real function diameter (self, rp)
     class(leq_type), intent(in) :: self
     real, intent(in) :: rp
+    UNUSED_DUMMY(self)
     diameter = 2. * rp
   end function diameter
 
@@ -393,6 +397,7 @@ contains
   pure real function rcenter(self, rp)
     class(leq_type), intent(in) :: self
     real, intent(in) :: rp
+    UNUSED_DUMMY(rp)    
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
@@ -406,6 +411,7 @@ contains
   pure real function dbtori (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
+    UNUSED_DUMMY(self); UNUSED_DUMMY(pbar)
     dbtori = 0
   end function dbtori
 
@@ -413,6 +419,7 @@ contains
   pure real function btori (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
+    UNUSED_DUMMY(pbar)    
     btori = self%surf%R_geo
   end function btori
 
@@ -420,6 +427,7 @@ contains
   pure real function qfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
+    UNUSED_DUMMY(pbar)    
     qfun = self%surf%q
   end function qfun
 
@@ -427,6 +435,7 @@ contains
   pure real function pfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
+    UNUSED_DUMMY(pbar)    
     pfun = 0.5 * self%beta_0
   end function pfun
 
@@ -434,6 +443,7 @@ contains
   pure real function dpfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
+    UNUSED_DUMMY(self); UNUSED_DUMMY(pbar)    
     dpfun = 0
   end function dpfun
 
@@ -441,6 +451,7 @@ contains
   pure real function betafun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
+    UNUSED_DUMMY(pbar)
     betafun = self%beta_0
   end function betafun
 end module leq

@@ -13,26 +13,19 @@ module gs2_diagnostics
 
   private
 
-  public :: read_parameters
-  public :: init_gs2_diagnostics
-  public :: finish_gs2_diagnostics
-  public :: check_gs2_diagnostics
-  public :: wnml_gs2_diagnostics
-  public :: loop_diagnostics
-  public :: ensemble_average
-  public :: reset_init
+  public :: read_parameters, init_gs2_diagnostics, finish_gs2_diagnostics
+  public :: check_gs2_diagnostics, wnml_gs2_diagnostics, reset_init
+  public :: loop_diagnostics, ensemble_average
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity, calculate_simple_quasilinear_flux_metric_by_k
   public :: omegaavg, get_volume_average, calculate_instantaneous_omega
 
-  public :: gs2_diagnostics_config_type
-  public :: set_gs2_diagnostics_config
-  public :: get_gs2_diagnostics_config
-  public :: apply_old_defaults
+  public :: gs2_diagnostics_config_type, set_gs2_diagnostics_config
+  public :: get_gs2_diagnostics_config, apply_old_defaults
 
   ! Export some functions to be used in the new diagnostics
-  public :: save_restart_dist_fn
-  public :: check_restart_file_writeable
+  public :: save_restart_dist_fn, do_write_fyx, do_write_f
+  public :: check_restart_file_writeable, heating
   public :: do_dump_fields_periodically, do_write_parity
   public :: do_write_heating, do_write_nl_flux_dist
   public :: do_write_correlation_extend, do_write_correlation
@@ -102,13 +95,10 @@ module gs2_diagnostics
   complex, dimension (:, :), allocatable :: omega, omegaavg
 
   integer :: out_unit, heat_unit, heat_unit2, lpc_unit
-  integer :: jext_unit
-  integer :: phase_unit
+  integer :: jext_unit, phase_unit, dist_unit, yxdist_unit
   integer :: dump_check1_unit, dump_check2_unit
-  integer :: res_unit, res_unit2, parity_unit
-  integer :: conv_nstep_av
-  integer :: conv_min_step
-  integer :: conv_max_step
+  integer :: res_unit, res_unit2, parity_unit, cres_unit
+  integer :: conv_nstep_av, conv_min_step, conv_max_step
   integer :: conv_nsteps_converged
 
   !> Frequency time history, size `(navg, ntheta0, naky)`
@@ -204,7 +194,7 @@ contains
   !> Perform some basic checking of the diagnostic input parameters, and write the results to file
   subroutine check_gs2_diagnostics(report_unit)
     use file_utils, only: run_name
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
+    use nonlinear_terms, only: nonlin
     use dist_fn, only : def_parity, even 
     use kt_grids, only : gridopt_switch, gridopt_box
     use init_g, only : restart_file
@@ -369,7 +359,7 @@ contains
     if (save_for_restart) then
        write (report_unit, fmt="('save_for_restart = T:      Restart files written to ',a)") trim(restart_file)//'.(PE)'
     else
-       if (nonlinear_mode_switch == nonlinear_mode_on) then
+       if (nonlin) then
           write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('save_for_restart = F:              This run cannot be continued.')")
@@ -422,7 +412,7 @@ contains
     use collisions, only: collision_model_switch, init_lorentz_error
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use mp, only: broadcast, proc0, mp_abort
-    use le_grids, only: init_weights
+    use le_grids, only: init_weights, wdim
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
     use diagnostics_final_routines, only: init_par_filter
@@ -465,7 +455,10 @@ contains
 
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
-    if (write_verr .and. proc0) call init_weights
+    if (write_verr) then
+       if (proc0) call init_weights
+       call broadcast(wdim)
+    end if
 
     ! allocate heating diagnostic data structures
     if (write_heating) then
@@ -616,8 +609,20 @@ contains
           if (write_max_verr) call open_output_file (res_unit2, ".vres2")
        end if
 
+       if (write_cerr .and. write_ascii) then
+          call open_output_file (cres_unit, ".cres")
+       end if
+
        if (write_parity .and. write_ascii) then
           call open_output_file (parity_unit, ".parity")
+       end if
+
+       if (write_g .and. write_ascii) then
+          call open_output_file(dist_unit, ".dist")
+       end if
+
+       if (write_gyx .and. write_ascii) then
+          call open_output_file(yxdist_unit, ".yxdist")
        end if
 
        !GGH J_external, only if A_parallel is being calculated.
@@ -687,7 +692,7 @@ contains
     use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
     use antenna, only: no_driver
-    use collisions, only: heating, set_heating
+    use collisions, only: heating, use_le_layout, set_heating
     use mp, only: proc0
     implicit none
     !> If true, this is a "list-mode run" and so turn off
@@ -805,6 +810,9 @@ contains
     !Override flags
     if (write_max_verr) write_verr = .true.
 
+    ! The collision_error method assumes we have setup the lz layout.
+    if (use_le_layout) write_cerr = .false.
+
     print_summary = (is_list_run .and. (print_line .or. print_flux_line))
 
     if (is_list_run) then
@@ -849,7 +857,6 @@ contains
   subroutine finish_gs2_diagnostics
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
@@ -860,16 +867,16 @@ contains
     use diagnostics_final_routines, only: do_write_final_epar, do_write_final_db
     use diagnostics_final_routines, only: do_write_final_antot, do_write_final_moments
     use diagnostics_final_routines, only: do_write_gs
+    use diagnostics_velocity_space, only: collision_error
     implicit none
     complex, dimension (ntheta0, naky) :: phi0
-    logical, parameter :: last = .true.
 
     call debug_message(3, 'gs2_diagnostics::finish_gs2_diagnostics &
          & starting')
 
-    if (write_gyx) call write_fyx (phinew,bparnew,last)
-    if (write_g) call write_f (last)
-    if (write_cerr) call collision_error (phinew, bparnew, last)
+    if (write_gyx) call do_write_fyx (yxdist_unit, phinew, bparnew)
+    if (write_g) call do_write_f (dist_unit)
+    if (write_cerr) call collision_error (cres_unit, phinew, bparnew)
     if (write_verr .and. proc0) call finish_weights
 
     ! Close some of the open ascii output files
@@ -1015,6 +1022,9 @@ contains
        call close_output_file (lpc_unit)
        if (write_max_verr) call close_output_file (res_unit2)
     end if
+    if (write_ascii .and. write_cerr) call close_output_file(cres_unit)
+    if (write_ascii .and. write_g) call close_output_file(dist_unit)
+    if (write_ascii .and. write_gyx) call close_output_file(yxdist_unit)
     if (write_ascii) call close_output_file (out_unit)
     if (write_ascii .and. write_cross_phase) call close_output_file (phase_unit)
     if (write_ascii .and. write_heating) call close_output_file (heat_unit)
@@ -1035,7 +1045,6 @@ contains
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: collision_error, write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use gs2_time, only: user_time
@@ -1050,6 +1059,7 @@ contains
     use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
          pflux, vflux, vflux_par, vflux_perp, pflux_tormom, vflux0, vflux1, pmflux, vmflux, &
          pbflux, vbflux, exchange
+    use diagnostics_velocity_space, only: collision_error
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1076,7 +1086,6 @@ contains
     real :: hflux_tot, zflux_tot, vflux_tot
 
     real, save :: t_old = 0.
-    logical, parameter :: last = .false.
     logical:: debug=.false.
     logical :: do_force
     integer, save :: istep_last = -1
@@ -1093,11 +1102,11 @@ contains
 
     call do_get_omega(istep,debug,exit)
 
-    if (write_heating) call heating (istep, h, hk)
+    if (write_heating) call heating (istep, navg, h, hk)
 
     if (make_movie .and. mod(istep,nmovie) == 0) call do_write_movie(t)
 
-    if (write_gyx .and. mod(istep,nmovie) == 0) call write_fyx (phinew,bparnew,last)
+    if (write_gyx .and. mod(istep,nmovie) == 0) call do_write_fyx (yxdist_unit, phinew, bparnew)
 
     if (vary_vnew) then
        write_mod = mod(istep,ncheck)
@@ -1118,7 +1127,7 @@ contains
     ! so store the step
     istep_last = istep
 
-    if (write_g) call write_f (last)
+    if (write_g) call do_write_f (dist_unit)
 
     ! Note this also returns phi2, apar2, bpar2 and phitot for other diagnostics
     if (proc0) call do_write_ncloop(t, istep, phi2, apar2, bpar2, phitot)
@@ -1157,10 +1166,10 @@ contains
                 call get_volume_average (vflux_par(:,:,is), parmom_fluxes(is))
                 call get_volume_average (vflux_perp(:,:,is), perpmom_fluxes(is))
                 call get_volume_average (exchange(:,:,is), energy_exchange(is))
-#ifdef LOWFLOW
-                call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
-                call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
-#endif
+                if (gs2_has_lowflow) then
+                   call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
+                   call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
+                end if
              end do
           end if
           if (has_apar) then
@@ -1309,7 +1318,7 @@ contains
 
     if (scanning) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
 
-    if (write_cerr) call collision_error(phinew, bparnew, last)
+    if (write_cerr) call collision_error(cres_unit, phinew, bparnew)
 
     if (write_nl_flux_dist) call do_write_nl_flux_dist(get_netcdf_file_id(), nout)
 
@@ -1606,7 +1615,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
-    use dist_fn, only: getmoms
+    use diagnostics_moments, only: getmoms
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     implicit none
@@ -1683,19 +1692,18 @@ contains
   !>
   !> Only writes to text file, requires [[lpc_unit]] to be `open`
   subroutine do_write_verr
-    use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
     use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
     use species, only: spec
+    use diagnostics_velocity_space, only: get_verr, get_gtran
     implicit none
-    real, dimension (:,:), allocatable :: errest
-    integer, dimension (:,:), allocatable :: erridx
+    real, dimension(5,2) :: errest
+    integer, dimension (5,3) :: erridx
     real :: geavg, glavg, gtavg
 
-    allocate(errest(5,2), erridx(5,3))
     errest = 0.0; erridx = 0
 
     ! error estimate obtained by comparing standard integral with less-accurate integral
@@ -1727,7 +1735,6 @@ contains
           end if
        end if
     end if
-    deallocate(errest,erridx)
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
@@ -1821,7 +1828,7 @@ contains
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   !> and write to netCDF
   subroutine do_write_symmetry(file_id, nout)
-    use dist_fn, only: flux_vs_theta_vs_vpa
+    use diagnostics_fluxes, only: flux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -1847,7 +1854,7 @@ contains
   !> 045023](https://doi.org/10.1088/0741-3335/58/4/045023) as well as section 5
   !> of "GS2 analytic geometry specification")
   subroutine do_write_nl_flux_dist(file_id, nout)
-    use dist_fn, only: flux_dist
+    use diagnostics_fluxes, only: flux_dist
     use theta_grid, only: ntgrid
     use species, only: nspec, spec
     use mp, only: proc0
@@ -1855,7 +1862,6 @@ contains
     use convert, only: c2r
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use run_parameters, only: has_phi
     implicit none
 
@@ -1881,9 +1887,7 @@ contains
     allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (phi_byMode_dist(2,-ntgrid:ntgrid,ntheta0,naky))
     call c2r(phinew,phi_byMode_dist)
-    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2) ! convert from g to h
-    call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2) ! convert back from h to g
+    call flux_dist (phinew, bparnew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
     if (proc0) then
        if (has_phi) then
           do ig = -ntgrid, ntgrid
@@ -1918,7 +1922,7 @@ contains
 
   !> Calculate the particle flux contribution to toroidal momentum flux and write to netCDF
   subroutine do_write_pflux_sym(file_id, nout)
-    use dist_fn, only: pflux_vs_theta_vs_vpa
+    use diagnostics_fluxes, only: pflux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -2437,7 +2441,7 @@ contains
 
   !> Calculate flux surfgace averaged low-order moments of \(g\) and write to netCDF
   subroutine do_write_avg_moments
-    use dist_fn, only: getmoms
+    use diagnostics_moments, only: getmoms
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
@@ -2489,14 +2493,13 @@ contains
        call nc_loop_moments (get_netcdf_file_id(), nout, ntot2, ntot2_by_mode, ntot20, &
             ntot20_by_mode, phi00, ntot00, density00, upar00, &
             tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
-
     end if
   end subroutine do_write_avg_moments
 
   !> Calculate moments (density, parallel flow, and parallel and perpendicular
   !> temperatures) in non-guiding centre coordinates and write to netCDF
   subroutine do_write_full_moments_notgc()
-    use dist_fn, only: getmoms_notgc
+    use diagnostics_moments, only: getmoms_notgc
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
@@ -2601,7 +2604,10 @@ contains
        flush (res_unit)
        flush (lpc_unit)
     end if
+    if (write_cerr) flush (cres_unit)
     if (write_parity) flush (parity_unit)
+    if (write_g) flush (dist_unit)
+    if (write_gyx) flush (yxdist_unit)
   end subroutine flush_files
 
   !> Trinity convergence condition - simple and experimental
@@ -2666,23 +2672,21 @@ contains
   end subroutine check_nonlin_convergence
 
   !> Calculate some heating diagnostics, and update their time history
-  subroutine heating (istep, h, hk)
+  subroutine heating(istep, navg, h, hk)
     use mp, only: proc0
-    use dist_fn, only: get_heat
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use species, only: nspec, spec
     use kt_grids, only: naky, ntheta0, aky, akx
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
-    use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype, get_heat
     use collisions, only: collisions_heating => heating
     implicit none
-    integer, intent (in) :: istep
+    integer, intent (in) :: istep, navg
     !> Heating diagnostics summed over space at the current timestep
     type (heating_diagnostics), intent(in out) :: h
     !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
-
     real, dimension(-ntgrid:ntgrid) :: wgt
     real :: fac
     integer :: is, ik, it, ig
@@ -2692,7 +2696,6 @@ contains
     call zero_htype(hk)
 
     if (proc0 .and. collisions_heating .and. allocated(c_rate)) then
-
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
        wgt = wgt/sum(wgt)
@@ -2725,11 +2728,10 @@ contains
     end if
 
     ! We may be able to skip this work as well if heating is false.
-    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
+    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
 
     call avg_h(h, h_hist, istep, navg)
     call avg_hk(hk, hk_hist, istep, navg)
-
   end subroutine heating
 
   !> Calculate the time-averaged antenna current \(j_{ext} = k_\perp^2 A_{antenna}\)
@@ -3194,16 +3196,13 @@ contains
     use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
-    use dist_fn, only: getemoms
+    use diagnostics_moments, only: getemoms
     use fields_arrays, only: phinew, bparnew
     implicit none
     real, intent (out) :: phase_tot, phase_theta
     complex, dimension (:,:,:,:), allocatable :: ntot, tperp
     complex, dimension (ntheta0, naky) :: nTp_by_mode
     complex :: nTp
-    !    real, dimension (ntheta0, naky) :: n2_by_mode, T2_by_mode
-    !    real :: n2, T2
-
     integer ::  is
 
     allocate ( ntot(-ntgrid:ntgrid,ntheta0,naky,nspec))
@@ -3397,6 +3396,269 @@ contains
     end do
 
   end subroutine correlation
+
+  !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
+  subroutine do_write_f (unit)
+    use mp, only: proc0, send, receive
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx, idx_local, proc_id
+    use le_grids, only: al, energy, forbid, negrid, nlambda, speed
+    use theta_grid, only: bmag
+    use dist_fn_arrays, only: gnew
+    use species, only: nspec
+    integer, intent(in) :: unit
+    integer :: iglo, ik, it, is
+    integer :: ie, il, ig
+    real :: vpa, vpe
+    complex, dimension(2) :: gtmp
+    real, dimension (:,:), allocatable, save :: xpts
+    real, dimension (:), allocatable, save :: ypts
+    !> Change argument of bmag depending on which theta you want to write out
+    integer, parameter :: ig_index = 0
+    if (.not. allocated(xpts)) then
+       allocate(xpts(negrid,nspec))
+       allocate(ypts(nlambda))
+
+       ! should really just get rid of xpts and ypts
+       xpts = speed
+       ypts = 0.0
+
+       do il=1,nlambda
+          ypts(il) = sqrt(max(0.0,1.0-al(il)*bmag(ig_index)))
+       end do
+
+       if (proc0) then
+          write(unit, *) negrid*nlambda
+       end if
+    endif
+
+    do iglo = g_lo%llim_world, g_lo%ulim_world
+       ik = ik_idx(g_lo, iglo) ; if (ik /= 1) cycle
+       it = it_idx(g_lo, iglo) ; if (it /= 1) cycle
+       is = is_idx(g_lo, iglo) ; if (is /= 1) cycle
+       ie = ie_idx(g_lo, iglo)
+       ig = ig_index
+       il = il_idx(g_lo, iglo)
+       if (idx_local (g_lo, ik, it, il, ie, is)) then
+          if (proc0) then
+             gtmp = gnew(ig, :, iglo)
+          else
+             call send (gnew(ig,:,iglo), 0)
+          endif
+       else if (proc0) then
+          call receive (gtmp, proc_id(g_lo, iglo))
+       endif
+       if (proc0) then
+          if (.not. forbid(ig, il)) then
+             vpa = sqrt(energy(ie,is)*max(0.0, 1.0-al(il)*bmag(ig)))
+             vpe = sqrt(energy(ie,is)*al(il)*bmag(ig))
+             write (unit, "(8(1x,e12.6))") vpa, vpe, energy(ie,is), al(il), &
+                  xpts(ie,is), ypts(il), real(gtmp(1)), real(gtmp(2))
+          end if
+       end if
+    end do
+    if (proc0) write (unit, *)
+  end subroutine do_write_f
+
+  !> Write distribution function (\(g\) or possibly \(f\)?) in real space to text file
+  !> "<runname>.yxdist"
+  subroutine do_write_fyx (unit, phi, bpar)
+    use mp, only: proc0, send, receive, barrier
+    use gs2_layouts, only: il_idx, ig_idx, ik_idx, it_idx, is_idx, isign_idx, ie_idx
+    use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
+    use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
+    use theta_grid, only: bmag, ntgrid
+    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
+    use nonlinear_terms, only: accelerated
+    use gs2_transforms, only: transform2, init_transforms
+    use array_utils, only: zero_array, copy
+#ifdef SHMEM
+    use shm_mpi3, only: shm_alloc, shm_free
+#endif
+    integer, intent(in) :: unit
+    !> Electrostatic potential and parallel magnetic field
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    real, dimension (:,:), allocatable :: grs, gzf
+#ifndef SHMEM
+    real, dimension (:,:,:), allocatable :: agrs, agzf
+#else
+    real, dimension (:,:,:), pointer, contiguous :: agrs => null(), agzf => null()
+    complex, dimension(:,:,:), pointer, contiguous :: g0_ptr => null()
+#endif
+    real, dimension (:), allocatable :: agp0, agp0zf
+    real :: gp0, gp0zf
+    integer :: ig, it, ik, il, ie, is, iyxlo, isign, iaclo, iglo, acc
+    logical, save :: first = .true.
+
+    if (accelerated) then
+#ifndef SHMEM
+       allocate (agrs(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))
+       allocate (agzf(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))
+#else
+       call shm_alloc(agrs, (/ 1, 2*ntgrid+1, 1, 2, &
+            accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
+       call shm_alloc(agzf, (/ 1, 2*ntgrid+1, 1, 2, &
+            accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
+       call shm_alloc(g0_ptr, (/ 1, 2*ntgrid+1, 1, 2, &
+            accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
+#endif
+       allocate (agp0(2), agp0zf(2))
+       call zero_array(agrs); call zero_array(agzf); agp0 = 0.0; agp0zf = 0.0
+    else
+#ifdef SHMEM
+       g0_ptr => g_work
+#endif
+       allocate (grs(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
+       allocate (gzf(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
+       call zero_array(grs); call zero_array(gzf); gp0 = 0.0; gp0zf = 0.0
+    end if
+
+    if (first) then
+       if (proc0) then
+          acc = 0
+          if (accelerated) acc = 1
+          write(unit,*) 2*negrid*nlambda, bmag(0), acc
+       end if
+
+       first = .false.
+    end if
+
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
+
+#ifndef SHMEM
+    call copy(gnew, g_work)
+#else
+    g0_ptr = gnew
+#endif
+
+#ifndef SHMEM
+    if (accelerated) then
+       call transform2 (g_work, agrs)
+    else
+       call transform2 (g_work, grs)
+    end if
+
+    call zero_array(g_work)
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       if (ik == 1) g_work(:,:,iglo) = gnew(:,:,iglo)
+    end do
+
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
+
+    if (accelerated) then
+       call transform2 (g_work, agzf)
+    else
+       call transform2 (g_work, gzf)
+    end if
+
+#else
+
+    if (accelerated) then
+       call transform2 (g0_ptr, agrs)
+    else
+       call transform2 (g0_ptr, grs)
+    end if
+
+    g0_ptr = 0.0
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       if (ik == 1) g0_ptr(:,:,iglo) = gnew(:,:,iglo)
+    end do
+
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
+
+    if (accelerated) then
+       call transform2 (g0_ptr, agzf)
+    else
+       call transform2 (g0_ptr, gzf)
+    end if
+
+#endif
+
+    if (accelerated) then
+       do iaclo=accelx_lo%llim_world, accelx_lo%ulim_world
+          it = it_idx(accelx_lo, iaclo)
+          ik = ik_idx(accelx_lo, iaclo)
+          if (it == 1 .and. ik == 1) then
+             il = il_idx(accelx_lo, iaclo)
+             ig = 0
+             if (.not. forbid(ig,il)) then
+                ie = ie_idx(accelx_lo, iaclo)
+                is = is_idx(accelx_lo, iaclo)
+
+                if (proc0) then
+                   if (.not. idx_local(accelx_lo, ik, it, il, ie, is)) then
+                      call receive (agp0, proc_id(accelx_lo, iaclo))
+                      call receive (agp0zf, proc_id(accelx_lo, iaclo))
+                   else
+                      agp0 = agrs(ig+ntgrid+1, :, iaclo)
+                      agp0zf = agzf(ig+ntgrid+1, :, iaclo)
+                   end if
+                else if (idx_local(accelx_lo, ik, it, il, ie, is)) then
+                   call send (agrs(ig+ntgrid+1, :, iaclo), 0)
+                   call send (agzf(ig+ntgrid+1, :, iaclo), 0)
+                end if
+
+                if (proc0) then
+                   write (unit, "(6(1x,e13.6))") energy(ie), al(il), &
+                        agp0(1), agp0(2), agp0zf(1), agp0zf(2)
+                end if
+             end if
+          end if
+          call barrier
+       end do
+       deallocate(agp0, agp0zf)
+#ifndef SHMEM
+       deallocate(agrs, agzf)
+#else
+       call shm_free(agrs)
+       call shm_free(agzf)
+       call shm_free(g0_ptr)
+#endif
+    else
+       do iyxlo=yxf_lo%llim_world, yxf_lo%ulim_world
+
+          ig = ig_idx(yxf_lo, iyxlo)
+          it = it_idx(yxf_lo, iyxlo)
+          if (ig == 0 .and. it == 1) then
+             il = il_idx(yxf_lo, iyxlo)
+             if (.not. forbid(ig,il)) then
+                ik = 1
+                ie = ie_idx(yxf_lo, iyxlo)
+                is = is_idx(yxf_lo, iyxlo)
+                isign = isign_idx(yxf_lo, iyxlo)
+
+                if (proc0) then
+                   if (.not. idx_local(yxf_lo, ig, isign, it, il, ie, is)) then
+                      call receive (gp0, proc_id(yxf_lo, iyxlo))
+                      call receive (gp0zf, proc_id(yxf_lo, iyxlo))
+                   else
+                      gp0 = grs(ik, iyxlo)
+                      gp0zf = gzf(ik, iyxlo)
+                   end if
+                else if (idx_local(yxf_lo, ig, isign, it, il, ie, is)) then
+                   call send (grs(ik, iyxlo), 0)
+                   call send (gzf(ik, iyxlo), 0)
+                end if
+
+                if (proc0) then
+                   write (unit, "(4(1x,e13.6),i8)") energy(ie), al(il), &
+                        gp0, gp0zf, isign
+                end if
+             end if
+          end if
+          call barrier
+       end do
+       deallocate (grs, gzf)
+    end if
+
+    if (proc0) flush (unit)
+
+    if (proc0) then
+       write(unit,*)
+    end if
+
+  end subroutine do_write_fyx
 
   !> FIXME : Add documentation    
   subroutine reorder_kx (unord, ord)

@@ -44,6 +44,7 @@ module init_g
        ginitopt_random_sine = 40, ginitopt_constant = 41
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
+  real :: init_spec_pow
   real :: den0, upar0, tpar0, tperp0
   real :: den1, upar1, tpar1, tperp1
   real :: den2, upar2, tpar2, tperp2
@@ -54,7 +55,7 @@ module init_g
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
   integer, dimension(3) :: ikkk,ittt
-  complex, dimension (6) :: phiamp, aparamp
+  complex, dimension(3) :: phiamp, aparamp
   integer :: restart_eig_id
   integer :: max_mode
 
@@ -118,7 +119,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem
      !> ([[init_g_knobs:ginit_option]] `"ot"`). Controls size of `jpar` term.
      !> FIXME: Reference equations?
-     complex, dimension(6) :: aparamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: aparamp = cmplx(0.0,0.0)
      !> Amplitude of equilibrium `By`: if `b0` is non-zero, \(u_0\) is
      !> rescaled to give this `By` amplitude by overriding [[init_g_knobs:a0]]
      real :: b0 = 0.0
@@ -231,6 +232,9 @@ module init_g
      !> Amplitude of imaginary part of \(\phi\) for various
      !> [[init_g_knobs:ginit_option]] options
      real :: imfac = 0.0
+     !> Initial spectrum power index. with
+     !> [[init_g_knobs:ginit_option]] `"noise"`.
+     real :: init_spec_pow = 0.0
      !> Do we want to include the explicit source terms and
      !> related timesteps when saving/restoring from the restart file.
      logical :: include_explicit_source_in_restart = .true.
@@ -271,7 +275,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem.
      !>
      !> FIXME: expand
-     complex, dimension(6) :: phiamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: phiamp = cmplx(0.0,0.0)
      !> If doing multiple flux tube calculations, multiply
      !> [[init_g_knobs:phiinit]] by `(job * phifrac + 1)`. Allows for ensemble
      !> averaging of multiple flux tube calculations
@@ -1021,6 +1025,7 @@ contains
     call broadcast (phifrac)
     call broadcast (dphiinit)
     call broadcast (zf_init)
+    call broadcast (init_spec_pow)
     call broadcast (apar0)
     call broadcast (tstart)
     call broadcast (chop_side)
@@ -1360,6 +1365,7 @@ contains
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
     include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
+    init_spec_pow = init_g_config%init_spec_pow
     initial_condition_is_nonadiabatic_dfn = init_g_config%initial_condition_is_nonadiabatic_dfn
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
@@ -1606,11 +1612,13 @@ contains
     use constant_random, only: finish_constant_random
     use constant_random, only: constant_ranf=>ranf
     use array_utils, only: copy, zero_array
+    use constants, only: twopi
+    use kt_grids, only: kperp2
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo, ig, ik, it, il, is, nn
-
+    real :: spec_pow
 
     !CMR: need to document tracer phit parameter   ;-)
     call zero_array(phit)
@@ -1628,15 +1636,20 @@ contains
     do it = 1, ntheta0
        do ik = 1, naky
           do ig = -ntgrid, ntgrid
-            if (constant_random_flag) then 
-             a = constant_ranf()-0.5
-             b = constant_ranf()-0.5
-            else
-             a = ranf()-0.5
-             b = ranf()-0.5
-            end if
-             phi(ig,it,ik) = cmplx(a,b)
-           end do
+             if (constant_random_flag) then
+                a = constant_ranf()-0.5
+                b = constant_ranf()-0.5
+             else
+                a = ranf()-0.5
+                b = ranf()-0.5
+             end if
+             if (init_spec_pow > 0.) then
+                spec_pow = 1./sqrt(1.+kperp2(ig,it,ik)**(0.5*init_spec_pow))
+                phi(ig,it,ik) = spec_pow*exp(cmplx(0.,twopi*a))
+             else
+                phi(ig,it,ik) = cmplx(a,b)
+             end if
+          end do
 !CMR,28/1/13: 
 ! clean_init debrutalises influence of chop_side on phi with linked bc
           if (chop_side) then
@@ -1671,7 +1684,7 @@ contains
        end do
     end do
     if (constant_random_flag) call finish_constant_random
-    
+
     !Wipe out all but one kx if requested
     if (ikx_init  > 0) call single_initial_kx(phi)
     
@@ -2837,7 +2850,7 @@ contains
     use array_utils, only: copy, zero_array
     implicit none
     integer :: iglo, ik, it, is, i
-    real :: fac
+    complex :: fac
     complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar ! local !
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
@@ -2888,6 +2901,7 @@ contains
        it = ittt(i)
        ik = ikkk(i)
        if (abs(phiamp(i)) > epsilon(0.0)) then
+          ! Should this include abs?
           fac = phiamp(i) / phinew(0,it,ik)
           phi(:,it,ik) = phi(:,it,ik) * fac
        end if
@@ -3230,9 +3244,8 @@ contains
     use gs2_transforms, only: inverse2,transform2
     use run_parameters, only: beta
     use le_grids, only: integrate_moment
-    use dist_fn, only: getmoms_notgc, get_init_field
-    use dist_fn, only: init_mom_coeff
-    use dist_fn, only: gamtot, gamtot1, gamtot2
+    use diagnostics_moments, only: getmoms_notgc, init_mom_coeff
+    use dist_fn, only: gamtot, gamtot1, gamtot2, get_init_field
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file
@@ -4582,19 +4595,19 @@ contains
     character(len = 150) :: restart_dir
     character(len = 20) :: eq_type, ginit_option
     character(len = run_name_size) :: restart_file
-    complex, dimension(3) :: ukxy_pt
-    complex, dimension(6) :: aparamp, phiamp
+    complex, dimension(3) :: aparamp, phiamp, ukxy_pt
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
-    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
-    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
-    real :: upar2, width0, zf_init
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi
+    logical :: read_many
+    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, init_spec_pow, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart
+    real :: upar0, upar1, upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, null_apar, null_bpar, null_phi, phiamp, &
-         phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
-         upar1, upar2, width0, zf_init
+         include_explicit_source_in_restart, init_spec_pow, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, left, max_mode, new_field_init, null_apar, null_bpar, null_phi, &
+         phiamp, phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, &
+         tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4623,6 +4636,7 @@ contains
     ikx_init = self%ikx_init
     imfac = self%imfac
     include_explicit_source_in_restart = self%include_explicit_source_in_restart
+    init_spec_pow = self%init_spec_pow
     initial_condition_is_nonadiabatic_dfn = self%initial_condition_is_nonadiabatic_dfn
     input_check_recon = self%input_check_recon
     itt = self%itt
@@ -4689,6 +4703,7 @@ contains
     self%ikx_init = ikx_init
     self%imfac = imfac
     self%include_explicit_source_in_restart = include_explicit_source_in_restart
+    self%init_spec_pow = init_spec_pow
     self%initial_condition_is_nonadiabatic_dfn = initial_condition_is_nonadiabatic_dfn
     self%input_check_recon = input_check_recon
     self%itt = itt
@@ -4734,7 +4749,7 @@ contains
   subroutine write_init_g_config(self, unit)
     implicit none
     class(init_g_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
+    integer, intent(in), optional:: unit
     integer :: unit_internal
 
     unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -4766,6 +4781,7 @@ contains
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
     call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)
+    call self%write_key_val("init_spec_pow", self%init_spec_pow, unit_internal)
     call self%write_key_val("initial_condition_is_nonadiabatic_dfn", self%initial_condition_is_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
@@ -4845,6 +4861,7 @@ contains
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
     call broadcast(self%include_explicit_source_in_restart)
+    call broadcast(self%init_spec_pow)
     call broadcast(self%initial_condition_is_nonadiabatic_dfn)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)

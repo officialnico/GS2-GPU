@@ -33,30 +33,30 @@ module diagnostics_config
      real :: diffusivity = initial_value
 
      ! Individual heat fluxes
-     real, dimension(:), pointer :: species_es_heat_flux
-     real, dimension(:), pointer :: species_apar_heat_flux
-     real, dimension(:), pointer :: species_bpar_heat_flux
+     real, dimension(:), allocatable :: species_es_heat_flux
+     real, dimension(:), allocatable :: species_apar_heat_flux
+     real, dimension(:), allocatable :: species_bpar_heat_flux
 
      ! Total fluxes
-     real, dimension(:), pointer :: species_heat_flux
-     real, dimension(:), pointer :: species_momentum_flux
-     real, dimension(:), pointer :: species_particle_flux
-     real, dimension(:), pointer :: species_energy_exchange
+     real, dimension(:), allocatable :: species_heat_flux
+     real, dimension(:), allocatable :: species_momentum_flux
+     real, dimension(:), allocatable :: species_particle_flux
+     real, dimension(:), allocatable :: species_energy_exchange
 
      ! Average total fluxes
-     real, dimension(:), pointer :: species_heat_flux_avg
-     real, dimension(:), pointer :: species_momentum_flux_avg
-     real, dimension(:), pointer :: species_particle_flux_avg
+     real, dimension(:), allocatable :: species_heat_flux_avg
+     real, dimension(:), allocatable :: species_momentum_flux_avg
+     real, dimension(:), allocatable :: species_particle_flux_avg
 
      ! Heating
-     real, dimension(:), pointer :: species_heating
-     real, dimension(:), pointer :: species_heating_avg
+     real, dimension(:), allocatable :: species_heating
+     real, dimension(:), allocatable :: species_heating_avg
 
      ! Growth rates
-     complex, dimension(:,:), pointer :: omega_average
+     complex, dimension(:,:), allocatable :: omega_average
 
      ! free energy transfer due to nonlinearity
-     complex, dimension(:,:), pointer :: zonal_transfer
+     complex, dimension(:,:), allocatable :: zonal_transfer
 
   end type results_summary_type
 
@@ -83,7 +83,7 @@ module diagnostics_config
      real :: user_time
      real :: user_time_old
      real :: start_time
-     real, dimension(:), pointer :: fluxfac
+     real, dimension(:), allocatable :: fluxfac
      integer :: nwrite
      integer :: nwrite_mult
      logical :: write_any
@@ -266,6 +266,7 @@ contains
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use nonlinear_terms, only: nonlin
+    use collisions, only: use_le_layout
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
@@ -375,6 +376,11 @@ contains
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
 
     exist = new_gs2_diagnostics_config%exist
+
+    !Override flags
+
+    ! The collision_error method assumes we have setup the lz layout.
+    if (use_le_layout) gnostics%write_cerr = .false.
 
     if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
        gnostics%nsave = -1

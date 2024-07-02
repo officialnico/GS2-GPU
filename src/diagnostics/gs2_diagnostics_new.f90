@@ -221,6 +221,8 @@ contains
     gnostics%ascii_files%write_to_vres   = gnostics%write_verr    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_vres2  = gnostics%write_verr    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_cres   = gnostics%write_cerr    .and.  gnostics%write_ascii
+    gnostics%ascii_files%write_to_dist   = gnostics%write_g    .and.  gnostics%write_ascii
+    gnostics%ascii_files%write_to_yxdist   = gnostics%write_gyx    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_phase  = gnostics%write_cross_phase .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_jext   = gnostics%write_jext    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_parity = gnostics%write_parity  .and.  gnostics%write_ascii
@@ -238,9 +240,8 @@ contains
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
     use collisional_heating, only: finish_collisional
-    use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom
+    use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom, do_write_fyx, do_write_f
     use nonlinear_terms, only: nonlin
-    use dist_fn, only: write_fyx, write_f, collision_error
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use unit_tests, only: debug_message
@@ -275,28 +276,39 @@ contains
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
        call neasyf_close(gnostics%file_id)
     end if
-    if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
     
     ! Random stuff that needs to be put in properly or removed
-    if (gnostics%write_gyx) call write_fyx (phinew,bparnew,.true.)
-    if (gnostics%write_g) call write_f (.true.)
+    ! Note we don't use gnostics%ascii_files%write_to_yxdist here
+    ! because do_write_fyx is collective but gnostics%ascii_files%write_to_yxdist
+    ! is only set on proc0
+    if (gnostics%write_ascii .and. gnostics%write_gyx) &
+         call do_write_fyx (gnostics%ascii_files%yxdist, phinew, bparnew)
+    if (gnostics%write_ascii .and. gnostics%write_g) &
+         call do_write_f (gnostics%ascii_files%dist)
     if (gnostics%write_ascii) call do_write_geom()
-    
+    if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
+
     call finish_diagnostics_config(gnostics)
   end subroutine finish_gs2_diagnostics_new
 
   !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_fyx, write_f, collision_error
+    use gs2_diagnostics, only: do_write_fyx, do_write_f
     implicit none
     integer :: nwrite_large
 
     nwrite_large = gnostics%nwrite*gnostics%nwrite_mult
+    if (mod(gnostics%istep,nwrite_large) /= 0) return
+
     ! Random stuff that needs to be put in properly or removed
-    if (gnostics%write_gyx .and. &
-      mod(gnostics%istep,nwrite_large) == 0) call write_fyx (phinew,bparnew,.false.)
-    if (gnostics%write_g   .and. mod(gnostics%istep,nwrite_large) == 0) call write_f (.false.)
+    ! Note we don't use gnostics%ascii_files%write_to_yxdist here
+    ! because do_write_fyx is collective but gnostics%ascii_files%write_to_yxdist
+    ! is only set on proc0
+    if (gnostics%write_ascii .and. gnostics%write_gyx) &
+         call do_write_fyx (gnostics%ascii_files%yxdist, phinew, bparnew)
+    if (gnostics%write_ascii .and. gnostics%write_g) &
+         call do_write_f (gnostics%ascii_files%dist)
   end subroutine run_diagnostics_to_be_updated
 
   !> Calculates and write the QL flux metric to netcdf

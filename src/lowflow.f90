@@ -80,6 +80,9 @@ contains
     real, dimension (:,:,:,:,:), allocatable :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6
     real, dimension (:,:,:), allocatable :: vpadhdec, dhdec, dhdxic, cdfac, hneovpth
     real, dimension (:), allocatable :: tmp7, tmp8, tmp9
+    ! Add deprecation notice as LOWFLOW not being actively maintained/tested due to
+    ! use of old verision of neo files.
+    if (proc0) write(*, '("Warning: Lowflow deprecated in v8.2 and will be removed.")')
 
     ! Initialise the curvature drift
     call init_wcurv(driftknob, tpdriftknob)
@@ -400,7 +403,7 @@ contains
     use le_grids, only: w, wl
     use theta_grid, only: delthet, jacob, ntgrid, Rplot
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
-    use geometry, only: rmaj
+    use geometry, only: surf
     use species, only: spec
     use integration, only: trapezoidal_integration
     implicit none
@@ -412,7 +415,7 @@ contains
     real, dimension (:), intent (out) :: dphidthc, dphidrc, phi_neo
     logical, intent (in) :: lf_default, lf_decompose
 
-    real :: rgeo2, drlt, drln
+    real :: rgeo2, drlt, drln, rmaj
 
     real, dimension (:,:,:,:,:), allocatable :: hneo
     real, dimension (:,:,:,:), allocatable :: dHdxi, dHdE, vpadHdE, dHdr, dHdth
@@ -438,7 +441,7 @@ contains
     nlambda = size(al)
     nenergy = size(energy)
     nxi = 2*nlambda-1
-
+    rmaj = surf%rmaj
     if (.not. allocated(xi)) allocate (xi(ntheta,nxi))
     if (.not. allocated(forbid)) allocate(forbid(ntheta,nxi))
     forbid = .false. ; xi = 0.0

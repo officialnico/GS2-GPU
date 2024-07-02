@@ -44,7 +44,12 @@ contains
     use mp, only: mp_abort, proc0
 
     implicit none
-    real, external:: wgt_func
+    interface
+       real function wgt_func_exp(x)
+         real, intent(in) :: x
+       end function wgt_func_exp
+    end interface
+    procedure(wgt_func_exp) :: wgt_func
     integer,intent(in):: N_out
     real,intent(in):: v0, vf
     real,dimension(1:), intent(inout):: out_abscissae, out_wgts
@@ -212,6 +217,8 @@ contains
     UNUSED_DUMMY(out_abscissae); UNUSED_DUMMY(out_wgts)
     if (proc0) write(*,*) "ERROR: Must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile."
     call mp_abort("You must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile.")
+    ! Hacky way to avoid unused argument warning
+    if (.false.) write(*,*) wgt_func(0.0)
 #endif
   end subroutine get_quadrature_rule
 

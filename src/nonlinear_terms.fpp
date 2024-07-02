@@ -13,10 +13,9 @@ module nonlinear_terms
 
   public :: init_nonlinear_terms, finish_nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
-  public :: add_explicit_terms, nonlinear_mode_switch, split_nonlinear
+  public :: add_explicit_terms, split_nonlinear, time_add_explicit_terms_field
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
-  public :: time_add_explicit_terms_field, nonlinear_mode_none, nonlinear_mode_on
   public :: calculate_current_nl_source_and_cfl_limit
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
@@ -270,7 +269,7 @@ contains
     implicit none
     integer, intent(in) :: unit
     if (.not. exist) return
-    if (nonlinear_mode_switch == nonlinear_mode_on) then
+    if (nonlin) then
        write (unit, *)
        write (unit, fmt="(' &',a)") "nonlinear_terms_knobs"
        write (unit, fmt="(' nonlinear_mode = ',a)") '"on"'
@@ -318,7 +317,7 @@ contains
     call read_parameters(nonlinear_terms_config_in)
 
     if (debug) write(6,*) "init_nonlinear_terms: init_transforms"
-    if (nonlinear_mode_switch /= nonlinear_mode_none) then
+    if (nonlin) then
        call init_transforms (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
 
        if (debug) write(6,*) "init_nonlinear_terms: allocations"
@@ -394,10 +393,7 @@ contains
          (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
          ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
 
-    if (nonlinear_mode_switch == nonlinear_mode_on)  then
-       nonlin = .true.
-    end if
-
+    nonlin = nonlinear_mode_switch == nonlinear_mode_on
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
@@ -418,20 +414,18 @@ contains
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total)
 
-    select case (nonlinear_mode_switch)
-    case (nonlinear_mode_none)
-!!! NEED TO DO SOMETHING HERE...  BD GGH
+    if (nonlin) then
+       if (istep /= 0) then
+          call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd, nl)
+       end if
+    else
        dt_cfl = dt_cfl_default_large
        call save_dt_cfl (dt_cfl)
 #ifdef LOWFLOW
        if (istep /=0) &
             call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd)
 #endif
-    case (nonlinear_mode_on)
-       if (istep /= 0) then
-         call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd, nl)
-       endif
-    end select
+    end if
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
     time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
@@ -801,8 +795,7 @@ contains
     logical, intent(in), optional :: adjust
     logical :: should_adjust
     integer, parameter :: verb = 4
-
-    integer :: iglo, ik, it, ia
+    integer :: iglo, ik, it
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
     should_adjust = get_option_with_default(adjust, .true.)
@@ -815,7 +808,7 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calling transform2')
     !Transform to real space
     if (accelerated) then
-       call transform2 (g1, aba, ia)
+       call transform2 (g1, aba)
     else
        call transform2 (g1, ba)
     end if
@@ -839,7 +832,7 @@ contains
 
     !Transform to real space
     if (accelerated) then
-       call transform2 (g1, agb, ia)
+       call transform2 (g1, agb)
     else
        call transform2 (g1, gb)
     end if
@@ -864,7 +857,7 @@ contains
 
     !Transform to real space    
     if (accelerated) then
-       call transform2 (g1, aba, ia)
+       call transform2 (g1, aba)
     else
        call transform2 (g1, ba)
     end if
@@ -883,7 +876,7 @@ contains
 
     !Transform to real space
     if (accelerated) then
-       call transform2 (g2, agb, ia)
+       call transform2 (g2, agb)
     else
        call transform2 (g2, gb)
     end if
@@ -899,7 +892,7 @@ contains
 
     !Transform NL source back to spectral space
     if (accelerated) then
-       call inverse2 (abracket, g1, ia)
+       call inverse2 (abracket, g1)
     else
        call inverse2 (bracket, g1)
     end if
@@ -1260,9 +1253,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_nonlinear_terms
-#ifndef SHMEM    
     use gs2_transforms, only: finish_transforms
-#else
+#ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
     implicit none
@@ -1287,10 +1279,7 @@ contains
     nonlin = .false. ; alloc = .true. ; zip = .false. ; accelerated = .false.
     initialized = .false. ; initializing = .true. ; exist = .false.
 
-#ifndef SHMEM
     call finish_transforms
-#endif
-
     call nonlinear_terms_config%reset()
   end subroutine finish_nonlinear_terms
 

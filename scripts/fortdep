@@ -23,7 +23,7 @@ my $DEPFILE="Makefile.depend";
 	"verbose" => 2, # verbose level (0: silent, 1: info, 
                         # 2: warning [default], 3: debug)
         "keep" => "no", # If defined then don't cleanup processed files
-        "generated_src_dir" => "/dev/null"
+        "generated_src_dir" => "."
 	);
 
     # store search path;
@@ -62,8 +62,8 @@ my $DEPFILE="Makefile.depend";
     my %SOURCE=();
     &find_source(\@PATH,\%SOURCE,\%OPTION,\%MSGTYPE);
     foreach my $file ( keys %SOURCE ){
-	my @prop = values %{$SOURCE{$file}};
-	&message($MSGTYPE{'debug'}," $file, type = $prop[0] dir = $prop[1]\n");
+	my %prop = %{$SOURCE{$file}};
+	&message($MSGTYPE{'debug'}," $file, type = $prop{'type'} dir = $prop{'dir'}\n");
     }
     my @val = values(%SOURCE);
 
@@ -554,23 +554,31 @@ sub preprocess{
 #
     my ($source,$option,$msgtype)=@_;
 
-    my $files = '';
+    my @filelist = ();
 #    &message($$msgtype{'info'},"preprocessing");
     foreach my $file ( keys %$source ){
 #	&message($$msgtype{'info'},".");
 	if($$source{$file}{'type'} eq "prep"){
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
-            $files = $files . $f90file . " ";            
+	    push(@filelist, "$$option{'generated_src_dir'}/$f90file");
 #	    system("$$option{'makecmd'} $f90file");
 	    $$source{$f90file}{'dir'} = $$option{'generated_src_dir'};
 	    $$source{$f90file}{'type'} = "fort";
 	}
     }
-    if( $files ne '' ) {
-        system("$$option{'makecmd'} $$option{'generated_src_dir'}/$files");
+
+    my $files = '';
+    foreach my $file (@filelist){
+        if ( ! -f $file ){
+            $files = $files . $file . " ";
+        }
     }
-    
+
+    if ($files ne ""){
+        system("$$option{'makecmd'} $files");
+    }
+
 #    &message($$msgtype{'info'},"end\n");
 
     return;
@@ -592,7 +600,7 @@ sub cleanprep{
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
 	    if ($$source{$f90file}{'type'} ne ""){
-		unlink "$f90file";
+		unlink "$$source{$f90file}{'dir'}/$f90file";
 		foreach my $key ( keys %{$$source{$file}} ){
 		    delete $$source{$file}{$key};
 		}

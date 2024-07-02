@@ -16,6 +16,8 @@ ascii_files = [
   'lpc',
   'vres2',
   'cres',
+  'dist',
+  'yxdist',
   'parity',
   'jext',
   'eigenfunc'
