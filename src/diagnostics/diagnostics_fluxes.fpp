@@ -23,7 +23,7 @@ module diagnostics_fluxes
   real, dimension (:,:,:), allocatable :: pbflux, vbflux
   real, dimension (:,:), allocatable :: esflux_vs_e, apflux_vs_e, bpflux_vs_e
   real, dimension (:,:,:), allocatable :: exchange
-  real, dimension (:,:,:), allocatable :: exchange1
+  real, dimension (:,:,:), allocatable :: exchange_dummy
 
 #ifdef NETCDF_PARALLEL
   logical, parameter :: moment_to_allprocs = .true.
@@ -52,8 +52,8 @@ contains
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
     allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
 
-    allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
     allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
+    allocate (exchange_dummy (ntheta0,naky,nspec)) ; exchange_dummy = 0.
 
     allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
     allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
@@ -80,7 +80,7 @@ contains
     if (.not. allocated(pflux)) return
 
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
+         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange_dummy, &
          esflux_vs_e, apflux_vs_e, bpflux_vs_e)
   end subroutine finish_diagnostics_fluxes
 
@@ -249,8 +249,10 @@ contains
     use mp, only: proc0
     use species, only: spec
     use dist_fn_arrays, only: g_adjust, gnew, to_g_gs2, from_g_gs2
+    use dist_fn_arrays, only: g
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
+    use fields_arrays, only: bpar
     use run_parameters, only: has_phi, has_apar, has_bpar
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
@@ -258,6 +260,7 @@ contains
     integer :: is
 
     call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
+    call g_adjust (g, phi, bpar, direction = from_g_gs2)
     call flux (phinew, aparnew, bparnew, &
          pflux,  qheat,  vflux, vflux_par, vflux_perp, &
          pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
@@ -267,13 +270,15 @@ contains
     ! lowflow terms only implemented in electrostatic limit at present
     if (gs2_has_lowflow) call lf_flux (phinew, vflux0, vflux1)
 
-    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
-
-    ! Note we don't use / write exchange1 anywhere, we also call with gnew unadjusted
-    if (has_phi) call eexchange (phinew, phi, exchange1, exchange)
+    ! Note we don't use / write exchange_dummy anywhere
+    if (has_phi) call eexchange (phinew, phi, exchange_dummy, exchange)
 
     ! Note all procs have the main results so could also do the below such that
     ! we have the right result on all processors.
+
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
+    call g_adjust (g, phi, bpar, direction = to_g_gs2)
+
     if (.not. proc0) return
 
     do is = 1, nspec
@@ -1053,9 +1058,7 @@ contains
   !> energy exchange (summed over species) is zero
   !>
   !> @note This diagnostic can be relatively expensive to calculate.
-  !>
-  !> @note We currently call this with an unadjusted gnew and g, is that correct?
-  subroutine eexchange (phinew, phi, exchange1, exchange2)
+  subroutine eexchange (phinew, phi, exchange_dummy, exchange_sym)
     use constants, only: zi
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
@@ -1071,7 +1074,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, phi
-    real, dimension (:,:,:), intent (out) :: exchange1, exchange2
+    real, dimension (:,:,:), intent (out) :: exchange_dummy, exchange_sym
     integer :: ig, il, ie, it, ik, is, iglo, isgn
     complex :: dgdt_hypervisc
     complex, dimension (:,:,:,:), allocatable :: total, total2
@@ -1084,8 +1087,8 @@ contains
 
     ! Zero elements not set in main loops
     if (nonlin) then
-       exchange1(1, 1, :) = 0.0
-       exchange2(1, 1, :) = 0.0
+       exchange_dummy(1, 1, :) = 0.0
+       exchange_sym(1, 1, :) = 0.0
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
@@ -1141,14 +1144,14 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(is, ik, it) &
-    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange1, total, phinew) &
+    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange_dummy, total, phinew) &
     !$OMP COLLAPSE(3) &
     !$OMP SCHEDULE(static)
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
              if (nonlin .and. it==1 .and. ik==1) cycle
-             exchange1(it,ik,is) = field_line_average( &
+             exchange_dummy(it,ik,is) = field_line_average( &
                   real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
           end do
        end do
@@ -1179,11 +1182,12 @@ contains
     !$OMP END PARALLEL DO
     call integrate_moment (g_work, total2)
 
-    ! exchange2 is a symmetrized form of energy exchange,
+    ! exchange_sym is a symmetrized form of energy exchange,
     ! which guarantees species-summed energy exchange is zero
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(is, ik, it) &
-    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange2, total, &
+    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange_sym, total, &
+    !$OMP exchange2i, exchange3r, exchange3i, exchange4r, exchange4i, &
     !$OMP phinew, total2, phi, code_dt) &
     !$OMP COLLAPSE(3) &
     !$OMP SCHEDULE(static)
@@ -1191,7 +1195,7 @@ contains
        do ik = 1, naky
           do it = 1, ntheta0
              if (nonlin .and. it==1 .and. ik==1) cycle
-             exchange2(it,ik,is) = field_line_average( &
+             exchange_sym(it,ik,is) = field_line_average( &
                   real(total(:,it,ik,is) &
                   *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
                   - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
