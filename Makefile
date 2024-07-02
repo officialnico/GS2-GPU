@@ -517,7 +517,7 @@ ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIR
 
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
+DEFAULT_INC_LIST := $(UTILS) $(GEO) $(NEASYF) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -684,7 +684,7 @@ all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
-DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help config_auto_gen
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help config_auto_gen clean_auto_gen_config
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
 # We achieve that using filter-out. Because we also want to be able to build when the user
