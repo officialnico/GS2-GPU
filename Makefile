@@ -515,7 +515,7 @@ ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIR
 
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(MODDIR) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
+DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -527,6 +527,7 @@ LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
 		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
+INCLUDES += -I$(MODDIR)
 
 # Here we attempt to remove non-existent directories from INCLUDES. We assume that
 # INCLUDES is currently just a list of entries of the form -I<some directory> so for
@@ -536,7 +537,7 @@ INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^ 
 
 F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
 F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
-FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
+FPPFLAGS += $(MACRO_DEFS)
 
 VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
