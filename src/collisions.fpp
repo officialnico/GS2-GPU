@@ -22,12 +22,7 @@ module collisions
   public :: colls, hyper_colls, heating, adjust, split_collisions,use_le_layout, solfp1
   public :: collision_model_switch, collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
-
   public :: collisions_config_type, set_collisions_config, get_collisions_config
-
-  protected :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew, etol, ewindow
-  protected :: etola, ewindowa, colls, hyper_colls, adjust, split_collisions
-  protected :: use_le_layout, collision_model_switch, heating
   
   interface solfp1
      module procedure solfp1_le_layout

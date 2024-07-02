@@ -9,7 +9,6 @@ module antenna_data
 
   public :: init_antenna_data, finish_antenna_data
   public :: ant_on, a_ant, b_ant
-  protected :: ant_on
 
   complex, dimension(:), allocatable :: a_ant, b_ant
   logical :: ant_on = .false., initialized = .false.
