@@ -513,19 +513,26 @@ ALL_SOURCE_FILES := $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIR
 ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 
+
+# most common include and library directories
+DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(MODDIR) $(AUTO_GEN_CONFIG_DIR)
+DEFAULT_LIB_LIST :=
+# This default library path list can simplify the procedure of porting,
+# however, I found this (actually -L/usr/lib flag) causes an error
+# when linking gs2 at bassi (RS6000 with xl fortran)
+DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
+DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
 		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
-INCLUDES += -I$(MODDIR)
-INCLUDES += -I$(AUTO_GEN_CONFIG_DIR)
-
 # Here we attempt to remove non-existent directories from INCLUDES. We assume that
 # INCLUDES is currently just a list of entries of the form -I<some directory> so for
 # each entry we strip the -I and then echo -I<some directory> if <some directory> is
 # found to exist. This can help avoid warnings about non-existent directories
-INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
+INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^ *-I//g') ] && echo $(tmpvp) ))
 
 F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
 F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
@@ -535,15 +542,6 @@ VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
-
-# most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF)
-DEFAULT_LIB_LIST :=
-# This default library path list can simplify the procedure of porting,
-# however, I found this (actually -L/usr/lib flag) causes an error
-# when linking gs2 at bassi (RS6000 with xl fortran)
-DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
