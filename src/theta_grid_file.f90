@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> Use output from [[rungridgen]]
 module theta_grid_file
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
@@ -246,17 +247,20 @@ contains
     integer :: unit
     character(200) :: line
     integer :: i
-    logical :: first=.true.
+    logical, save :: first = .true.
+    !Not used because we don't call gridgen_get_grids for file
+    UNUSED_DUMMY(nperiod); UNUSED_DUMMY(ntheta)
+
     !<DD> Should jacob also be provided by this routine?
 
     !<DD> NOTE: Not currently settin Bpol here. This is used in flux calculations.
     !If not set then results will be funny. Add a warning message and set to zero
     !for now.
-    if(first)then
+    if (first) then
        write(*,'("WARNING: When using file_get_grids, Bpol does not have a correct definition --> Currently just setting to zero, may impact some diagnostics")')
-       Bpol=0.
-       first=.false.
-    endif
+       Bpol = 0.
+       first = .false.
+    end if
 
     shat = shat_input
     drhodpsi = drhodpsi_input
@@ -378,7 +382,8 @@ contains
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     real :: rmaj
     logical, intent (in) :: gb_to_cv
-
+    !Not used because we don't call gridgen_get_grids for file
+    UNUSED_DUMMY(nperiod); UNUSED_DUMMY(ntheta)
     Rplot = 1.; Rprime = 0.
     Zplot = 1.; Zprime = 0.
     aplot = 1.; aprime = 0.

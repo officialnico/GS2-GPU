@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> FIXME : Add documentation
 module deq
   use geo_utils, only: abstract_eqfile_cart_geo_type, geo_input_type
@@ -163,6 +164,7 @@ contains
     implicit none
     class(deq_type), intent(in) :: self
     real, intent (in) :: rp
+    UNUSED_DUMMY(rp)
     rcenter = self%R_mag !Historic fallback
   end function rcenter
 

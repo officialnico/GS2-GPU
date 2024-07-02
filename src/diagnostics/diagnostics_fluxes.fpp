@@ -1,5 +1,6 @@
+#include "unused_dummy.inc"
 !> Module which contains functions for calculating
-!! and writing out the fluxes of heat and momentum etc.
+!> and writing out the fluxes of heat and momentum etc.
 module diagnostics_fluxes
 
   implicit none
@@ -1043,6 +1044,7 @@ contains
 
     deallocate (total)
 #else
+    UNUSED_DUMMY(g_in); UNUSED_DUMMY(fld)
     flx = 0.0
 #endif
   end subroutine get_flux_tormom !JPL
