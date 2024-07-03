@@ -92,7 +92,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
-    use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
+    use antenna_data, only: a_ant, b_ant, ant_on
     use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
     use gs2_metadata, only: create_metadata
     use netcdf, only: nf90_collective, nf90_independent
@@ -226,7 +226,7 @@ contains
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
     if (ant_on) then
-       call neasyf_dim(ncid, "nk_stir", dim_size=nk_stir)
+       call neasyf_dim(ncid, "nk_stir", dim_size=size(a_ant))
     end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
@@ -257,8 +257,6 @@ contains
     call neasyf_write(ncid, "vnm2", vnm(2), count=scalar_count)
 
     if (ant_on) then
-
-       if (.not. allocated(atmp)) allocate (atmp(nk_stir))
        atmp = real(a_ant)
        call neasyf_write(ncid, "a_ant_r", atmp, dim_names=["nk_stir"])
        atmp = aimag(a_ant)

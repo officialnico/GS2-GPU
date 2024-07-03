@@ -43,7 +43,7 @@ contains
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
     use collisional_heating, only: init_collisional
-    use collisions, only: heating
+    use collisions, only: heating, set_heating
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
@@ -116,7 +116,7 @@ contains
        gnostics%write_heating = .false.
     else if (heating .and. .not. &
        (gnostics%write_heating .or. gnostics%write_collisional)) then
-       heating = .false.
+       call set_heating(.false.)
     end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

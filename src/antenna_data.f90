@@ -8,48 +8,32 @@ module antenna_data
   private
 
   public :: init_antenna_data, finish_antenna_data
-  public :: a_ant, b_ant, nk_stir, ant_on
+  public :: ant_on, a_ant, b_ant
 
   complex, dimension(:), allocatable :: a_ant, b_ant
-  ! (nk_stir)
-  integer :: nk_stir
   logical :: ant_on = .false., initialized = .false.
 
 contains
   !> FIXME : Add documentation
-  subroutine init_antenna_data (nk_stir_in)
-
-    integer, intent (in) :: nk_stir_in
+  subroutine init_antenna_data (nk_stir)
+    integer, intent (in) :: nk_stir
 
 ! do not reallocate this array on this processor...
 
     if (initialized) return
     initialized = .true.
 
-    if (nk_stir_in <= 0) then
-       ant_on = .false.
-       return
-    else
-       ant_on = .true.
-    end if
-
-    nk_stir = nk_stir_in
-
-    allocate (a_ant(nk_stir))
-    allocate (b_ant(nk_stir))
-
+    ant_on = nk_stir > 0
+    if (.not. ant_on) return
+    allocate (a_ant(nk_stir), b_ant(nk_stir))
   end subroutine init_antenna_data
 
   !> FIXME : Add documentation
   subroutine finish_antenna_data
-
     implicit none
-
     ant_on = .false.
-!CMR,17/7/2009: add allocated test to avoid severe runtime library error
+    !CMR,17/7/2009: add allocated test to avoid severe runtime library error
     if (allocated(a_ant) .and. allocated(b_ant)) deallocate (a_ant, b_ant)
     initialized = .false.
-
   end subroutine finish_antenna_data
-
 end module antenna_data

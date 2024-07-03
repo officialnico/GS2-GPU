@@ -298,12 +298,12 @@ contains
     use init_g, only: ginit, init_vnmult
     use init_g, only: ginitopt_restart_many, initial_condition_is_nonadiabatic_dfn
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use collisions, only: vnmult
+    use collisions, only: set_vnmult
     use array_utils, only: copy, zero_array
     implicit none
     type (init_type), intent(in) :: current
     logical :: restarted
-
+    real, dimension(2) :: new_vnmult
     if (.not. current%initval_ov%override) then
        ! This is the usual initial setup
        call ginit (restarted)
@@ -321,11 +321,12 @@ contains
        if (current%initval_ov%in_memory) then
           call copy(current%initval_ov%g, g)
           call copy(g, gnew)
-          vnmult = current%initval_ov%vnmult
+          new_vnmult = current%initval_ov%vnmult
        else
           call ginit(restarted, ginitopt_restart_many)
-          call init_vnmult(vnmult)
+          call init_vnmult(new_vnmult)
        end if
+       call set_vnmult(new_vnmult)
     end if
 
     if (current%initval_ov%in_memory) then
