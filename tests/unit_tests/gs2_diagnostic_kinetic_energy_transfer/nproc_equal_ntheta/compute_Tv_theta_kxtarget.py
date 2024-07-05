@@ -49,11 +49,11 @@ def parallel_compute_transfer_along_theta():
 def parallel_compute_transfer_wrapper(i_theta):
     print("Computing net transfer for theta = {}".format(ds["theta"].values[i_theta]))
     return compute_net_transfer_this_theta(
-        ds["phi_t"][:, :, :, i_theta, :],
+        ds["phi_t"][:, :, :, i_theta, :], ds["bmag"].values[i_theta],
     )
 
 
-def compute_net_transfer_this_theta(phi):
+def compute_net_transfer_this_theta(phi, B):
     # Convert ri dimension to complex dtype
     phi = ri_to_complex(phi)
     # Move t axis to last position for improved cache performance
@@ -66,9 +66,11 @@ def compute_net_transfer_this_theta(phi):
     phi_star = np.conj(phi[ikyt, ...])
     # Pre-prepare array of mediators for performance
     phi_m = compute_phi_m(phi, ikx0, iky0)
+    # calculate B_factor
+    B_factor = 1 / B**3
     # Compute transfer and return
     return compute_net_transfer(
-        phi, phi_star, phi_m
+        phi, phi_star, phi_m, B_factor
     )
 
 
@@ -128,9 +130,9 @@ def compute_phi_m(phi, ikx0, iky0):
     return phi_m
 
 
-def compute_net_transfer(phi, phi_star, phi_m):
+def compute_net_transfer(phi, phi_star, phi_m, B_factor):
     T_v = (
-        2
+        2 * B_factor
         * z_hat_dot_k_cross_k_prime
         * k_factor_for_T_v
         * compute_time_average(
@@ -142,7 +144,6 @@ def compute_net_transfer(phi, phi_star, phi_m):
         )
     )
 
-    # return np.sum(T_v)
     return np.sum(T_v, axis=(0, 1)) # T_v has dims (kys, kxs, kxt). Sum leaves only kxt dimension
 
 
@@ -177,7 +178,7 @@ if __name__ == "__main__":
     else:
         ds = xr.open_dataset(input_filename)
     # Remove un-used variables
-    required_vars = ["theta", "kx", "ky", "t", "phi_t"]
+    required_vars = ["theta", "kx", "ky", "t", "phi_t", "bmag"]
     #vars_to_delete = ["egrid", "lambda"]  # un-used coords
     vars_to_delete = ["lambda"]  # changed for new diagnotics output
 
