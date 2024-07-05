@@ -23,6 +23,7 @@ module gs2_io
   public :: species_dim, x_dim, kx_dim, y_dim, ky_dim, theta_dim, theta_extended_dim, time_dim
   public :: time_big_dim, time_movie_dim, complex_dim, vpa_dim, lambda_dim, egrid_dim, sign_dim
   public :: nheat_dim, dim_2, dim_3, dim_4, dim_5
+  public :: kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
 
   !> Maximum length of dimension names. This is required to get around
   !> Fortran hating ragged arrays of characters
@@ -68,6 +69,12 @@ module gs2_io
   character(max_dim_name_length), parameter :: dim_4 = "4"
   !> Name of generic dimension for arrays of length 5
   character(max_dim_name_length), parameter :: dim_5 = "5"
+  !> Name of shifted kx-targetdimension
+  character(max_dim_name_length), parameter :: kxt_shifted_dim = "kxt_shifted"
+  !> Name of shifted kx-target dimension
+  character(max_dim_name_length), parameter :: kxs_shifted_dim = "kxs_shifted"
+  !> Name of shifted extended ky-source dimension
+  character(max_dim_name_length), parameter :: kys_extended_dim = "kys_extended"
 
   !> Names of dimensions used by flux variables
   character(*), dimension(*), parameter :: flux_dims = [species_dim, time_dim]
@@ -262,6 +269,21 @@ contains
 # endif
   end subroutine init_gs2_io
 
+  !> TS routine used for creating the dimensions for the kinetic energy transfer diagnostic
+  subroutine fftshift(kx,ntheta0)
+    !> similar to numpy.fft.fftshift in Python
+    !> shift data such that the element for kx=0 is in the center of the array
+
+    implicit none
+
+    integer :: ntheta0, shift_no
+    real, dimension(ntheta0) :: kx
+
+    shift_no = -(ntheta0-1)/2
+    kx = cshift(kx, SHIFT=shift_no, DIM=1)
+
+end subroutine fftshift
+
   !> Ensure the netCDF file contains all the dimensions and grids,
   !> creating them if necessary
   !>
@@ -286,6 +308,27 @@ contains
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
     integer :: nmesh
+
+    !> TS: below added for kinetic energy transfer diagnostic
+    integer :: i
+    real, dimension(:), allocatable :: aky_extended
+    real, dimension(:), allocatable :: kx_shifted
+
+    allocate(kx_shifted(ntheta0)); kx_shifted = akx
+    allocate(aky_extended(2*naky-1)); aky_extended = 0.0
+
+    call fftshift(kx_shifted,ntheta0)
+    do i=1, naky-1; aky_extended(i) = -aky(naky+1-i); end do
+
+    call neasyf_dim(file_id, trim(kxs_shifted_dim), values=kx_shifted, &
+         long_name="Values of kx-source (shifted), used for kinetic energy transfer diagnostic", units="1/rho_r")
+    call neasyf_dim(file_id, trim(kxt_shifted_dim), values=kx_shifted, &
+         long_name="Values of kx-target (shifted), used for entropy transfer", units="1/rho_r")
+    call neasyf_dim(file_id, trim(kys_extended_dim), values=aky_extended, &
+         long_name="Values of ky-source extended (shifted), used for kinetic energy transfer diagnostic", units="1/rho_r")
+
+    deallocate(kx_shifted, aky_extended)
+    !> TS: finished dimension creation for kinetic energy transfer diagnostic
 
     call neasyf_dim(file_id, trim(kx_dim), values=akx, &
          long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
