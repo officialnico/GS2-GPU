@@ -479,7 +479,7 @@ contains
        if (gnostics%write_zonal_transfer) then
           call calculate_zonal_transfer(gnostics)
           call write_zonal_transfer(gnostics)
-       end if
+       end if 
 
        if (gnostics%write_collisional) then  !< new diagnostic, calulate and write in new variable
           call calculate_collisional()

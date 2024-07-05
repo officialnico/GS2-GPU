@@ -222,7 +222,6 @@ contains
     allocate(gnostics%current_results%omega_average(ntheta0, naky))
     allocate(gnostics%current_results%zonal_transfer(ntheta0,naky))
 
-
   end subroutine allocate_current_results
 
   subroutine deallocate_current_results(gnostics)
