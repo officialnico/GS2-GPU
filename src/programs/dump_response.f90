@@ -19,7 +19,7 @@ program dump_response
   use constants, only: run_name_size
   use standard_header, only: standard_header_type
   implicit none
-  logical :: list, exist, jnk_exit
+  logical :: list, exist
   logical, parameter :: quiet=.false.
   character (run_name_size), target :: cbuff
   integer :: istep, n_time_steps, in_file
@@ -52,7 +52,7 @@ program dump_response
 
   if (proc0) cbuff = trim(run_name)
   call broadcast (cbuff)
-  if (.not. proc0) run_name => cbuff
+  if (.not. proc0) run_name = cbuff
 
   if(proc0) then
      n_time_steps=1
@@ -85,7 +85,7 @@ contains
     use gs2_reinit, only: reduce_time_step
     use fields, only: f_reset => reset_init
     use collisions, only: c_reset => reset_init
-    use dist_fn, only: d_reset => reset_init
+    use dist_fn, only: d_reset => finish_dist_fn_level_3
     implicit none
 
     !First reduce the time step

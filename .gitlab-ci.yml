@@ -16,6 +16,7 @@ stages:
   - echo "running" > ${JOB_STATUS_FILE}
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
   - echo "before_script" > ${JOB_STATUS_FILE}
+  - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
   - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES}
@@ -25,6 +26,7 @@ stages:
 
 .create_user: &create_user
   - useradd theuser
+  - chown -R theuser /builds/gyrokinetics/gs2
   - chmod gou+rw ${JOB_STATUS_FILE}
   - touch Makefile.local
   - chmod gou+rw Makefile.local
@@ -40,6 +42,8 @@ variables: &default_variables
   # a new user to run as.
   # OMPI_ALLOW_RUN_AS_ROOT=1
   # OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+  # Below attempts to avoid issue on F39 https://github.com/open-mpi/ompi/issues/11295
+  FI_PROVIDER: "tcp"
   MAKEFLAGS: "-IMakefiles"
   GK_SYSTEM: "fedora"
   # The following control what aspects of the test script are run
@@ -52,11 +56,12 @@ variables: &default_variables
   EXTRA_TEST_FLAGS: ""
   EXTRA_PFUNIT_FLAGS: ""
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
+  GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
-  BASIC_PACKAGES: "environment-modules make git which cmake findutils"
+  BASIC_PACKAGES: "environment-modules make git which cmake findutils wget m4"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
   MPI_PACKAGES: "openmpi openmpi-devel"
-  PYTHON_PACKAGES: "python python3 python3-pip python3-devel python3-pytest"
+  PYTHON_PACKAGES: "python python3 python3-pip python3-devel"
   EXTRA_PACKAGES: ""
   WITH_PYTHON: "yes"
   WITH_MPI: "yes"
@@ -64,6 +69,9 @@ variables: &default_variables
   BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
   BUILD_PFUNIT_JOBS: "1"
   PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
+  BUILD_PFUNIT_IGNORE_GIT: "yes"
+  PFUNIT_VERSION_MAJOR: "4"
+  PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
 
 default:
   timeout: 20m
@@ -82,7 +90,7 @@ default:
   cache:
     paths:
       - cache
-    key: "$CI_JOB_NAME"
+    key: "$CI_JOB_NAME-$CI_COMMIT_BRANCH"
 
 .the_default_script: &default_script
   - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -90,7 +98,7 @@ default:
 
 formattting_tests:
   stage: test
-  image: fedora:31
+  image: fedora:39
   variables:
     CASENAME: "formatting"
     GS2_PACKAGES: ""
@@ -103,21 +111,31 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:35
+  image: fedora:39
   variables:
     CASENAME: "standard"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
-gfortran11_mpich:
+openmp_tests:
   stage: test
-  image: fedora:35
+  image: fedora:39
+  tags: [ saas-linux-medium-amd64 ]
   variables:
-    CASENAME: "gfortran_11_mpich"
+    CASENAME: "openmp"
+    EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
+    OMP_NUM_THREADS: 2
+  script: *default_script
+
+gfortran14_mpich:
+  stage: test
+  image: fedora:40
+  variables:
+    CASENAME: "gfortran_14_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
-    EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
+    EXTRA_PACKAGES: "openblas openblas-devel diffutils"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
 # MPICH performs very poorly when oversubscribed so we limit our integrated tests to
 # one process only.
     EXTRA_TEST_FLAGS: "NTESTPROCS=1"
@@ -126,11 +144,11 @@ gfortran11_mpich:
     - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
     - *report_pass
 
-gfortran5_standard_tests:
+gfortran9_standard_tests:
   stage: test
-  image: fedora:23
+  image: fedora:31
   variables:
-    CASENAME: "gfortran_5"
+    CASENAME: "gfortran_9"
     WITH_PYTHON: ""
     GK_CI_PFUNIT: ""
     GK_CI_INTEGRATED: ""
@@ -140,21 +158,21 @@ gfortran5_standard_tests:
 
 initialisation_tests:
   stage: test
-  image: fedora:31
+  image: fedora:39
   variables:
     CASENAME: "ffpe_trap"
     EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-ffpe-trap=invalid,zero -fcheck=all -finit-real=snan -finit-integer=-12345 -finit-logical=true -finit-character=95 -finit-derived -g"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-ffpe-trap=invalid,zero -fcheck=all,no-array-temps -finit-real=snan -finit-integer=-12345 -finit-logical=true -finit-character=95 -finit-derived -g"
   script: *default_script
 
 intel_tests:
   stage: test
-  image: fedora:31
+  image: fedora:39
   artifacts:
   variables:
     CASENAME: "intel"
-    EXTRA_MAKE_FLAGS: "COMPILER=intel USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128"
+    EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
     GS2_PACKAGES: "cpp gcc"
     EXTRA_PACKAGES: "dnf-plugins-core"
     WITH_PYTHON: "no"
@@ -169,35 +187,32 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:34
+  image: fedora:39
   variables:
-    CASENAME: "standard+coverage+debug+onestep"
+    CASENAME: "standard+coverage+debug"
     GK_CI_INTEGRATED: ""
     GK_CI_PFUNIT_COVERAGE: "ON"
-    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
   after_script:
     - *push_status
     - time pip3 install git+https://github.com/d7919/cpp-coveralls.git
     - date
-    - time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build
+    - su -c "time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build" theuser
 
-
-onestep_standard_tests:
+parallel_netcdf_tests:
   stage: test
-  image: fedora:31
+  image: fedora:39
   variables:
-    CASENAME: "standard_one_step_pp"
-    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_NETCDF_COMPRESSION=on"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    CASENAME: "parallel_netcdf_no_compression"
+    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
+    EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
   script: *default_script
 
 nodeps_tests:
   stage: test
-  image: fedora:31
+  image: fedora:39
   variables:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
@@ -210,16 +225,17 @@ nodeps_tests:
 
 pages:
   stage: test
-  image: fedora:31
+  image: fedora:39
   variables:
     CASENAME: "website"
   script:
     - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
-    - make ${EXTRA_MAKE_FLAGS} doc
+    - su -c "make ${EXTRA_MAKE_FLAGS} doc" theuser
     - mv docs/html ./public
-    - BUILD_STATUS=passed  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
+    - *report_pass
   after_script:
+    - *push_status
     - echo "Website created and pushed, it may take a while before the changes are reflected."
   artifacts:
     paths:

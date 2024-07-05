@@ -23,7 +23,7 @@ my $DEPFILE="Makefile.depend";
 	"verbose" => 2, # verbose level (0: silent, 1: info, 
                         # 2: warning [default], 3: debug)
         "keep" => "no", # If defined then don't cleanup processed files
-        "generated_src_dir" => "/dev/null"
+        "generated_src_dir" => "."
 	);
 
     # store search path;
@@ -62,8 +62,8 @@ my $DEPFILE="Makefile.depend";
     my %SOURCE=();
     &find_source(\@PATH,\%SOURCE,\%OPTION,\%MSGTYPE);
     foreach my $file ( keys %SOURCE ){
-	my @prop = values %{$SOURCE{$file}};
-	&message($MSGTYPE{'debug'}," $file, type = $prop[0] dir = $prop[1]\n");
+	my %prop = %{$SOURCE{$file}};
+	&message($MSGTYPE{'debug'}," $file, type = $prop{'type'} dir = $prop{'dir'}\n");
     }
     my @val = values(%SOURCE);
 
@@ -291,6 +291,19 @@ sub get_fileinfo{
 		}
 	    }
 
+	    # Detect submodules
+	    if( $line =~ /^[\t\n ]*[Ee][Nn][Dd] [Ss][Uu][Bb][Mm][Oo][Dd][Uu][Ll][Ee][\t\n ]/ ){
+		($dummy, $dummy, $modname)=split;
+		$modname =~ tr/[A-Z]/[a-z]/;
+		my $stat=1;
+		$stat=&warn_multifile($file,$modname,$fileinfo,$option,$msgtype)
+		    if ($$fileinfo{$modname}{'name'} ne "");
+		if($stat){
+		    $$fileinfo{$modname}{'name'} = $file;
+		    $$fileinfo{$modname}{'type'} = "submodule";
+		}
+	    }
+
 	    if( $line =~ /^[\t\n ]*[Ee][Nn][Dd] [Pp][Rr][Oo][Gg][Rr][Aa][Mm][\t\n ]/ ){
 		($dummy, $dummy, $progname)=split;
 		$progname =~ tr/[A-Z]/[a-z]/;
@@ -336,6 +349,8 @@ sub get_fileinfo{
 	    next pubcheck if ( 
 		$$fileinfo{$modprog}{'type'} eq "module"
 		|| 
+		$$fileinfo{$modprog}{'type'} eq "submodule"
+		||
 		$$fileinfo{$modprog}{'type'} eq "program"
 		);
 	    if ($$fileinfo{$modprog}{'name'} eq $file) {
@@ -473,6 +488,37 @@ sub get_dependency{
 # 		}
 # 	    }
 
+	    # submodule statement
+	    if( $line =~ /^[\t\n ]*[Ss][Uu][Bb][Mm][Oo][Dd][Uu][Ll][Ee][\t\n ]/ ){
+		($dummy, $moduse)=split;
+		# remove brackets
+		my @tmplistA=split(/\)/,$moduse);
+		my @tmplist=split(/\(/,$tmplistA[0]);
+		$moduse=$tmplist[1];
+		$moduse=~tr/[A-Z]/[a-z]/;
+
+		my $modfile = $$fileinfo{$moduse}{'name'};
+		# ignore if depend on itself
+		next SEARCH if ( $modfile eq $file );
+
+		my $match=0;
+		foreach (@$sysfile){ $match++ if ( $moduse eq $_ ); }
+		if ( $match ) {
+		    &message($$msgtype{'debug'},"$moduse is defined in a library\n");
+		} else {
+		    # check if required module exists
+		    if ( -f "$$source{$modfile}{'dir'}/$modfile" ){
+			# Record modfile (parent module) as a requirement of the submodule (file) of type module
+			$$reqfile{$file}{$modfile} = "module";
+			# Record file (submodule) as a type submodule dependency of the module (modfile) of type module
+			$$reqfile{$modfile}{$file} = "submodule";
+		    } else {
+			&message($$msgtype{'warn'},"module file of $moduse does not exist.\n");
+#			die ( "Module file $modfile of $moduse does not exist, bye.\n" )
+		    }
+		}
+	    }
+
 	    # include statement
 	    if( $line =~ /^[\t\n ]*[Ii][Nn][Cc][Ll][Uu][Dd][Ee][\t\n ]/ ){
 		chop;
@@ -508,23 +554,31 @@ sub preprocess{
 #
     my ($source,$option,$msgtype)=@_;
 
-    my $files = '';
+    my @filelist = ();
 #    &message($$msgtype{'info'},"preprocessing");
     foreach my $file ( keys %$source ){
 #	&message($$msgtype{'info'},".");
 	if($$source{$file}{'type'} eq "prep"){
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
-            $files = $files . $f90file . " ";            
+	    push(@filelist, "$$option{'generated_src_dir'}/$f90file");
 #	    system("$$option{'makecmd'} $f90file");
 	    $$source{$f90file}{'dir'} = $$option{'generated_src_dir'};
 	    $$source{$f90file}{'type'} = "fort";
 	}
     }
-    if( $files ne '' ) {
-        system("$$option{'makecmd'} $$option{'generated_src_dir'}/$files");
+
+    my $files = '';
+    foreach my $file (@filelist){
+        if ( ! -f $file ){
+            $files = $files . $file . " ";
+        }
     }
-    
+
+    if ($files ne ""){
+        system("$$option{'makecmd'} $files");
+    }
+
 #    &message($$msgtype{'info'},"end\n");
 
     return;
@@ -546,7 +600,7 @@ sub cleanprep{
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
 	    if ($$source{$f90file}{'type'} ne ""){
-		unlink "$f90file";
+		unlink "$$source{$f90file}{'dir'}/$f90file";
 		foreach my $key ( keys %{$$source{$file}} ){
 		    delete $$source{$file}{$key};
 		}
@@ -610,7 +664,7 @@ sub search_object{
     die ( "Too many recursive in search object, bye.\n") if ( $$cnt > 20 );
 
     ADDOBJ : foreach my $key ( keys %{$$reqfile{$$progfile}} ){
-	if ( $$reqfile{$$progfile}{$key} eq "module" ){
+	if ( $$reqfile{$$progfile}{$key} eq "module" || $$reqfile{$$progfile}{$key} eq "submodule"){
 	    my $objfile = $key;
 	    $objfile =~ s/\.f90/\.o/;
 
@@ -647,11 +701,15 @@ sub write_dependency{
 	print DEP "\n\n";
     }
 
+    print DEP "# Developer-only option to avoid rebuilding module files\n";
+    print DEP "ifndef JUST_RELINK\n";
     foreach my $key ( sort ( keys %$reqfile ) ){
 	my $keyo=$key;
 	$keyo =~ s/\.f90$/\.o/g;
 	print DEP "\$(OBJDIR)/$keyo: ";
-	foreach my $obj ( sort ( keys %{$$reqfile{$key}} ) ){
+	THEOBJ : foreach my $obj ( sort ( keys %{$$reqfile{$key}} ) ){
+	    # Don't include submodules as object dependency for parent
+	    next THEOBJ if ( $$reqfile{$key}{$obj} eq "submodule");
 	    my $objo = $obj;
 	    $objo =~ s/\.f90$/\.o/g;
 	    print DEP "\\\n";
@@ -659,7 +717,7 @@ sub write_dependency{
 	}
 	print DEP "\n";
     }
-
+    print DEP "endif\n";
     close(DEP);
 
     return;
@@ -670,8 +728,12 @@ sub check_circular{
     my ($reqfile,$msgtype) = @_;
 
     foreach my $file ( keys %$reqfile ){
-	foreach my $dep ( keys %{$$reqfile{$file}} ){
-	    foreach my $depdep ( keys %{$$reqfile{$dep}} ){
+	THEDEP : foreach my $dep ( keys %{$$reqfile{$file}} ){
+	    # Skip submodule <-> module dependencies
+	    next THEDEP if ( $$reqfile{$file}{$dep} eq "submodule") ;
+	    THEDEPDEP : foreach my $depdep ( keys %{$$reqfile{$dep}} ){
+		# Skip submodule <-> module dependencies
+		next THEDEPDEP if ( $$reqfile{$dep}{$depdep} eq "submodule") ;
 		if ($depdep eq $file){
 		    &message($$msgtype{'error'},"circular dependencies: $file - & $dep!\n");
 		    exit -1;

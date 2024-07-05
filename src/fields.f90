@@ -23,19 +23,11 @@ module fields
   !> Made public for unit tests
   public :: fields_pre_init
   public :: remove_zonal_flows_switch
-  !> Made public for replay
-  public :: allocate_arrays
 
   public :: fields_config_type
   public :: set_fields_config
   public :: get_fields_config
   
-  !> FIXME : Add documentation
-  interface fieldlineavgphi
-     module procedure fieldlineavgphi_loc
-     module procedure fieldlineavgphi_tot
-  end interface
-
   ! knobs
   integer :: fieldopt_switch
   logical :: remove_zonal_flows_switch
@@ -250,7 +242,6 @@ contains
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn, gf_lo_integrate
-    use init_g, only: ginit, init_init_g
     use antenna, only: init_antenna
     use unit_tests, only: debug_message
     use kt_grids, only: naky, ntheta0
@@ -260,15 +251,8 @@ contains
     integer, parameter :: verb=3
     
     call init_fields_parameters(fields_config_in)
-
     call debug_message(verb, "init_fields: init_theta_grid")
     call init_theta_grid
-    
-!CMR,30/3/2009:
-! call init_init_g before init_run_parameters to read delt from restart file
-
-    call debug_message(verb, "init_fields: init_init_g")
-    call init_init_g
     call debug_message(verb, "init_fields: init_run_parameters")
     call init_run_parameters
     call debug_message(verb, "init_fields: init_dist_fn")
@@ -370,7 +354,6 @@ contains
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn
-    use init_g, only: ginit, init_init_g
     use nonlinear_terms, only: nl_finish_init => finish_init
     use antenna, only: init_antenna
     use kt_grids, only: gridopt_switch, gridopt_box, kwork_filter
@@ -471,8 +454,7 @@ contains
     character(20) :: field_option
     character(len=256) :: response_dir
     character(len=256) :: response_file
-    integer :: ierr
-
+    integer :: ierr, ind_slash
 
     if (present(fields_config_in)) fields_config = fields_config_in
 
@@ -507,7 +489,21 @@ contains
     if(trim(response_dir).eq.'')then
        write(real_response_file,'(A)') trim(response_file)
     else
-       write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
+       ! Need to check if resopnse_file has a directory path in it
+       ! to ensure we merge with response_dir correctly. For example,
+       ! consider response_file = '../../run/input' and response_dir = 'resp'.
+       ! We want to form response_file = '../../run/resp/input' and not
+       ! 'resp/../../run/input' as would happen if just concatenate.
+       ! Check for index of last '/'
+       ind_slash = index(response_file, "/", back = .true.)
+       if (ind_slash == 0) then
+          write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
+       else
+          write(real_response_file,'(A,A,"/",A)') &
+               response_file(1:ind_slash), &
+               trim(response_dir), &
+               trim(response_file(ind_slash+1:))
+       end if
     endif
 
     !Set the solve type specific flags
@@ -544,6 +540,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew, apar_ext
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
     use unit_tests, only: debug_message
+    use array_utils, only: zero_array
     implicit none
     integer, parameter :: verb=3
 
@@ -571,17 +568,17 @@ contains
        end if
     endif
     !AJ This shouldn't be necessary as it is done in the fields code....
-    phi = 0.; phinew = 0.
-    apar = 0.; aparnew = 0.
-    bpar = 0.; bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     if(fieldopt_switch .eq. fieldopt_gf_local) then
-       gf_phi = 0.; gf_phinew = 0.
-       gf_apar = 0.; gf_aparnew = 0.
-       gf_bpar = 0.; gf_bparnew = 0.
+       call zero_array(gf_phi) ; call zero_array(gf_phinew)
+       call zero_array(gf_apar) ; call zero_array(gf_aparnew)
+       call zero_array(gf_bpar) ; call zero_array(gf_bparnew)
     end if
     if(.not.allocated(apar_ext).and.(.not.no_driver))then
        allocate (apar_ext (-ntgrid:ntgrid,ntheta0,naky))
-       apar_ext = 0.
+       call zero_array(apar_ext)
     endif
   end subroutine allocate_arrays
 
@@ -607,100 +604,6 @@ contains
     end select
   end subroutine advance
 
-  !> FIXME : Add documentation
-  !!
-  !! @note This routine has a potentially misleading name and isn't used anywhere
-  subroutine kperp (ntgrid_output, akperp)
-    use theta_grid, only: delthet
-    use kt_grids, only: naky, aky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use fields_arrays, only: phinew, aparnew, bparnew
-    implicit none
-    integer, intent (in) :: ntgrid_output
-    real, dimension (:,:), intent (out) :: akperp
-    real :: anorm
-    integer :: ik, it
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          anorm = sum(abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
-                         + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
-                         + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
-                      *delthet(-ntgrid_output:ntgrid_output))
-          if (anorm < 2.0*epsilon(0.0) .or. aky(ik) == 0.0) then
-             akperp(it,ik) = 0.0
-          else
-             akperp(it,ik) &
-                  = sqrt(sum(kperp2(-ntgrid_output:ntgrid_output,it,ik) &
-                     *abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
-                          + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
-                          + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
-                     *delthet(-ntgrid_output:ntgrid_output))/anorm)
-          end if
-       end do
-    end do
-  end subroutine kperp
-
-  !> FIXME : Add documentation  
-  !!
-  !! @note This routine isn't used anywhere
-  subroutine fieldlineavgphi_loc (ntgrid_output, it, ik, phiavg)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
-    use fields_arrays, only: phi
-    implicit none
-    integer, intent (in) :: ntgrid_output, ik, it
-    complex, intent (out) :: phiavg
-    real, dimension (-ntgrid:ntgrid) :: jac
-
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
-    phiavg = sum(phi(-ntgrid_output:ntgrid_output,it,ik) &
-                 *jac(-ntgrid_output:ntgrid_output) &
-                 *delthet(-ntgrid_output:ntgrid_output)) &
-            /sum(delthet(-ntgrid_output:ntgrid_output) &
-                 *jac(-ntgrid_output:ntgrid_output))
-  end subroutine fieldlineavgphi_loc
-
-  !> FIXME : Add documentation
-  !!
-  !! @note This doesn't look like a useful routine and isn't used anywhere
-  subroutine fieldlineavgphi_tot (phiavg)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag
-!    use theta_grid, only: delthet
-    implicit none
-    complex, dimension (:,:), intent (out) :: phiavg
-    real, dimension (-ntgrid:ntgrid) :: jac
-!    integer :: ntg
-
-!    ntg = ntgrid
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
-!    phiavg = sum(phi(-ntg:ntg,:,:)*jac(-ntg:ntg)*delthet(-ntg:ntg)) &
-!         /sum(delthet(-ntg:ntg)*jac(-ntg:ntg))
-    phiavg = 0.
-    write(*,*) 'error in fields'
-  end subroutine fieldlineavgphi_tot
-
-
-  !!> This generates a flux surface average of phi. 
-
-  !subroutine flux_surface_average_phi (phi_in, phi_average)
-    !use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
-    !use kt_grids, only: ntheta0, naky
-
-    !implicit none
-    !complex, intent (in) :: phi_in
-    !complex, intent (out) :: phi_average
-    !complex, dimension(-ntgrid:ntgrid,1:ntheta0,1:naky) :: phi_fieldline_avg
-    !integer it, ig
-
-    !call fieldline_average_phi(phi_in, phi_fieldline_avg)
-    !do it = 1,ntheta0
-      !do ig = -ntgrid,ntgrid
-        !phi_average(ig, it, :) = sum(phi_fieldline_avg(ig, it, :))/real(naky)
-      !end do
-    !end do
-
-  !end subroutine fieldline_average_phi
-
   !> FIXME : Add documentation  
   subroutine reset_init
     use fields_implicit, only: fi_reset => reset_init
@@ -709,21 +612,16 @@ contains
     use fields_gf_local, only: flgf_reset => reset_fields_gf_local
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
+    use array_utils, only: zero_array
     implicit none
     initialized  = .false.
-    phi = 0.
-    phinew = 0.
-    apar = 0.
-    aparnew = 0.
-    bpar = .0
-    bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     if(fieldopt_switch .eq. fieldopt_gf_local) then
-       gf_phi = 0.
-       gf_apar = 0.
-       gf_bpar = 0.
-       gf_phinew = 0.
-       gf_aparnew = 0.
-       gf_bparnew = 0.
+       call zero_array(gf_phi) ; call zero_array(gf_phinew)
+       call zero_array(gf_apar) ; call zero_array(gf_aparnew)
+       call zero_array(gf_bpar) ; call zero_array(gf_bparnew)
     end if
     !What about apar_ext?
     select case (fieldopt_switch)
@@ -740,7 +638,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_fields
-
     use fields_implicit, only: implicit_reset => reset_init
     use fields_test, only: test_reset => reset_init
     use fields_local, only: finish_fields_local
@@ -749,19 +646,15 @@ contains
     use fields_arrays, only: apar_ext, gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: apar_ext, gf_phinew, gf_aparnew, gf_bparnew
     use unit_tests, only: debug_message
-
+    use array_utils, only: zero_array
     implicit none
     integer, parameter :: verbosity = 3
 
-
     initialized  = .false.
 !AJ Does these need zero'd if they are to be deallocated below?
-    phi = 0.
-    phinew = 0.
-    apar = 0.
-    aparnew = 0.
-    bpar = .0
-    bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     call debug_message(verbosity, &
       'fields::finish_fields zeroed fields')
     

@@ -54,7 +54,7 @@
  print_line = .false.
  write_verr = .false.
  write_line = .false.
- write_hrate = .false.
+ write_heating = .false.
  write_avg_moments = .false.
  write_moments = .false.
  write_omega = .false.

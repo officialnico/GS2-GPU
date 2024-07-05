@@ -13,7 +13,6 @@ module config_collection
 #endif
   use fields, only: fields_config_type
   use gs2_diagnostics, only: gs2_diagnostics_config_type
-  use gs2_init, only: init_config_type
   use gs2_layouts, only: layouts_config_type
   use hyper, only: hyper_config_type
   use ingen_mod, only: ingen_config_type
@@ -32,12 +31,12 @@ module config_collection
   use normalisations, only: normalisations_config_type
   use optimisation_config, only: optimisation_config_type
   use run_parameters, only: knobs_config_type
-  use run_parameters, only: parameters_config_type
   use parameter_scan, only: parameter_scan_config_type
   use gs2_reinit, only: reinit_config_type
   use dist_fn, only: source_config_type
   use species, only: species_config_type
   use species, only: species_element_config_type
+  use split_nonlinear_terms, only: split_nonlinear_terms_config_type
   use theta_grid, only: theta_grid_config_type
   use theta_grid_eik, only: theta_grid_eik_config_type
   use theta_grid_file, only: theta_grid_file_config_type
@@ -63,7 +62,6 @@ module config_collection
      type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
      type(hyper_config_type) :: hyper_config
      type(ingen_config_type) :: ingen_config
-     type(init_config_type) :: init_config
      type(init_g_config_type) :: init_g_config
      type(knobs_config_type) :: knobs_config
      type(kt_grids_config_type) :: kt_grids_config
@@ -80,12 +78,12 @@ module config_collection
      type(nonlinear_terms_config_type) :: nonlinear_terms_config
      type(normalisations_config_type) :: normalisations_config
      type(optimisation_config_type) :: optimisation_config
-     type(parameters_config_type) :: parameters_config
      type(parameter_scan_config_type) :: parameter_scan_config
      type(reinit_config_type) :: reinit_config
      type(source_config_type) :: source_config
      type(species_config_type) :: species_config
      type(species_element_config_type), dimension(:), allocatable :: species_element_config
+     type(split_nonlinear_terms_config_type) :: split_nonlinear_terms_config
      type(stir_config_type), dimension(:), allocatable :: stir_config
      type(theta_grid_config_type) :: theta_grid_config
      type(theta_grid_eik_config_type) :: theta_grid_eik_config
@@ -154,7 +152,6 @@ contains
 #endif
     call self%hyper_config%write(local_output_unit)
     call self%ingen_config%write(local_output_unit)
-    call self%init_config%write(local_output_unit)
     call self%init_g_config%write(local_output_unit)
     call self%knobs_config%write(local_output_unit)
     call self%kt_grids_config%write(local_output_unit)
@@ -180,7 +177,6 @@ contains
     call self%nonlinear_terms_config%write(local_output_unit)
     call self%normalisations_config%write(local_output_unit)
     call self%optimisation_config%write(local_output_unit)
-    call self%parameters_config%write(local_output_unit)
     call self%parameter_scan_config%write(local_output_unit)
     call self%reinit_config%write(local_output_unit)
     call self%source_config%write(local_output_unit)
@@ -197,6 +193,8 @@ contains
        call self%species_element_config(i)%write(local_output_unit)
     end do
     if (.not.allocated_flag) deallocate(self%species_element_config)
+
+    call self%split_nonlinear_terms_config%write(local_output_unit)
 
     allocated_flag = allocated(self%stir_config)
     if (.not.allocated_flag) then
@@ -233,7 +231,6 @@ contains
 #endif
     use fields, only: get_fields_config
     use gs2_diagnostics, only: get_gs2_diagnostics_config
-    use gs2_init, only: get_gs2_init_config
     use gs2_layouts, only: get_gs2_layouts_config
     use hyper, only: get_hyper_config
     use ingen_mod, only: get_ingen_mod_config
@@ -250,10 +247,11 @@ contains
     use nonlinear_terms, only: get_nonlinear_terms_config
     use normalisations, only: get_normalisations_config
     use optimisation_config, only: get_optimisation_config_config
-    use run_parameters, only: get_knobs_config, get_parameters_config
+    use run_parameters, only: get_knobs_config
     use parameter_scan, only: get_parameter_scan_config
     use gs2_reinit, only: get_gs2_reinit_config
     use species, only: get_species_config, get_species_element_config
+    use split_nonlinear_terms, only: get_split_nonlinear_terms_config
     use theta_grid, only: get_theta_grid_config
     use theta_grid_eik, only: get_theta_grid_eik_config
     use theta_grid_file, only: get_theta_grid_file_config
@@ -275,7 +273,6 @@ contains
 #endif
     self%fields_config = get_fields_config()
     self%gs2_diagnostics_config = get_gs2_diagnostics_config()
-    self%init_config = get_gs2_init_config()
     self%layouts_config = get_gs2_layouts_config()
     self%hyper_config = get_hyper_config()
     self%ingen_config = get_ingen_mod_config()
@@ -294,12 +291,12 @@ contains
     self%normalisations_config = get_normalisations_config()
     self%optimisation_config = get_optimisation_config_config()
     self%knobs_config = get_knobs_config()
-    self%parameters_config = get_parameters_config()
     self%parameter_scan_config = get_parameter_scan_config()
     self%reinit_config = get_gs2_reinit_config()
     self%source_config = get_source_config()
     self%species_config = get_species_config()
     self%species_element_config = get_species_element_config()
+    self%split_nonlinear_terms_config = get_split_nonlinear_terms_config()
     self%theta_grid_config = get_theta_grid_config()
     self%theta_grid_eik_config = get_theta_grid_eik_config()
     self%theta_grid_file_config = get_theta_grid_file_config()

@@ -1,41 +1,37 @@
-
 !> A module containing functions for running unit tests
 module unit_tests
-  use runtime_tests, only: verbosity
-
-
-  implicit none 
+  implicit none
 
   private
 
   !> Is the relative error of the first argument with respect
-  !! to the correct answer less than err? 
-  !! If the correct value is 0.0, then err is treated as an 
-  !! absolute error
+  !> to the correct answer less than err?
+  !> If the correct value is 0.0, then err is treated as an
+  !> absolute error
   public :: agrees_with
 
-  !> Announce the start of the given test (to let the user know 
-  !! which one failed!)
+  !> Announce the start of the given test (to let the user know
+  !> which one failed!)
   public :: announce_test
 
-  !> Take the logical result of the test (true for pass), and 
-  !! either announce its success or announce its failure then stop.
+  !> Take the logical result of the test (true for pass), and
+  !> either announce its success or announce its failure then stop.
   public :: process_test
 
 
-  !> Announce the start of the given partial test (to let the user know 
-  !! which one failed!)
+  !> Announce the start of the given partial test (to let the user know
+  !> which one failed!)
   public :: announce_check
 
-  !> Take the logical result of the check (partial test) (true for pass), and 
-  !! either announce its success or announce its failure.
+  !> Take the logical result of the check (partial test) (true for pass), and
+  !> either announce its success or announce its failure.
   public :: process_check
 
   !> Returns true when the verbosity is greater than or equal to the argument
   public :: should_print
-  
+
   !> Print a debug message if verbosity is higher than given verbosity_level.
-  !! Also print list mode/trinity job id if appropriate
+  !> Also print list mode/trinity job id if appropriate
   public :: debug_message
 
   !> Set job id, for running in list mode or within trinity
@@ -46,24 +42,14 @@ module unit_tests
 
   public :: print_with_stars
 
-  public :: verbosity
-
   !> Trinity or list mode job id
   public :: job_id
-
-! HJL Moved here from gs2_main
-  public :: functional_test_flag
-  public :: ilast_step
-
-  logical :: functional_test_flag = .false.
-  integer :: ilast_step
   integer :: job_id
- 
+
   interface agrees_with
      module procedure agrees_with_real
      module procedure agrees_with_real_1d_array
      module procedure agrees_with_complex_1d_array
-     !module procedure agrees_with_real_2d_array
      module procedure agrees_with_integer
   end interface agrees_with
 
@@ -73,7 +59,6 @@ module unit_tests
   end interface should_be
 
 contains
-
 
   function proc_message()
     use mp, only: iproc
@@ -123,21 +108,20 @@ contains
   end function agrees_with_real_1d_array
 
   function agrees_with_real(val, correct, err)
+    use warning_helpers, only: is_zero
     real, intent(in) :: val, correct, err
     logical :: agrees_with_real
     call should_be(val, correct)
-    if (correct .eq. 0.0 .or. abs(correct) .lt. 10.0**(-maxexponent(err)/4)) then 
-!       write (*,*) 'testing abs',abs(val),err
-       agrees_with_real = abs(val) .lt. err 
+    if (is_zero(correct) .or. abs(correct) < 10.0**(-maxexponent(err)/4)) then
+       agrees_with_real = abs(val) < err
     else
-!       write (*,*) 'testing rel',abs((val-correct)/correct),err
-       agrees_with_real = (abs((val-correct)/correct) .lt. err)
+       agrees_with_real = (abs((val-correct)/correct) < err)
     end if
   end function agrees_with_real
 
   function should_print(verbosity_level)
-    use mp, only: proc0
-    use mp, only: mp_initialized
+    use runtime_tests, only: verbosity
+    use mp, only: proc0, mp_initialized
     integer, intent(in) :: verbosity_level
     logical :: should_print
     if (mp_initialized) then 

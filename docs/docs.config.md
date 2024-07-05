@@ -146,7 +146,6 @@ optional ones:
 
 - MPI
 - NetCDF (requires >= v4.2.0)
-- HDF5 (only required for parallel netCDF)
 - FFTW (support for v2 will be dropped in the near future)
 - LAPACK
 - NAG
@@ -155,12 +154,11 @@ optional ones:
 
 ## Building and running GS2
 
-GS2 has been built on a variety of existing systems. To build on one of the
-existing supported systems, set `GK_SYSTEM`, and provide the path to the
-directory containing the makefiles. For example, to build GS2 on the UK national
-supercomputer, ARCHER, run:
+GS2 has been built on a variety of existing systems. To build on one
+of the existing supported systems, set `GK_SYSTEM`. For example, to
+build GS2 on the UK national supercomputer, Archer2, run:
 
-    make -I Makefiles GK_SYSTEM=archer
+    make GK_SYSTEM=archer2
 
 For further details on building GS2, including how to build it on a new system,
 see the documentation in the [user manual](page/user_manual)

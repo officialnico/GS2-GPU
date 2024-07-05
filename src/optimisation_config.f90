@@ -38,8 +38,8 @@ module optimisation_config
      integer :: nproc_max
      type(optimisation_results_type) :: results
      type(optimisations_overrides_type), &
-          dimension(:), pointer :: sorted_optimisations
-     type(optimisation_results_type), dimension(:), pointer :: sorted_results
+          dimension(:), allocatable :: sorted_optimisations
+     type(optimisation_results_type), dimension(:), allocatable :: sorted_results
      real :: timing_rel_error
      real :: timing_max_rel_error
      integer :: outunit
@@ -104,7 +104,7 @@ module optimisation_config
 contains
   subroutine init_optimisation_config(optim, optimisation_config_config_in)
     use file_utils, only: open_output_file
-    use mp, only: nproc
+    use mp, only: nproc, proc0
     implicit none
     type(optimisation_type), intent(inout) :: optim
     type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
@@ -112,19 +112,20 @@ contains
     initialized = .true.
     call read_parameters(optim, optimisation_config_config_in)
     if(optim%on) then
-      call open_output_file(optim%outunit, '.optim')
+      if (proc0) call open_output_file(optim%outunit, '.optim')
     end if
     optim%nproc_max = nproc
   end subroutine init_optimisation_config
 
   subroutine finish_optimisation_config(optim)
     use file_utils, only: close_output_file
+    use mp, only: proc0
     implicit none
     type(optimisation_type), intent(inout) :: optim
     initialized = .false.
 
     if(optim%on) then
-      call close_output_file(optim%outunit)
+      if (proc0) call close_output_file(optim%outunit)
     end if
 
     call optimisation_config_config%reset()

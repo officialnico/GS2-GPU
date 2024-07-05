@@ -15,23 +15,18 @@ contains
   !> FIXME : Add documentation
   subroutine init_fields_test
     implicit none
-
     if (initialized) return
     initialized = .true.
-
   end subroutine init_fields_test
 
   !> FIXME : Add documentation  
   subroutine init_phi_test
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use array_utils, only: zero_array
     implicit none
-
-    phi = 0.0
-    apar = 0.0
-    bpar = 0.0
-    phinew = 0.0
-    aparnew = 0.0
-    bparnew = 0.0
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
   end subroutine init_phi_test
 
   !> FIXME : Add documentation
@@ -39,10 +34,10 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn, only: timeadv
     use dist_fn_arrays, only: g, gnew
+    use array_utils, only: copy
     implicit none
     integer, intent (in) :: istep
-
-    g = gnew
+    call copy(gnew, g)
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
   end subroutine advance_test
 

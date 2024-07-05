@@ -16,14 +16,11 @@ contains
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call init_mp
-    state%mp_comm_external = .true.
     state%mp_comm = mp_comm
     allocate(state%optim%sorted_optimisations(0))
     allocate(state%optim%sorted_results(0))
-    !write (*,*) 'size', size(state%optim%sorted_results)
     ! We have to initialize_gs2 so that we 
     ! can read the optimisation_config namelist
-    !call initialize_wall_clock_timer
     call initialize_gs2(state, quiet=.true.)
     call init_optimisation_config(state%optim)
     call finalize_gs2(state, quiet=.true.)
@@ -31,13 +28,31 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finalize_gs2_optimisation(state)
-    use mp, only: finish_mp
     use optimisation_config, only: finish_optimisation_config
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call finish_optimisation_config(state%optim)
-    call finish_mp
   end subroutine finalize_gs2_optimisation
+
+  !> Setup, run, and teardown GS2 optimisation preprocessing
+  function run_optimise_gs2(state) result(should_continue)
+    !> GS2 program state. Depending on settings, this may be modified
+    !> to set [[optimisations_overrides_type]]
+    type(gs2_program_state_type), intent(inout) :: state
+    !> If true, main GS2 program should continue and run simulation,
+    !> possibly applying optimised overrides
+    logical :: should_continue
+
+    call initialize_gs2_optimisation(state)
+    if (state%optim%on) then
+      call optimise_gs2(state)
+    end if
+
+    should_continue = (state%optim%auto .or. .not. state%optim%on)
+
+    call finalize_gs2_optimisation(state)
+
+  end function run_optimise_gs2
 
   !> FIXME : Add documentation  
   subroutine optimise_gs2(state)
@@ -251,6 +266,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine optimise_nprocs(state)
+    use mp, only: proc0
     use ingen_mod, only: init_ingen, finish_ingen, report
     use ingen_mod, only: sweet_spots, n_sweet_spots
     use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics
@@ -267,7 +283,7 @@ contains
     call initialize_gs2(state)
     call initialize_equations(state)
     call initialize_diagnostics(state)
-    call report
+    if (proc0) call report
     call finalize_diagnostics(state)
     call finalize_equations(state)
     call finalize_gs2(state)

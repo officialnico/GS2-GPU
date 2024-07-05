@@ -77,7 +77,7 @@ writeSubString = """
 subroutine write_{module}_config(self, unit)
   implicit none
   class({module}_config_type), intent(in) :: self
-  integer, intent(in) , optional:: unit
+  integer, intent(in), optional:: unit
   integer :: unit_internal
 
   unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -428,7 +428,6 @@ class config():
         st.append("")
 
         # Table header
-        st.append("<html>")
         st.append('<table class="divNamelistTable" markdown="1">')
         st.append("<thead><tr>")
         header_cell = "<th> {val} </th>"
@@ -457,7 +456,6 @@ class config():
         st.append("</tbody>")
 
         st.append("</table>")
-        st.append("</html>")
         st.append("")
         return st
 
@@ -477,7 +475,7 @@ class config():
         st.append("")
         return st
     
-def constructFromFile(fileIn=None, verbose=False):
+def constructFromFile(fileIn=None, verbose=False, quiet=False):
     # Currently not able to get value of requires_index automatically.
 
     if fileIn is None:
@@ -537,7 +535,8 @@ def constructFromFile(fileIn=None, verbose=False):
     theConfigs = OrderedDict()
     
     with open(fileIn, 'r') as f:
-        print("Processing file '{f}'".format(f=fileIn))
+        if not quiet:
+            print("Processing file '{f}'".format(f=fileIn))
         found = False
         currName = 'ERROR'
         otherLines = []

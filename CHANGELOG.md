@@ -1,3 +1,56 @@
+## 8.2 (2023)
+
+### Breaking Changes
+
+* The entry points to GS2 when using it as a library have been
+  refactored, with some deprecated routines having been removed. The
+  main entry point is still `run_gs2`, but this now takes only two
+  arguments: the program `state`, and an option to delay finalising
+  the simulation until `finish_gs2` is called. The user is expected to
+  take care of initialising and finalising MPI, and passing the MPI
+  communicator through `state%mp_comm`.
+
+* The change to the GS2 entry points means that some interfaces to
+  external codes, such as Trinity, have also been removed. The caller
+  should now handle any customisation to the GS2 setup/teardown.
+
+* The "replay" feature to recalculate some diagnostics on a previous
+  run has been removed. This feature only interacted with the "new"
+  diagnostics module, and only a certain subset of diagnostics.
+
+## 8.1.2 (2022-07-26)
+
+
+### Breaking Changes
+
+* Correction for collisional treatment with `new_trap_int = T` may change results.
+
+* Correction for nonadiabatic dfn initial conditions with adiabatic
+  species may prevent reproducibility of previous simulations (but not
+  change the physics of the time advance).
+
+### Known issues
+
+No new known issues.
+
+### Merged Pull Requests
+* Bugfix/correct calculation of potentials from nonadiabatic dfn [PR #616 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/616)
+* Fix handling of response_dir and inputs specified by path [PR #621 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/621)
+* Correct ky/kx factors to use in ingen when reporting sweetspots for xxf/yxf [PR #622 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/622)
+* Minor/ensure more consistent handling of omp inversion [PR #619 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/619)
+* Add some tests with the collision operator active [PR #615 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/615)
+* Tweak LICENCE to better match expected format [PR #625 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/625)
+* Bugfix/allow new trap int with collisions [PR #618 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/618)
+* Minor/report values when functional tests fail [PR #617 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/617)
+* Add compiler time option to avoid f2008 compiler_version/compiler_options [PR #609 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/609)
+* Feature/keep initial field if nonadiabatic initial condition [PR #613 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/613)
+* Make init g dependency of run_parameters explicit [PR #611 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/611)
+* Bugfix/restore condition number from response matrix file [PR #610 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/610)
+* Backport PR #604 [PR #606 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/606)
+* Bugfix/guard open output file on multiple procs [PR #607 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/607)
+* Minor/remove get unused unit calls [PR #608 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/608)
+* Backport PR #602 [PR #605 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/605)
+
 ## 8.1.1 (2022-04-29)
 
 ### Breaking Changes
