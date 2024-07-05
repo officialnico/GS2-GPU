@@ -536,7 +536,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_zonal_transfer = .false.
-    logical :: write_entropy_transfer = .false. !ADDED
   contains
     procedure, public :: read => read_diagnostics_base_config
     procedure, public :: write => write_diagnostics_base_config
@@ -712,7 +711,6 @@ contains
     write_upar_over_time = self%write_upar_over_time
     write_verr = self%write_verr
     write_zonal_transfer = self%write_zonal_transfer
-    write_entropy_transfer = self%write_entropy_transfer !ADDED
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -798,7 +796,6 @@ contains
     self%write_upar_over_time = write_upar_over_time
     self%write_verr = write_verr
     self%write_zonal_transfer = write_zonal_transfer
-    self%write_entropy_transfer = write_entropy_transfer !ADDED
 
     self%exist = exist
   end subroutine read_diagnostics_base_config
@@ -895,7 +892,6 @@ contains
     call self%write_key_val("write_upar_over_time", self%write_upar_over_time, unit_internal)
     call self%write_key_val("write_verr", self%write_verr, unit_internal)
     call self%write_key_val("write_zonal_transfer", self%write_zonal_transfer, unit_internal)
-    call self%write_key_val("write_entropy_transfer", self%write_entropy_transfer, unit_internal) !ADDED
     call self%write_namelist_footer(unit_internal)
   end subroutine write_diagnostics_base_config
 
@@ -994,7 +990,6 @@ contains
     call broadcast(self%write_upar_over_time)
     call broadcast(self%write_verr)
     call broadcast(self%write_zonal_transfer)
-    call broadcast(self%write_entropy_transfer) !ADDED
 
     call broadcast(self%exist)
   end subroutine broadcast_diagnostics_base_config
