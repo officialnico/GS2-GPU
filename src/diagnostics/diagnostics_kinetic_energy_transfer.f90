@@ -1,3 +1,17 @@
+!> A module which writes out the electrostatic drive of zonal flows.
+!> The code is based on a Python3 post-processing tool from Stephen Biggs-Fox
+!> which can be found at [gitlab.com/stephen-biggs-fox/zonal-transfer-functions]
+!>
+!> The code calculates the Reynolds stress drive through a bispectra-like
+!> transfer function by directly performing three-wave-coupling calculations.
+!> The couplings take place between a "target mode", a "source modes", and
+!> a "mediator mode", the latter being determined by a selection rule.
+!>
+!> The total electrostatic zonal flow drive is resolved over the poloidal angle
+!> in the output "kinetic_energy_transfer_theta". Additional insight into the
+!> poloidal distributions of contributions from different source and target scales
+!> are provided by "kinetic_energy_transfer_theta_kxsource", 
+!> "kinetic_energy_transfer_theta_kxtarget", and "kinetic_energy_transfer_theta_kysource".
 module diagnostics_kinetic_energy_transfer
 
     implicit none
@@ -22,7 +36,6 @@ contains
 
         if(.not. gnostics%write_kinetic_energy_transfer_theta) return
         
-        !# initialize to zero
         gnostics%current_results%kinetic_energy_transfer_theta = 0.0
 
     end subroutine init_diagnostics_kinetic_energy_transfer_theta
@@ -36,7 +49,6 @@ contains
 
         if(.not. gnostics%write_kinetic_energy_transfer_theta_kxsource) return
         
-        !# initialize to zero
         gnostics%current_results%kinetic_energy_transfer_theta_kxsource = 0.0
 
     end subroutine init_diagnostics_kinetic_energy_transfer_theta_kxsource
@@ -50,7 +62,6 @@ contains
 
         if(.not. gnostics%write_kinetic_energy_transfer_theta_kxtarget) return
         
-        !# initialize to zero
         gnostics%current_results%kinetic_energy_transfer_theta_kxtarget = 0.0
 
     end subroutine init_diagnostics_kinetic_energy_transfer_theta_kxtarget
@@ -64,7 +75,6 @@ contains
 
         if(.not. gnostics%write_kinetic_energy_transfer_theta_kysource) return
         
-        !# initialize to zero
         gnostics%current_results%kinetic_energy_transfer_theta_kysource = 0.0
 
     end subroutine init_diagnostics_kinetic_energy_transfer_theta_kysource
