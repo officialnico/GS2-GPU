@@ -29,8 +29,6 @@ contains
     subroutine init_diagnostics_kinetic_energy_transfer_theta(gnostics)
         use diagnostics_config, only: diagnostics_type
 
-        implicit none
-
         type(diagnostics_type), intent(inout) :: gnostics
 
         if(.not. gnostics%write_kinetic_energy_transfer_theta) return
@@ -41,8 +39,6 @@ contains
 
     subroutine init_diagnostics_kinetic_energy_transfer_theta_kxsource(gnostics)
         use diagnostics_config, only: diagnostics_type
-
-        implicit none
 
         type(diagnostics_type), intent(inout) :: gnostics
 
@@ -55,8 +51,6 @@ contains
     subroutine init_diagnostics_kinetic_energy_transfer_theta_kxtarget(gnostics)
         use diagnostics_config, only: diagnostics_type
 
-        implicit none
-
         type(diagnostics_type), intent(inout) :: gnostics
 
         if(.not. gnostics%write_kinetic_energy_transfer_theta_kxtarget) return
@@ -67,8 +61,6 @@ contains
 
     subroutine init_diagnostics_kinetic_energy_transfer_theta_kysource(gnostics)
         use diagnostics_config, only: diagnostics_type
-
-        implicit none
 
         type(diagnostics_type), intent(inout) :: gnostics
 
@@ -81,12 +73,9 @@ contains
     !> extend ky to negative values.
     !> due to reality condition only ky >= 0 is used in GS2.
     subroutine extend_ky(kynew)
-
         use kt_grids, only: naky, aky
 
-        implicit none
-
-        real, dimension(2*naky-1), intent(out) :: kynew
+        real, dimension(:), intent(out) :: kynew ! shape (2*naky-1)
         integer :: i
 
         kynew(naky:) = aky
@@ -103,15 +92,11 @@ contains
     !> (b_hat x k_t) . (b_hat x k_s)
     !> is unique for kinetic energy transfer and does not appear for internal energy transfer or entropy transfer
     subroutine z_hat_factor(kx_array,ky_array,result_array,nkynew,iky0)
-
         use kt_grids, only: ntheta0
 
-        implicit none
-
-        integer :: nkynew, iky0
-        real, dimension(ntheta0) :: kx_array 
-        real, dimension(nkynew) :: ky_array
-        real, dimension(nkynew,ntheta0,ntheta0) :: result_array
+        integer, intent(in) :: nkynew, iky0
+        real, dimension(:), intent(in) :: kx_array, ky_array
+        real, dimension(:,:,:), intent(out) :: result_array
         integer :: ikys, ikyt, ikxs, ikxt
 
         ikyt = iky0
@@ -129,34 +114,31 @@ contains
     !> extend a 2D data array to negative ky-values
     !> with the original "unshifted" order
     subroutine get_full(field_arr,result_array,nkx,nky)
-
-        integer :: nkx, nky
-        complex, dimension(nky,nkx) :: field_arr
-        complex, dimension(nky-1,nkx) :: temp, temp2, temp3
-        complex, dimension(2*nky-1,nkx) :: result_array
-        integer :: i
+        integer, intent(in) :: nkx, nky
+        complex, dimension(:,:), intent(in) :: field_arr ! shape (nky,nkx)
+        complex, dimension(:,:), intent(out) :: result_array ! shape (2*nky-1,nkx)
+        complex, dimension(nky-1,nkx) :: temp
 
         ! copy in the values for ky >= 0 without change
         result_array(1:nky,:) = field_arr
 
         ! reverse order along all kx's and all non-zero ky's.
         ! Also take complex conjugate for reality condition.
-        temp3 = CONJG(field_arr(nky:2:-1,nkx:1:-1))
+        temp = CONJG(field_arr(nky:2:-1,nkx:1:-1))
 
         ! shift the entire negative ky-subarray one index along kx.
         ! After this step the reality condition is satisfied.
         ! This step is required due to the asymmetry which is introduced
         ! by the "unshiftedness" of the array.
-        result_array(nky+1:,:) = cshift(temp3, SHIFT=-1,DIM=2)
+        result_array(nky+1:,:) = cshift(temp, SHIFT=-1,DIM=2)
 
     end subroutine get_full
 
     !> similar to numpy.fft.fftshift in Python
     !> shift data such that the element for kx=0 or ky=0 is in the center of the array
     subroutine fftshift1D_real(array)
-
-        integer :: shift_no
         real, dimension(:), intent(inout) :: array
+        integer :: shift_no
 
         shift_no = -(size(array)-1)/2
         array = cshift(array, SHIFT=shift_no, DIM=1)
@@ -166,9 +148,8 @@ contains
     !> similar to numpy.fft.fftshift in Python
     !> shift data such that the element for kx=0 and ky=0 is in the center of the matrix
     subroutine fftshift2D_complex(array)
-
-        integer :: shift_no, dim
         complex, dimension(:,:), intent(inout) :: array
+        integer :: shift_no, dim
 
         dim = 1
         shift_no = -(size(array,DIM=dim)-1)/2
@@ -182,11 +163,10 @@ contains
 
     !> calculate the mediator mode for all possible pairs of source and target wavevectors
     subroutine get_mediator(phi,ikx0,iky0,nkx,nky,result_array,valid_mediator_lookup)
-
-        complex, dimension(nky,nkx) :: phi
-        integer :: ikx0, iky0, nkx, nky
-        complex, dimension(nky,nkx,nkx), intent(inout) :: result_array
-        logical, dimension(nky,nkx,nkx), intent(in) :: valid_mediator_lookup
+        integer, intent(in) :: ikx0, iky0, nkx, nky
+        complex, dimension(:,:), intent(in) :: phi
+        logical, dimension(:,:,:), intent(in) :: valid_mediator_lookup
+        complex, dimension(:,:,:), intent(out) :: result_array
         integer :: ikys, ikyt, ikxs, ikxt, ikxm, ikym
         logical :: valid_mediator
 
@@ -214,9 +194,8 @@ contains
     !> create a boolean lookup for the valid mediator attribute of a
     !> pair of target wavevector and source wavevector
     subroutine get_mediator_helpers(ikx0,iky0,nkx,nky,valid_mediator_lookup)
-
-        integer :: ikx0, iky0, nkx, nky
-        logical, dimension(nky,nkx,nkx) :: valid_mediator_lookup
+        integer, intent(in) :: ikx0, iky0, nkx, nky
+        logical, dimension(:,:,:), intent(out) :: valid_mediator_lookup ! shape (nky,nkx,nkx)
         integer :: ikys, ikyt, ikxs, ikxt, ikxm, ikym
 
         ikyt = iky0
@@ -240,13 +219,13 @@ contains
 
     !> compute the three-wave couplings
     subroutine compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_hat_factor, B_factor, nkx, nky, result_array)
-        
-        integer :: nkx, nky
-        complex, dimension(nky,nkx) :: phi_source
-        complex, dimension(nkx) :: phi_target
-        complex, dimension(nky,nkx,nkx) :: phi_mediator
-        real, dimension(nky,nkx,nkx) :: z_hat_factor, result_array
-        real :: B_factor
+        integer, intent(in) :: nkx, nky
+        complex, dimension(:,:), intent(in) :: phi_source ! shape (nky,nkx)
+        complex, dimension(:), intent(in) :: phi_target ! shape (nkx)
+        complex, dimension(:,:,:), intent(in) :: phi_mediator ! shape (nky,nkx,nkx)
+        real, dimension(:,:,:), intent(in) :: z_hat_factor ! shape (nky,nkx,nkx)
+        real, intent(in) :: B_factor
+        real, dimension(:,:,:), intent(out) :: result_array ! shape (nky,nkx,nkx)
 
         complex, dimension(1,1,nkx) :: phi_target_new
         complex, dimension(nky,nkx,1) :: phi_source_new
@@ -276,8 +255,6 @@ contains
         use diagnostics_config, only: diagnostics_type
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
-
-        implicit none
         
         type(diagnostics_type), intent(in out) :: gnostics
 
@@ -293,8 +270,6 @@ contains
         use diagnostics_config, only: diagnostics_type
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
-
-        implicit none
         
         type(diagnostics_type), intent(in out) :: gnostics
 
@@ -310,8 +285,6 @@ contains
         use diagnostics_config, only: diagnostics_type
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
-
-        implicit none
         
         type(diagnostics_type), intent(in out) :: gnostics
 
@@ -327,8 +300,6 @@ contains
         use diagnostics_config, only: diagnostics_type
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
-
-        implicit none
         
         type(diagnostics_type), intent(in out) :: gnostics
 
@@ -348,8 +319,6 @@ contains
         use theta_grid, only: ntgrid, bmag, theta
         use mp, only: proc0, iproc, nproc, barrier, send, receive, broadcast
         use species, only: nspec, spec
-
-        implicit none
         
         type(diagnostics_type), intent(in out) :: gnostics
 
