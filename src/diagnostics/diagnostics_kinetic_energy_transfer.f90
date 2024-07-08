@@ -19,12 +19,35 @@ module diagnostics_kinetic_energy_transfer
     private
 
     public :: init_diagnostics_kinetic_energy_transfer
+    public :: finish_diagnostics_kinetic_energy_transfer
     public :: write_kinetic_energy_transfer
     public :: calculate_kinetic_energy_transfer
+
+    real, dimension(:), allocatable :: kxnew_array, kynew_array 
+    logical, dimension(:,:,:), allocatable :: valid_mediator_lookup
+    real, dimension(:,:,:), allocatable :: z_factor
+    real, dimension(:,:,:), allocatable :: T_result_3D
+    complex, dimension(:,:), allocatable :: phi_source
+    complex, dimension(:), allocatable :: phi_target
+    complex, dimension(:,:,:), allocatable :: phi_mediator
+    integer :: ikx0, iky0, nkynew
+    logical :: any_responsibility
+
+    real, dimension(:), allocatable :: T_result_theta_kxsource_temp
+    real, dimension(:), allocatable :: T_result_theta_kxtarget_temp
+    real, dimension(:), allocatable :: T_result_theta_kysource_temp
+
+    real, dimension(:), allocatable :: T_result_theta
+    real, dimension(:,:), allocatable :: T_result_theta_kxsource
+    real, dimension(:,:), allocatable :: T_result_theta_kxtarget
+    real, dimension(:,:), allocatable :: T_result_theta_kysource
 
 contains
     subroutine init_diagnostics_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
+        use mp, only: iproc, nproc
+        use theta_grid, only: ntgrid
+        use kt_grids, only: ntheta0, naky, aky, akx
 
         type(diagnostics_type), intent(inout) :: gnostics
 
@@ -35,7 +58,109 @@ contains
         gnostics%current_results%kinetic_energy_transfer_theta_kxtarget = 0.0
         gnostics%current_results%kinetic_energy_transfer_theta_kysource = 0.0
 
+        any_responsibility = is_responsible_for_any_theta_grid_point(iproc, nproc, ntgrid)
+
+        ! allocate regardless of whether this proc does any work because sum_reduce needs
+        ! this array to exist on all procs and a selected sum_reduce function does not seem to exist
+        allocate (T_result_theta(-ntgrid:ntgrid)) ; T_result_theta = 0.
+        allocate (T_result_theta_kxsource(ntheta0,-ntgrid:ntgrid)) ; T_result_theta_kxsource = 0.
+        allocate (T_result_theta_kxtarget(ntheta0,-ntgrid:ntgrid)) ; T_result_theta_kxtarget = 0.
+        allocate (T_result_theta_kysource(2*naky-1,-ntgrid:ntgrid)) ; T_result_theta_kysource = 0.
+
+        if (any_responsibility) then
+            ! allocate variables needed on each proc involved in calculation
+            allocate (kxnew_array(ntheta0)) ; kxnew_array = 0.
+            allocate (kynew_array(2*naky-1)) ; kynew_array = 0.
+            allocate (valid_mediator_lookup(2*naky-1,ntheta0,ntheta0)) ; valid_mediator_lookup = .false.
+            allocate (z_factor(2*naky-1,ntheta0,ntheta0)) ; z_factor = 0.
+
+            allocate (T_result_3D(2*naky-1,ntheta0,ntheta0)) ; T_result_3D = 0.
+            allocate (phi_source(2*naky-1,ntheta0)) ; phi_source = 0.
+            allocate (phi_target(ntheta0)) ; phi_target = 0.
+            allocate (phi_mediator(2*naky-1,ntheta0,ntheta0)) ; phi_mediator = 0.
+
+            allocate (T_result_theta_kxsource_temp(ntheta0)) ; T_result_theta_kxsource_temp = 0.
+            allocate (T_result_theta_kxtarget_temp(ntheta0)) ; T_result_theta_kxtarget_temp = 0.
+            allocate (T_result_theta_kysource_temp(2*naky-1)) ; T_result_theta_kysource_temp = 0.
+
+            nkynew = 2*naky-1
+            ikx0 = (ntheta0+1)/2
+            iky0 = (nkynew+1)/2
+            kxnew_array = akx
+            call fftshift1D_real(kxnew_array)
+            call extend_ky(kynew_array)
+            call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
+            call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
+        endif
+
     end subroutine init_diagnostics_kinetic_energy_transfer
+
+    subroutine finish_diagnostics_kinetic_energy_transfer(gnostics)
+        use diagnostics_config, only: diagnostics_type
+        use mp, only: iproc, nproc
+        use theta_grid, only: ntgrid
+
+        type(diagnostics_type), intent(inout) :: gnostics
+
+        if(.not. gnostics%write_kinetic_energy_transfer) return
+
+        deallocate(T_result_theta)
+        deallocate(T_result_theta_kxsource)
+        deallocate(T_result_theta_kxtarget)
+        deallocate(T_result_theta_kysource)
+
+        if (any_responsibility) then
+            deallocate(kynew_array)
+            deallocate(kxnew_array)
+            deallocate(valid_mediator_lookup)
+            deallocate(z_factor)
+            deallocate(T_result_3D)
+            deallocate(phi_source)
+            deallocate(phi_target)
+            deallocate(phi_mediator)
+            deallocate(T_result_theta_kxsource_temp)
+            deallocate(T_result_theta_kxtarget_temp)
+            deallocate(T_result_theta_kysource_temp)
+        endif
+
+    end subroutine finish_diagnostics_kinetic_energy_transfer
+
+    elemental logical function is_responsible_for_any_theta_grid_point(iproc, nproc, ntgrid) result(any_responsible)
+        integer, intent(in) :: iproc, nproc, ntgrid
+        integer :: ntheta
+
+        ntheta = 2 * ntgrid + 1 ! itheta is in [-ntgrid,...,0,...,ntgrid]
+        any_responsible = .true.
+
+        if (iproc >= ntheta) then ! these procs can relax. iproc is in [0, 1, ... , nproc-1]
+            any_responsible = .false.
+        end if
+
+    end function is_responsible_for_any_theta_grid_point
+
+    elemental logical function is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid) result(responsible)
+        integer, intent(in) :: iproc, theta_index, nproc, ntgrid
+        integer :: ntheta, theta_index_shifted, theta_index_modulo
+
+        ntheta = 2 * ntgrid + 1 
+        responsible = .false.
+
+        ! theta_index is in [-ntgrid,...,0,...,ntgrid]
+        ! iproc is in [0, 1, ... , nproc-1]
+        if (nproc >= ntheta) then ! each proc deals with one or no theta points
+            theta_index_shifted = theta_index + ntgrid ! obtains min of 0 and max of 2*ntgrid
+            if (iproc .eq. theta_index_shifted) then
+                responsible = .true.
+            endif
+        else ! each proc deals with at least one theta index
+            theta_index_shifted = theta_index + ntgrid ! obtains min of 0 and max of 2*ntgrid
+            theta_index_modulo = MOD(theta_index_shifted, nproc) ! theta_index_shifted = [0, nproc, 2*nproc, ...] are dealt with by proc0. [1, nproc+1, 2*nproc+1, ...] by proc1 and so on.
+            if (iproc .eq. theta_index_modulo) then
+                responsible = .true.
+            endif
+        endif
+
+    end function is_responsible_for_this_theta_grid_index
 
     !> extend ky to negative values.
     !> due to reality condition only ky >= 0 is used in GS2.
@@ -129,20 +254,20 @@ contains
     end subroutine fftshift2D_complex
 
     !> return the mediator index for either kx or ky
-    elemental integer function ikm(ikt, iks, ik0)
+    elemental integer function get_ikm(ikt, iks, ik0) result(ikm)
         integer, intent(in) :: ikt, iks, ik0
 
         ikm = ikt - iks + ik0
 
-    end function ikm
+    end function get_ikm
 
     !> return bolean whether a source-mode and target-mode combination yields a valid mediator
     elemental logical function valid_mediator(ikxt, ikxs, ikx0, ikyt, ikys, iky0, nkx, nky)
         integer, intent(in) :: ikxt, ikxs, ikx0, ikyt, ikys, iky0, nkx, nky
         integer :: ikxm, ikym
 
-        ikxm = ikm(ikxt, ikxs, ikx0)
-        ikym = ikm(ikyt, ikys, iky0)
+        ikxm = get_ikm(ikxt, ikxs, ikx0)
+        ikym = get_ikm(ikyt, ikys, iky0)
         valid_mediator = (ikxm > 0 .and. ikxm <= nkx) .and. (ikym > 0 .and. ikym <= nky)
 
     end function valid_mediator
@@ -180,8 +305,8 @@ contains
         do ikxt = 1, nkx
             do ikxs = 1, nkx
                 do ikys = 1, nky
-                    ikym = ikm(ikyt, ikys, iky0)
-                    ikxm = ikm(ikxt, ikxs, ikx0)
+                    ikym = get_ikm(ikyt, ikys, iky0)
+                    ikxm = get_ikm(ikxt, ikxs, ikx0)
 
                     valid_mediator = valid_mediator_lookup(ikys, ikxs, ikxt)
 
@@ -254,283 +379,78 @@ contains
 
     end subroutine write_kinetic_energy_transfer
 
+    subroutine calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
+        use fields_arrays, only: phinew
+        use kt_grids, only: ntheta0, naky
+        use theta_grid, only: ntgrid, bmag
+
+        integer, intent(in) :: theta_index
+        real, intent(out) :: T_result_theta_temp
+        real, dimension(:), intent(out) :: T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp
+
+        complex, dimension(naky,ntheta0) :: phi_2D
+        real :: B_factor
+        
+        B_factor = 1. / bmag(theta_index)**3 ! bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
+        phi_2D(:,:) = TRANSPOSE(phinew(theta_index,:,:)) ! shape (kx, ky) -> (ky, kx)
+        call get_full(phi_2D, phi_source, ntheta0,  naky)
+        call fftshift2D_complex(phi_source)
+        call get_mediator(phi_source, ikx0, iky0, ntheta0, nkynew, phi_mediator, valid_mediator_lookup)
+        phi_target = CONJG(phi_source(iky0,:))
+        call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, ntheta0, nkynew, T_result_3D)
+
+        T_result_theta_temp = SUM(SUM(SUM(T_result_3D, DIM=1), DIM=1), DIM=1) ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> ()
+        T_result_theta_kxsource_temp = SUM(SUM(T_result_3D, DIM=1), DIM=2) ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
+        T_result_theta_kxtarget_temp = SUM(SUM(T_result_3D, DIM=1), DIM=1) ! sum over (kxs, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxt)
+        T_result_theta_kysource_temp = SUM(SUM(T_result_3D, DIM=2), DIM=2) ! sum over (kxs, kxt) for kyt = 0. shape (kys, kxs, kxt) -> (kys)
+
+    end subroutine calculate_kinetic_energy_transfer_this_theta
+
     subroutine calculate_kinetic_energy_transfer(gnostics)
 
         use diagnostics_config, only: diagnostics_type
         use kt_grids, only: ntheta0, naky, aky, akx
         use fields_arrays, only: phinew
-        use theta_grid, only: ntgrid, bmag
-        use mp, only: proc0, iproc, nproc, barrier, send, receive, broadcast
+        use theta_grid, only: ntgrid
+        use mp, only: proc0, iproc, nproc, send, receive, sum_reduce
         
         type(diagnostics_type), intent(in out) :: gnostics
 
-        ! declare 0D arrays
         integer :: timestep = 0
-        integer :: ikx0, iky0, nkynew
         integer :: theta_index
         integer :: ntheta, n_batches, ibatch, itheta_temp, nproc_counter, nproc_max_temp
-        real :: T_result_theta_temp, T_result_theta_temp_temp
-        real :: B_factor
+        real :: T_result_theta_temp
+        integer :: ig
+        logical :: responsible
 
-        ! prepare arrays with dimension >= 1
-        complex, dimension(naky,ntheta0) :: phi_2D
-        real, dimension(:,:,:), allocatable :: T_result_3D
-        real, dimension(:), allocatable :: T_result_theta
-        real, dimension(:,:), allocatable :: T_result_theta_kxsource
-        real, dimension(:,:), allocatable :: T_result_theta_kxtarget
-        real, dimension(:,:), allocatable :: T_result_theta_kysource
-        real, dimension(:), allocatable :: T_result_theta_kxsource_temp
-        real, dimension(:), allocatable :: T_result_theta_kxtarget_temp
-        real, dimension(:), allocatable :: T_result_theta_kysource_temp
-        real, dimension(:), allocatable :: T_result_theta_kxsource_temp_temp
-        real, dimension(:), allocatable :: T_result_theta_kxtarget_temp_temp
-        real, dimension(:), allocatable :: T_result_theta_kysource_temp_temp
-        complex, dimension(:,:), allocatable :: phi_source
-        complex, dimension(:), allocatable :: phi_target
-        complex, dimension(:,:,:), allocatable :: phi_mediator
-        real, dimension(:), allocatable :: kxnew_array, kynew_array 
-        real, dimension(:,:,:), allocatable :: z_factor
-        logical, dimension(:,:,:), allocatable :: valid_mediator_lookup
+        T_result_theta = 0.
+        T_result_theta_kxsource = 0.
+        T_result_theta_kxtarget = 0.
+        T_result_theta_kysource = 0.
 
-        ntheta = 2 * ntgrid + 1 ! itheta is in [-ntgrid,...,0,...,ntgrid]
-
-        ! allocate some variables for the
-        ! data collection which happens on proc0
-        if (proc0) then
-            allocate (T_result_theta(-ntgrid:ntgrid)) ; T_result_theta = 0.
-            allocate (T_result_theta_kxsource(ntheta0,-ntgrid:ntgrid)) ; T_result_theta_kxsource = 0.
-            allocate (T_result_theta_kxtarget(ntheta0,-ntgrid:ntgrid)) ; T_result_theta_kxtarget = 0.
-            allocate (T_result_theta_kysource(2*naky-1,-ntgrid:ntgrid)) ; T_result_theta_kysource = 0.
-            allocate (T_result_theta_kxsource_temp_temp(ntheta0)) ; T_result_theta_kxsource_temp_temp = 0.
-            allocate (T_result_theta_kxtarget_temp_temp(ntheta0)) ; T_result_theta_kxtarget_temp_temp = 0.
-            allocate (T_result_theta_kysource_temp_temp(2*naky-1)) ; T_result_theta_kysource_temp_temp = 0.
-        endif
-
-        ! more procs than parallel grid points (expected). 
-        ! Some procs deal with one grid point, some with none.
-        if (nproc .ge. ntheta) then
-
-            if (proc0 .AND. (timestep .eq. 0) .AND. (nproc > ntheta)) write(*,*) "nproc > ntheta detected"
-            if (proc0 .AND. (timestep .eq. 0) .AND. (nproc .eq. ntheta)) write(*,*) "nproc = ntheta detected"
-
-            ! all other procs can relax. iproc is in [0, 1, ... , nproc-1]
-            if (iproc < ntheta) then 
-                theta_index = iproc - ntgrid ! obtains min of -ntgrid, and max of +ntgrid
-                ! ***************************
-                ! **** calculation start ****
-                ! ***************************
-                ! allocate variables needed on each proc involved in calculation
-                allocate (kxnew_array(ntheta0)) ; kxnew_array = 0.
-                allocate (kynew_array(2*naky-1)) ; kynew_array = 0.
-                allocate (valid_mediator_lookup(2*naky-1,ntheta0,ntheta0)) ; valid_mediator_lookup = .false.
-                allocate (z_factor(2*naky-1,ntheta0,ntheta0)) ; z_factor = 0.
-
-                ! Do common calculations.
-                nkynew = 2*naky-1
-                ikx0 = (ntheta0+1)/2
-                iky0 = (nkynew+1)/2
-                kxnew_array = akx
-                call fftshift1D_real(kxnew_array)
-                call extend_ky(kynew_array)
-                call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
-                call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
-                B_factor = 1. / bmag(theta_index)**3 ! bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
-
-                allocate (T_result_3D(2*naky-1,ntheta0,ntheta0)) ; T_result_3D = 0.
-                allocate (T_result_theta_kxsource_temp(ntheta0)) ; T_result_theta_kxsource_temp = 0.
-                allocate (T_result_theta_kxtarget_temp(ntheta0)) ; T_result_theta_kxtarget_temp = 0.
-                allocate (T_result_theta_kysource_temp(2*naky-1)) ; T_result_theta_kysource_temp = 0.
-                allocate (phi_source(2*naky-1,ntheta0)) ; phi_source = 0.
-                allocate (phi_target(ntheta0)) ; phi_target = 0.
-                allocate (phi_mediator(2*naky-1,ntheta0,ntheta0)) ; phi_mediator = 0.
-
-                phi_2D(:,:) = TRANSPOSE(phinew(theta_index,:,:)) ! shape (kx, ky) -> (ky, kx)
-                call get_full(phi_2D, phi_source, ntheta0,  naky)
-                call fftshift2D_complex(phi_source)
-                call get_mediator(phi_source, ikx0, iky0, ntheta0, nkynew, phi_mediator, valid_mediator_lookup)
-                phi_target = CONJG(phi_source(iky0,:))
-                call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, ntheta0, nkynew, T_result_3D)
-
-                T_result_theta_temp = SUM(SUM(SUM(T_result_3D, DIM=1), DIM=1), DIM=1) ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> ()
-                T_result_theta_kxsource_temp = SUM(SUM(T_result_3D, DIM=1), DIM=2) ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
-                T_result_theta_kxtarget_temp = SUM(SUM(T_result_3D, DIM=1), DIM=1) ! sum over (kxs, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxt)
-                T_result_theta_kysource_temp = SUM(SUM(T_result_3D, DIM=2), DIM=2) ! sum over (kxs, kxt) for kyt = 0. shape (kys, kxs, kxt) -> (kys)
-                ! ***************************
-                ! ***** calculation end *****
-                ! ***************************
-
-                ! ***************************************
-                ! *** Collect results on proc0 start ****
-                ! ***************************************
-                if (.not. proc0) then
-                    ! send data to proc0
-                    call send(theta_index, 0) 
-                    call send(T_result_theta_temp, 0)
-                    call send(T_result_theta_kxsource_temp, 0)
-                    call send(T_result_theta_kxtarget_temp, 0)
-                    call send(T_result_theta_kysource_temp, 0)
-                else
-                    ! save values from proc0
-                    T_result_theta(theta_index) = T_result_theta_temp
-                    T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
-                    T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
-                    T_result_theta_kysource(:,theta_index) = T_result_theta_kysource_temp
-
-                    ! collect values from all other procs
-                    ! procs start counting from 0, skip proc0 because that is the one we collect on
-                    do nproc_counter = 1, ntheta-1 
-                        call receive(itheta_temp, nproc_counter)
-                        call receive(T_result_theta_temp_temp, nproc_counter)
-                        call receive(T_result_theta_kxsource_temp_temp, nproc_counter)
-                        call receive(T_result_theta_kxtarget_temp_temp, nproc_counter)
-                        call receive(T_result_theta_kysource_temp_temp, nproc_counter)
-                        T_result_theta(itheta_temp) = T_result_theta_temp_temp
-                        T_result_theta_kxsource(:,itheta_temp) = T_result_theta_kxsource_temp_temp
-                        T_result_theta_kxtarget(:,itheta_temp) = T_result_theta_kxtarget_temp_temp
-                        T_result_theta_kysource(:,itheta_temp) = T_result_theta_kysource_temp_temp
-                    end do
-                endif
-                ! *************************************
-                ! *** Collect results on proc0 end ****
-                ! *************************************
+        do theta_index = -ntgrid, ntgrid
+            responsible = is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid)
+            if (responsible) then
+                call calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
+                T_result_theta(theta_index) = T_result_theta_temp
+                T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
+                T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
+                T_result_theta_kysource(:,theta_index) = T_result_theta_kysource_temp
             endif
+        end do
 
-        ! more parallel grid points than procs. 
-        ! Some or all procs deal with more than one grid point. 
-        ! Some procs will deal with one more point than others if ntheta % nproc != 0.
-        else
-            ! allocate here once before cycling through batches
-            ! allocate variables needed on each proc involved in calculation
-            allocate (kxnew_array(ntheta0)) ; kxnew_array = 0.
-            allocate (kynew_array(2*naky-1)) ; kynew_array = 0.
-            allocate (valid_mediator_lookup(2*naky-1,ntheta0,ntheta0)) ; valid_mediator_lookup = .false.
-            allocate (z_factor(2*naky-1,ntheta0,ntheta0)) ; z_factor = 0.
+        !Only proc0 needs to know the result
+        call sum_reduce (T_result_theta, 0)
+        call sum_reduce (T_result_theta_kxsource, 0)
+        call sum_reduce (T_result_theta_kxtarget, 0)
+        call sum_reduce (T_result_theta_kysource, 0)
 
-            ! Do common calculations.
-            nkynew = 2*naky-1
-            ikx0 = (ntheta0+1)/2
-            iky0 = (nkynew+1)/2
-            kxnew_array = akx
-            call fftshift1D_real(kxnew_array)
-            call extend_ky(kynew_array)
-            call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
-            call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
-
-            allocate (T_result_3D(2*naky-1,ntheta0,ntheta0)) ; T_result_3D = 0.
-            allocate (T_result_theta_kxsource_temp(ntheta0)) ; T_result_theta_kxsource_temp = 0.
-            allocate (T_result_theta_kxtarget_temp(ntheta0)) ; T_result_theta_kxtarget_temp = 0.
-            allocate (T_result_theta_kysource_temp(2*naky-1)) ; T_result_theta_kysource_temp = 0.
-            allocate (phi_source(2*naky-1,ntheta0)) ; phi_source = 0.
-            allocate (phi_target(ntheta0)) ; phi_target = 0.
-            allocate (phi_mediator(2*naky-1,ntheta0,ntheta0)) ; phi_mediator = 0.
-
-            n_batches = CEILING(REAL(ntheta)/REAL(nproc)) ! Round up to the nearest integer
-
-            if (proc0 .AND. (timestep .eq. 0) .AND. (MOD(ntheta, nproc) .eq. 0.)) write(*,*) "nproc < ntheta with ntheta % nproc = 0 detected"
-            if (proc0 .AND. (timestep .eq. 0) .AND. (MOD(ntheta, nproc) .ne. 0.)) write(*,*) "nproc < ntheta with ntheta % nproc != 0 detected"
-
-            do ibatch = 0, n_batches-1
-                theta_index = (iproc - ntgrid) + ibatch * nproc
-                
-                ! this could only be false for last batch 
-                ! where not all procs are needed anymore
-                if (theta_index .le. ntgrid) then
-                    ! ***************************
-                    ! **** calculation start ****
-                    ! ***************************
-                    B_factor = 1. / bmag(theta_index)**3 ! bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
-                    phi_2D(:,:) = TRANSPOSE(phinew(theta_index,:,:)) ! shape (kx, ky) -> (ky, kx)                    
-                    call get_full(phi_2D, phi_source, ntheta0,  naky)
-                    call fftshift2D_complex(phi_source)
-                    call get_mediator(phi_source, ikx0, iky0, ntheta0, nkynew, phi_mediator, valid_mediator_lookup)
-                    phi_target = CONJG(phi_source(iky0,:))
-                    call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, ntheta0, nkynew, T_result_3D)
-
-                    T_result_theta_temp = SUM(SUM(SUM(T_result_3D, DIM=1), DIM=1), DIM=1) ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> ()
-                    T_result_theta_kxsource_temp = SUM(SUM(T_result_3D, DIM=1), DIM=2) ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
-                    T_result_theta_kxtarget_temp = SUM(SUM(T_result_3D, DIM=1), DIM=1) ! sum over (kxs, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxt)
-                    T_result_theta_kysource_temp = SUM(SUM(T_result_3D, DIM=2), DIM=2) ! sum over (kxs, kxt) for kyt = 0. shape (kys, kxs, kxt) -> (kys)
-                    ! ***************************
-                    ! ***** calculation end *****
-                    ! ***************************
-
-                    ! ***************************************
-                    ! *** Collect results on proc0 start ****
-                    ! ***************************************
-                    if (.not. proc0) then
-                        ! send data to proc0
-                        call send(theta_index, 0) 
-                        call send(T_result_theta_temp, 0)
-                        call send(T_result_theta_kxsource_temp, 0)
-                        call send(T_result_theta_kxtarget_temp, 0)
-                        call send(T_result_theta_kysource_temp, 0)
-                    else
-                        ! save values from proc0
-                        T_result_theta(theta_index) = T_result_theta_temp
-                        T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
-                        T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
-                        T_result_theta_kysource(:,theta_index) = T_result_theta_kysource_temp
-
-                        ! collect values from all other procs
-                        ! catch case where ntheta a multiple of nproc
-                        ! in which case nproc_max_temp = nproc for all batches
-                        ! OR if it is not the last batch then also nproc_max_temp = nproc
-                        if ((MOD(ntheta, nproc) .eq. 0.) .OR. (ibatch < n_batches-1)) then
-                            nproc_max_temp = nproc
-                        else
-                            nproc_max_temp = MOD(ntheta, nproc)
-                        endif
-                        ! procs start counting from 0, skip proc0 because that is the one we collect on
-                        do nproc_counter = 1, nproc_max_temp-1 
-                            call receive(itheta_temp, nproc_counter)
-                            call receive(T_result_theta_temp_temp, nproc_counter)
-                            call receive(T_result_theta_kxsource_temp_temp, nproc_counter)
-                            call receive(T_result_theta_kxtarget_temp_temp, nproc_counter)
-                            call receive(T_result_theta_kysource_temp_temp, nproc_counter)
-                            T_result_theta(itheta_temp) = T_result_theta_temp_temp
-                            T_result_theta_kxsource(:,itheta_temp) = T_result_theta_kxsource_temp_temp
-                            T_result_theta_kxtarget(:,itheta_temp) = T_result_theta_kxtarget_temp_temp
-                            T_result_theta_kysource(:,itheta_temp) = T_result_theta_kysource_temp_temp
-                        end do
-                    endif
-                    ! *************************************
-                    ! *** Collect results on proc0 end ****
-                    ! *************************************
-                end if
-            end do
-        end if
-
-        ! write results to diagnostic attribute on proc0 and deallocate proc0-specific variables
         if (proc0) then
             gnostics%current_results%kinetic_energy_transfer_theta = T_result_theta
             gnostics%current_results%kinetic_energy_transfer_theta_kxsource  = T_result_theta_kxsource
             gnostics%current_results%kinetic_energy_transfer_theta_kxtarget  = T_result_theta_kxtarget 
             gnostics%current_results%kinetic_energy_transfer_theta_kysource = T_result_theta_kysource
-            deallocate(T_result_theta)
-            deallocate(T_result_theta_kxsource)
-            deallocate(T_result_theta_kxtarget)
-            deallocate(T_result_theta_kysource)
-            deallocate(T_result_theta_kxsource_temp_temp)
-            deallocate(T_result_theta_kxtarget_temp_temp)
-            deallocate(T_result_theta_kysource_temp_temp)
         endif
-
-        ! deallocate variabels used on all procs which did work
-        if (iproc < ntheta) then
-            deallocate(z_factor)
-            deallocate(valid_mediator_lookup)
-            deallocate(kxnew_array)
-            deallocate(kynew_array)
-            deallocate(T_result_3D)
-            deallocate(T_result_theta_kxsource_temp)
-            deallocate(T_result_theta_kxtarget_temp)
-            deallocate(T_result_theta_kysource_temp)
-            deallocate(phi_source)
-            deallocate(phi_target)
-            deallocate(phi_mediator)
-        endif
-
-        timestep = timestep + 1 ! advance timestep counter on all procs
 
     end subroutine calculate_kinetic_energy_transfer
 

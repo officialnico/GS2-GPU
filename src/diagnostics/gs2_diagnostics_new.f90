@@ -242,6 +242,7 @@ contains
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
     use collisional_heating, only: finish_collisional
+    use diagnostics_kinetic_energy_transfer, only: finish_diagnostics_kinetic_energy_transfer
     use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom, do_write_fyx, do_write_f
     use nonlinear_terms, only: nonlin
     use mp, only: proc0
@@ -271,6 +272,7 @@ contains
     call finish_collisional
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space()
+    call finish_diagnostics_kinetic_energy_transfer(gnostics)
     
     if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
