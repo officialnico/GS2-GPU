@@ -1327,7 +1327,7 @@ contains
 #else
              g_work(ig,isgn,iglo) = zi * wstar(ik,ie,is)/code_dt * conjg(havg)*chi &
 #endif
-                  * spec(is)%dens
+                  * spec(is)%dens * spec(is)%temp
 
           end do
        end do

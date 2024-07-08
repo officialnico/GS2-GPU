@@ -25,27 +25,24 @@
 !>               : default value is .true.
 module antenna
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  use antenna_data, only: nk_stir, a_ant, b_ant
+  use antenna_data, only: a_ant, b_ant
   implicit none
 
   private
-  public :: init_antenna, dump_ant_amp, amplitude, finish_antenna, reset_init
+  public :: init_antenna, dump_ant_amp, finish_antenna, reset_init
   public :: wnml_antenna, check_antenna, no_driver
   public :: antenna_w, antenna_apar, antenna_amplitudes, a_ext_data
   public :: get_jext !GGH
 
-  public :: driver_config_type
-  public :: stir_config_type
-  public :: set_antenna_config
-  public :: get_driver_config
-  public :: get_stir_config
+  public :: driver_config_type, stir_config_type, set_antenna_config
+  public :: get_driver_config, get_stir_config
   
   complex :: w_antenna
   complex, dimension(:), allocatable :: w_stir
   complex, dimension(:,:,:), allocatable :: apar_new, apar_old
   integer, dimension(:), allocatable :: kx_stir, ky_stir, kz_stir
   real :: amplitude, t0, w_dot
-  integer :: out_unit
+  integer :: nk_stir, out_unit
   logical :: restarting = .false.
   logical :: no_driver = .false.
   logical :: write_antenna = .false.
@@ -553,9 +550,8 @@ contains
   end subroutine a_ext_data
 
   !> FIXME : Add documentation  
-  function antenna_w ()
+  pure complex function antenna_w ()
     implicit none
-    complex :: antenna_w
     antenna_w = wtmp
   end function antenna_w
 

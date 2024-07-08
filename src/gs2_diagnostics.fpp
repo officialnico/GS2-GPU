@@ -410,6 +410,7 @@ contains
     use gs2_io, only: init_gs2_io
     use gs2_heating, only: init_htype
     use collisions, only: collision_model_switch, init_lorentz_error
+    use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use mp, only: broadcast, proc0, mp_abort
     use le_grids, only: init_weights, wdim
     use gs2_save, only: restart_writable
@@ -491,7 +492,8 @@ contains
     call broadcast (nout)
 
     if (write_cerr) then
-       if (collision_model_switch == 1 .or. collision_model_switch == 5) then
+       if (collision_model_switch == collision_model_lorentz .or. &
+            collision_model_switch == collision_model_lorentz_test) then
           call init_lorentz_error
        else
           write_cerr = .false.
@@ -690,7 +692,7 @@ contains
     use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
     use antenna, only: no_driver
-    use collisions, only: heating, use_le_layout
+    use collisions, only: heating, use_le_layout, set_heating
     use mp, only: proc0
     implicit none
     !> If true, this is a "list-mode run" and so turn off
@@ -838,7 +840,7 @@ contains
        if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
        write_heating = .false.
     else if (heating .and. .not. write_heating) then
-       heating = .false.
+       call set_heating(.false.)
     end if
 
     write_any = write_line .or. write_omega     .or. write_omavg &

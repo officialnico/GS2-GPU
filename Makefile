@@ -226,7 +226,7 @@ PATCHFILE:= .patch.make
 
 ######################################################### PLATFORM DEPENDENCE
 
-# compile mode switches (DEBUG, TEST, PROF, OPT, STATIC, DBLE)
+# compile mode switches (DEBUG, PROF, OPT, STATIC, DBLE)
 # must be set before loading Makefile.$(GK_SYSTEM) because they may affect
 # compiler options.
 
@@ -469,6 +469,9 @@ endif
 
 ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
+$(warning $(shell echo -e "$(C_RED)")\
+LOWFLOW is deprecated in 8.2 and will be removed in the future\
+$(shell echo -e "$(C_END)"))
 endif
 
 #Support old deprecated option
@@ -652,20 +655,20 @@ depend: $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_
 		$(VPATH) --generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 
-# Dump the compilation flags to a file, so we can check if they change between
-# invocations of `make`. The `cmp` bit checks if the file contents
-# change. Adding a dependency of a file on `compiler_flags` causes it to be
-# rebuilt when the flags change. Taken from
-# https://stackoverflow.com/a/3237349/2043465
-COMPILER_FLAGS_CONTENTS = "$(GIT_VERSION)"
+# Previously we dumpe dthe compilation flags to a file, so we can
+# check if they change between invocations of `make`. The `cmp` bit
+# checks if the file contents change. Adding a dependency of a file on
+# `compiler_flags` causes it to be rebuilt when the flags
+# change. Taken from https://stackoverflow.com/a/3237349/2043465
+# Now we just store the git version and use that to trigger a rebuild of git_hash.o
+GIT_VERSION_CONTENTS = "$(GIT_VERSION)"
 .PHONY: force
-compiler_flags: force
-	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+git_version: force
+	$(QUIETSYM)echo -e $(GIT_VERSION_CONTENTS) | cmp -s - $@ || echo -e $(GIT_VERSION_CONTENTS) > $@
 
-# Things that should be rebuilt if the compilation flags change (for example, on
-# a new commit). Files that get preprocessed need either the object file or the
-# preprocessed file to depend on compiler_flags
-$(OBJDIR)/git_hash.o: compiler_flags
+# Things that should be rebuilt if the git version changes (for example, on
+# a new commit). The object file should depend on git_version
+$(OBJDIR)/git_hash.o: git_version
 
 .PHONY: config_auto_gen
 ifeq ($(GS2_HAS_PYTHON),yes)
@@ -797,7 +800,6 @@ test_make:
 	$(call messageInfo,"Compilation mode:")
 	$(call messageKeyVal, "DEBUG", $(DEBUG))
 	$(call messageKeyVal, "SCAL", $(SCAL))
-	$(call messageKeyVal, "TEST", $(TEST))
 	$(call messageKeyVal, "PROF", $(PROF))
 	$(call messageKeyVal, "OPT", $(OPT))
 	$(call messageKeyVal, "STATIC", $(STATIC))

@@ -15,16 +15,12 @@ module collisions
   private 
 
   public :: init_collisions, finish_collisions, reset_init, adjust_vnmult
-  public :: read_parameters, wnml_collisions, check_collisions
-  public :: dtot, fdf, fdb, vnmult, ncheck, vary_vnew
-  public :: init_lorentz_error
+  public :: read_parameters, wnml_collisions, check_collisions, set_heating
+  public :: dtot, fdf, fdb, vnmult, ncheck, vary_vnew, init_lorentz_error, set_vnmult
   public :: colls, hyper_colls, heating, adjust, split_collisions,use_le_layout, solfp1
   public :: collision_model_switch, collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
-
-  public :: collisions_config_type
-  public :: set_collisions_config
-  public :: get_collisions_config
+  public :: collisions_config_type, set_collisions_config, get_collisions_config
   
   interface solfp1
      module procedure solfp1_le_layout
@@ -388,6 +384,16 @@ module collisions
 
   type(collisions_config_type) :: collisions_config
 contains
+
+  subroutine set_vnmult(vnmult_in)
+    real, dimension(2), intent(in) :: vnmult_in
+    vnmult = vnmult_in
+  end subroutine set_vnmult
+
+  subroutine set_heating(heating_in)
+    logical, intent(in) :: heating_in
+    heating = heating_in
+  end subroutine set_heating
   
   !> FIXME : Add documentation
   subroutine check_collisions(report_unit)

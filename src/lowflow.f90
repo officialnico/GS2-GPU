@@ -81,6 +81,9 @@ contains
     real, dimension (:,:,:,:,:), allocatable :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6
     real, dimension (:,:,:), allocatable :: vpadhdec, dhdec, dhdxic, cdfac, hneovpth
     real, dimension (:), allocatable :: tmp7, tmp8, tmp9
+    ! Add deprecation notice as LOWFLOW not being actively maintained/tested due to
+    ! use of old verision of neo files.
+    if (proc0) write(*, '("Warning: Lowflow deprecated in v8.2 and will be removed.")')
 
     ! Initialise the curvature drift
     call init_wcurv(driftknob, tpdriftknob)

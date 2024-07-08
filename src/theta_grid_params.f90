@@ -541,10 +541,11 @@ contains
           deltampri = akappri
 
           if (theta_grid_parameters_config%n_mxh > mxh_max_moments) then
-             write(*, &
-                  '("WARNING: ''n_mxh'' (", i0, ") is larger than maximum number of moments for '&
-                  'MXH geometry (", i0, "), truncating to ", i0)') &
-                  theta_grid_parameters_config%n_mxh, mxh_max_moments, mxh_max_moments
+             write(*, '(A, I0, A, I0, A, I0)') &
+                  "WARNING: ''n_mxh'' (", &
+                  theta_grid_parameters_config%n_mxh, &
+                  ") is larger than maximum number of moments for MXH geometry (", &
+                  mxh_max_moments, "), truncating to ", mxh_max_moments
           end if
 
        case default ! We should abort here, but we don't know if local_eq is true so maybe this is fine.
