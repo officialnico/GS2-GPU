@@ -152,19 +152,33 @@ contains
     end subroutine get_full
 
     !> similar to numpy.fft.fftshift in Python
+    !> shift data such that the element for kx=0 or ky=0 is in the center of the array
+    subroutine fftshift1D_real(array)
+
+        integer :: shift_no
+        real, dimension(:), intent(inout) :: array
+
+        shift_no = -(size(array)-1)/2
+        array = cshift(array, SHIFT=shift_no, DIM=1)
+
+    end subroutine fftshift1D_real
+
+    !> similar to numpy.fft.fftshift in Python
     !> shift data such that the element for kx=0 and ky=0 is in the center of the matrix
-    subroutine fftshift2D(field_array,ntheta0,nkynew)
+    subroutine fftshift2D_complex(array)
 
-        integer :: ntheta0, nkynew, shift_no
-        complex, dimension(nkynew,ntheta0) :: field_array
+        integer :: shift_no, dim
+        complex, dimension(:,:), intent(inout) :: array
 
-        shift_no = -(nkynew-1)/2
-        field_array = cshift(field_array, SHIFT=shift_no, DIM=1)
+        dim = 1
+        shift_no = -(size(array,DIM=dim)-1)/2
+        array = cshift(array, SHIFT=shift_no, DIM=dim)
 
-        shift_no = -(ntheta0-1)/2
-        field_array = cshift(field_array, SHIFT=shift_no, DIM=2)
+        dim = 2
+        shift_no = -(size(array,DIM=dim)-1)/2
+        array = cshift(array, SHIFT=shift_no, DIM=dim)
 
-    end subroutine fftshift2D
+    end subroutine fftshift2D_complex
 
     !> calculate the mediator mode for all possible pairs of source and target wavevectors
     subroutine get_mediator(phi,ikx0,iky0,nkx,nky,result_array,valid_mediator_lookup)
@@ -257,20 +271,6 @@ contains
         end do
 
     end subroutine compute_kinetic_energy_transfer
-
-    !> similar to numpy.fft.fftshift in Python
-    !> shift data such that the element for kx=0 or ky=0 is in the center of the array
-    subroutine fftshift(kx,ntheta0)
-
-        implicit none
-
-        integer :: ntheta0, shift_no
-        real, dimension(ntheta0) :: kx
-
-        shift_no = -(ntheta0-1)/2
-        kx = cshift(kx, SHIFT=shift_no, DIM=1)
-
-    end subroutine fftshift
 
     subroutine write_kinetic_energy_transfer_theta(gnostics)
         use diagnostics_config, only: diagnostics_type
@@ -419,7 +419,7 @@ contains
                 ikx0 = (ntheta0+1)/2
                 iky0 = (nkynew+1)/2
                 kxnew_array = akx
-                call fftshift(kxnew_array,ntheta0)
+                call fftshift1D_real(kxnew_array)
                 call extend_ky(kynew_array)
                 call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
                 call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
@@ -435,7 +435,7 @@ contains
 
                 phi_2D(:,:) = TRANSPOSE(phinew(theta_index,:,:)) ! shape (kx, ky) -> (ky, kx)
                 call get_full(phi_2D, phi_source, ntheta0,  naky)
-                call fftshift2D(phi_source, ntheta0, nkynew)
+                call fftshift2D_complex(phi_source)
                 call get_mediator(phi_source, ikx0, iky0, ntheta0, nkynew, phi_mediator, valid_mediator_lookup)
                 phi_target = CONJG(phi_source(iky0,:))
                 call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, ntheta0, nkynew, T_result_3D)
@@ -486,7 +486,7 @@ contains
 
         ! more parallel grid points than procs. 
         ! Some or all procs deal with more than one grid point. 
-        ! Some procs will deal with one more point than others if ntheta & nproc != 0.
+        ! Some procs will deal with one more point than others if ntheta % nproc != 0.
         else
             ! allocate here once before cycling through batches
             ! allocate variables needed on each proc involved in calculation
@@ -500,7 +500,7 @@ contains
             ikx0 = (ntheta0+1)/2
             iky0 = (nkynew+1)/2
             kxnew_array = akx
-            call fftshift(kxnew_array,ntheta0)
+            call fftshift1D_real(kxnew_array)
             call extend_ky(kynew_array)
             call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
             call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
@@ -530,7 +530,7 @@ contains
                     B_factor = 1. / bmag(theta_index)**3 ! bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
                     phi_2D(:,:) = TRANSPOSE(phinew(theta_index,:,:)) ! shape (kx, ky) -> (ky, kx)                    
                     call get_full(phi_2D, phi_source, ntheta0,  naky)
-                    call fftshift2D(phi_source, ntheta0, nkynew)
+                    call fftshift2D_complex(phi_source)
                     call get_mediator(phi_source, ikx0, iky0, ntheta0, nkynew, phi_mediator, valid_mediator_lookup)
                     phi_target = CONJG(phi_source(iky0,:))
                     call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, ntheta0, nkynew, T_result_3D)
