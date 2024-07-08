@@ -115,10 +115,10 @@ contains
         integer :: ikys, ikyt, ikxs, ikxt
 
         ikyt = iky0
-
-        do ikys=1, nkynew
+    
+        do ikxt=1, ntheta0
             do ikxs=1, ntheta0
-                do ikxt=1, ntheta0
+                do ikys=1, nkynew
                     ! the second term in specific for kinetic energy transfer
                     ! NOTE: the factor -1,0 is from the outer minus sign
                     result_array(ikys,ikxs,ikxt) = -1.0 * ( kx_array(ikxt)*ky_array(ikys) - ky_array(ikyt)*kx_array(ikxs) ) * ( kx_array(ikxt)*kx_array(ikxs) + ky_array(ikyt)*ky_array(ikys) )
@@ -184,10 +184,10 @@ contains
         logical :: valid_mediator
 
         ikyt = iky0
-
-        do ikys = 1, nky
+    
+        do ikxt = 1, nkx
             do ikxs = 1, nkx
-                do ikxt = 1, nkx
+                do ikys = 1, nky
                     ikym = ikyt - ikys + iky0
                     ikxm = ikxt - ikxs + ikx0
 
@@ -214,9 +214,9 @@ contains
 
         ikyt = iky0
 
-        do ikys = 1, nky
+        do ikxt = 1, nkx
             do ikxs = 1, nkx
-                do ikxt = 1, nkx
+                do ikys = 1, nky
                     ikxm = ikxt - ikxs + ikx0
                     ikym = ikyt - ikys + iky0
 
@@ -247,10 +247,10 @@ contains
 
         phi_target_new = reshape(phi_target,(/1,1,nkx/))
         phi_source_new = reshape(phi_source,(/nky,nkx,1/))
-
-        do i=1,nky
+    
+        do k=1,nkx
             do j=1,nkx
-                do k=1,nkx
+                do i=1,nky
                     result_array(i,j,k) = 2.0 &
                                         * B_factor &
                                         * z_hat_factor(i,j,k) & 
