@@ -18,57 +18,24 @@ module diagnostics_kinetic_energy_transfer
 
     private
 
-    public :: init_diagnostics_kinetic_energy_transfer_theta, init_diagnostics_kinetic_energy_transfer_theta_kxsource, init_diagnostics_kinetic_energy_transfer_theta_kxtarget, init_diagnostics_kinetic_energy_transfer_theta_kysource
-    public :: write_kinetic_energy_transfer_theta
-    public :: write_kinetic_energy_transfer_theta_kxsource
-    public :: write_kinetic_energy_transfer_theta_kxtarget
-    public :: write_kinetic_energy_transfer_theta_kysource
+    public :: init_diagnostics_kinetic_energy_transfer
+    public :: write_kinetic_energy_transfer
     public :: calculate_kinetic_energy_transfer
 
 contains
-    subroutine init_diagnostics_kinetic_energy_transfer_theta(gnostics)
+    subroutine init_diagnostics_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
 
         type(diagnostics_type), intent(inout) :: gnostics
 
-        if(.not. gnostics%write_kinetic_energy_transfer_theta) return
+        if(.not. gnostics%write_kinetic_energy_transfer) return
         
         gnostics%current_results%kinetic_energy_transfer_theta = 0.0
-
-    end subroutine init_diagnostics_kinetic_energy_transfer_theta
-
-    subroutine init_diagnostics_kinetic_energy_transfer_theta_kxsource(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta_kxsource) return
-        
         gnostics%current_results%kinetic_energy_transfer_theta_kxsource = 0.0
-
-    end subroutine init_diagnostics_kinetic_energy_transfer_theta_kxsource
-
-    subroutine init_diagnostics_kinetic_energy_transfer_theta_kxtarget(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta_kxtarget) return
-        
         gnostics%current_results%kinetic_energy_transfer_theta_kxtarget = 0.0
-
-    end subroutine init_diagnostics_kinetic_energy_transfer_theta_kxtarget
-
-    subroutine init_diagnostics_kinetic_energy_transfer_theta_kysource(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta_kysource) return
-        
         gnostics%current_results%kinetic_energy_transfer_theta_kysource = 0.0
 
-    end subroutine init_diagnostics_kinetic_energy_transfer_theta_kysource
+    end subroutine init_diagnostics_kinetic_energy_transfer
 
     !> extend ky to negative values.
     !> due to reality condition only ky >= 0 is used in GS2.
@@ -257,7 +224,7 @@ contains
 
     end subroutine compute_kinetic_energy_transfer
 
-    subroutine write_kinetic_energy_transfer_theta(gnostics)
+    subroutine write_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
@@ -270,52 +237,22 @@ contains
         long_name="kinetic energy transfer as a function of theta", &
         units="GS2 units (to be specified)")
 
-    end subroutine write_kinetic_energy_transfer_theta
-
-    subroutine write_kinetic_energy_transfer_theta_kxsource(gnostics)
-        use diagnostics_config, only: diagnostics_type
-        use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
-        use neasyf, only: neasyf_write
-        
-        type(diagnostics_type), intent(in out) :: gnostics
-
-        if (.not. gnostics%writing) return
         call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kxsource", gnostics%current_results%kinetic_energy_transfer_theta_kxsource, &
         dim_names=[kxs_shifted_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and kx-source", &
         units="GS2 units (to be specified)")
 
-    end subroutine write_kinetic_energy_transfer_theta_kxsource
-
-    subroutine write_kinetic_energy_transfer_theta_kxtarget(gnostics)
-        use diagnostics_config, only: diagnostics_type
-        use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
-        use neasyf, only: neasyf_write
-        
-        type(diagnostics_type), intent(in out) :: gnostics
-
-        if (.not. gnostics%writing) return
         call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kxtarget", gnostics%current_results%kinetic_energy_transfer_theta_kxtarget, &
         dim_names=[kxt_shifted_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and kx-target", &
         units="GS2 units (to be specified)")
 
-    end subroutine write_kinetic_energy_transfer_theta_kxtarget
-
-    subroutine write_kinetic_energy_transfer_theta_kysource(gnostics)
-        use diagnostics_config, only: diagnostics_type
-        use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
-        use neasyf, only: neasyf_write
-        
-        type(diagnostics_type), intent(in out) :: gnostics
-
-        if (.not. gnostics%writing) return
         call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kysource", gnostics%current_results%kinetic_energy_transfer_theta_kysource, &
         dim_names=[kys_extended_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and ky-source", &
         units="GS2 units (to be specified)")
 
-    end subroutine write_kinetic_energy_transfer_theta_kysource
+    end subroutine write_kinetic_energy_transfer
 
     subroutine calculate_kinetic_energy_transfer(gnostics)
 

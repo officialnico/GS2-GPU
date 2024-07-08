@@ -160,10 +160,7 @@ module diagnostics_config
      logical :: save_glo_info_and_grids
      logical :: save_velocities
      logical :: write_zonal_transfer
-     logical :: write_kinetic_energy_transfer_theta
-     logical :: write_kinetic_energy_transfer_theta_kxtarget
-     logical :: write_kinetic_energy_transfer_theta_kxsource
-     logical :: write_kinetic_energy_transfer_theta_kysource
+     logical :: write_kinetic_energy_transfer
      logical :: write_collisional
      logical :: write_omavg
      logical :: ob_midplane
@@ -392,10 +389,7 @@ contains
     gnostics%write_upar_over_time = new_gs2_diagnostics_config%write_upar_over_time
     gnostics%write_verr = new_gs2_diagnostics_config%write_verr
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
-    gnostics%write_kinetic_energy_transfer_theta = new_gs2_diagnostics_config%write_kinetic_energy_transfer_theta
-    gnostics%write_kinetic_energy_transfer_theta_kxtarget = new_gs2_diagnostics_config%write_kinetic_energy_transfer_theta_kxtarget
-    gnostics%write_kinetic_energy_transfer_theta_kxsource = new_gs2_diagnostics_config%write_kinetic_energy_transfer_theta_kxsource
-    gnostics%write_kinetic_energy_transfer_theta_kysource = new_gs2_diagnostics_config%write_kinetic_energy_transfer_theta_kysource
+    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
 
     exist = new_gs2_diagnostics_config%exist
 

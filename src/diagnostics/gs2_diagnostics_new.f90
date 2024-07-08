@@ -42,7 +42,7 @@ contains
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
-    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer_theta, init_diagnostics_kinetic_energy_transfer_theta_kxtarget, init_diagnostics_kinetic_energy_transfer_theta_kxsource, init_diagnostics_kinetic_energy_transfer_theta_kysource
+    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer
     use collisional_heating, only: init_collisional
     use collisions, only: heating, set_heating
     use nonlinear_terms, only: nonlin
@@ -136,10 +136,7 @@ contains
     call init_diagnostics_antenna(gnostics)
     call init_diagnostics_transfer(gnostics)
     call init_collisional(gnostics)
-    call init_diagnostics_kinetic_energy_transfer_theta(gnostics)
-    call init_diagnostics_kinetic_energy_transfer_theta_kxtarget(gnostics)
-    call init_diagnostics_kinetic_energy_transfer_theta_kxsource(gnostics)
-    call init_diagnostics_kinetic_energy_transfer_theta_kysource(gnostics)
+    call init_diagnostics_kinetic_energy_transfer(gnostics)
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
@@ -341,8 +338,7 @@ contains
     use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
-    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer_theta, write_kinetic_energy_transfer_theta_kxtarget, write_kinetic_energy_transfer_theta_kxsource, write_kinetic_energy_transfer_theta_kysource
-    use diagnostics_kinetic_energy_transfer, only: calculate_kinetic_energy_transfer
+    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer, calculate_kinetic_energy_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -488,24 +484,9 @@ contains
           call write_zonal_transfer(gnostics)
        end if 
 
-       if (gnostics%write_kinetic_energy_transfer_theta .or. gnostics%write_kinetic_energy_transfer_theta_kxtarget .or. gnostics%write_kinetic_energy_transfer_theta_kxsource .or. gnostics%write_kinetic_energy_transfer_theta_kysource) then
-        call calculate_kinetic_energy_transfer(gnostics)
-       end if
-
-       if (gnostics%write_kinetic_energy_transfer_theta) then
-        call write_kinetic_energy_transfer_theta(gnostics)
-       end if
-
-       if (gnostics%write_kinetic_energy_transfer_theta_kxtarget) then
-        call write_kinetic_energy_transfer_theta_kxtarget(gnostics)
-       end if
-
-       if (gnostics%write_kinetic_energy_transfer_theta_kxsource) then
-        call write_kinetic_energy_transfer_theta_kxsource(gnostics)
-       end if
-
-       if (gnostics%write_kinetic_energy_transfer_theta_kysource) then
-        call write_kinetic_energy_transfer_theta_kysource(gnostics)
+       if (gnostics%write_kinetic_energy_transfer) then
+          call calculate_kinetic_energy_transfer(gnostics)
+          call write_kinetic_energy_transfer(gnostics)
        end if
 
        if (gnostics%write_collisional) then  !< new diagnostic, calulate and write in new variable
