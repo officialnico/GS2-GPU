@@ -80,24 +80,20 @@ contains
 
     !> extend ky to negative values.
     !> due to reality condition only ky >= 0 is used in GS2.
-    subroutine extend_ky(ky,naky,kynew)
+    subroutine extend_ky(kynew)
+
+        use kt_grids, only: naky, aky
 
         implicit none
 
-        integer :: naky, ky0, nkynew
-        real, dimension(naky) :: ky
-        real, dimension(2*naky-1) :: kynew
+        real, dimension(2*naky-1), intent(out) :: kynew
         integer :: i
 
-        nkynew = 2*naky-1
-
-        ky0 = naky
-        kynew(naky:) = ky
-        
+        kynew(naky:) = aky
+    
         do i=1, naky-1
-            kynew(i) = -ky(naky+1-i)
+            kynew(i) = -aky(naky+1-i)
         end do
-
 
     end subroutine extend_ky
 
@@ -431,7 +427,7 @@ contains
                 iky0 = (nkynew+1)/2
                 kxnew_array = akx
                 call fftshift(kxnew_array,ntheta0)
-                call extend_ky(aky,naky,kynew_array)
+                call extend_ky(kynew_array)
                 call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
                 call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
                 B_factor = 1. / bmag(theta_index)**3 ! bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
@@ -512,7 +508,7 @@ contains
             iky0 = (nkynew+1)/2
             kxnew_array = akx
             call fftshift(kxnew_array,ntheta0)
-            call extend_ky(aky,naky,kynew_array)
+            call extend_ky(kynew_array)
             call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
             call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
 
