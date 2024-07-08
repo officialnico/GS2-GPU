@@ -238,13 +238,7 @@ contains
         real, dimension(:,:,:), intent(in) :: z_hat_factor ! shape (nky,nkx,nkx)
         real, intent(in) :: B_factor
         real, dimension(:,:,:), intent(out) :: result_array ! shape (nky,nkx,nkx)
-
-        complex, dimension(1, 1, nkx) :: phi_target_new
-        complex, dimension(nky, nkx, 1) :: phi_source_new
         integer :: i, j, k
-
-        phi_target_new = reshape(phi_target,(/1,1,nkx/))
-        phi_source_new = reshape(phi_source,(/nky,nkx,1/))
     
         do k=1,nkx
             do j=1,nkx
@@ -253,9 +247,9 @@ contains
                                         * B_factor &
                                         * z_hat_factor(i,j,k) & 
                                         * REAL( &
-                                            phi_target_new(1,1,k) &
+                                            phi_target(k) &
                                             * phi_mediator(i,j,k) &
-                                            * phi_source_new(i,j,1) &
+                                            * phi_source(i,j) &
                                         )
                 end do
             end do
@@ -328,9 +322,8 @@ contains
         use diagnostics_config, only: diagnostics_type
         use kt_grids, only: ntheta0, naky, aky, akx
         use fields_arrays, only: phinew
-        use theta_grid, only: ntgrid, bmag, theta
+        use theta_grid, only: ntgrid, bmag
         use mp, only: proc0, iproc, nproc, barrier, send, receive, broadcast
-        use species, only: nspec, spec
         
         type(diagnostics_type), intent(in out) :: gnostics
 
