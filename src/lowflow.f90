@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> FIXME : Add documentation
 module lowflow
 
@@ -64,7 +65,7 @@ contains
     use kt_grids, only: theta0, ntheta0, naky, aky, akx
     use gs2_time, only: tunits, wunits, code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx, it_idx
-    use run_parameters, only:rhostar, neo_test
+    use run_parameters, only: neo_test
     use file_utils, only: open_output_file, close_output_file
     use collisions, only: use_le_layout
     use mp, only: proc0, mp_abort
@@ -291,9 +292,10 @@ contains
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       wdfac(:,1,iglo) = wdfac(:,1,iglo)*wdrift(:,1,iglo) &
+       ! On entry the imaginary part of wdrift is zero
+       wdfac(:,1,iglo) = wdfac(:,1,iglo)*real(wdrift(:,1,iglo)) &
             + cdfac(:,1,iglo)*wcurv(:,iglo)
-       wdfac(:,2,iglo) = wdfac(:,2,iglo)*wdrift(:,2,iglo) &
+       wdfac(:,2,iglo) = wdfac(:,2,iglo)*real(wdrift(:,2,iglo)) &
             + cdfac(:,2,iglo)*wcurv(:,iglo)
        wdttpfac(:,it,ik,ie,is,1) = wdfac(:,1,iglo)*wdriftttp(:, 1, iglo) &
             + cdfac(:,1,iglo)*wcurv(:,iglo)
@@ -332,9 +334,9 @@ contains
     use array_utils, only: zero_array
     implicit none
     real, intent(in) :: driftknob, tpdriftknob
-    integer :: ig, ik, it, il, ie, is, iglo
+    integer :: ig, ik, it, il, is, iglo
     real :: scaling_knob
-    logical,parameter :: debug = .false.
+    logical, parameter :: debug = .false.
 
     if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(wcurv)
@@ -877,19 +879,15 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_H (gjk, legdre, chebyshv, h, phi, ig, is)
-
     use species, only: spec
-
     implicit none
-
     real, dimension (0:,0:), intent (in) :: gjk
     real, dimension (:,0:), intent (in) :: legdre, chebyshv
     real, intent (in) :: phi
     real, dimension (:,:), intent (out) :: h
     integer, intent (in) :: ig, is
-
     integer :: ix, ij, ik
-
+    UNUSED_DUMMY(ig)
     h = 0.0
 
     do ix = 1, size(h,1)
@@ -937,35 +935,29 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_dHdE (gjk, legdre, chebyshv1, chebyshv2, x, xmax, dH)
-
     implicit none
-
     real, dimension (0:,0:), intent (in) :: gjk
     real, dimension (:,0:), intent (in) :: legdre
     real, dimension (:), intent (in) :: x
     real, intent (in) :: xmax
     real, dimension (:,0:), intent (in) :: chebyshv1, chebyshv2
     real, dimension (:,:), intent (out) :: dH
-
     integer :: ij, ik, ix
     real :: cfac
-
+    UNUSED_DUMMY(chebyshv1)
     dH = 0.0
 
     ! dH/dE at fixed xi is sum_{j,k} c_{j,k}*P_j(xi)*d(T_{n}(z))/dz / sqrt(E*EMAX)
     ! z=2*sqrt(E/EMAX)-1
     ! note that d(T_{k})/dz = k*U_{k-1}, where U_k is the Chebyshev polynomial of the 2nd kind
     do ix = 1, size(x)
-       do ik = 0, size(gjk,2)-1
-          if (ik==0) then
-             ! cfac nonzero here if hneo = F_1 instead of F_1/F_0
-             !             cfac = -chebyshv1(ix,ik)
-             cfac = 0.0
-          else
-             ! extra chebyshv1 term not needed since hneo = F_1/F_0 instead of F_1
-             !             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)-chebyshv1(ix,ik)
-             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)
-          end if
+       ! cfac nonzero here if hneo = F_1 instead of F_1/F_0
+       !             cfac = -chebyshv1(ix,ik)
+       cfac = 0.0
+       do ik = 1, size(gjk,2)-1
+          ! extra chebyshv1 term not needed since hneo = F_1/F_0 instead of F_1
+          !             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)-chebyshv1(ix,ik)
+          cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)
           do ij = 0, size(gjk,1)-1
              dH(:,ix) = dH(:,ix) + (legdre(:,ij)*cfac*gjk(ij,ik))
           end do
