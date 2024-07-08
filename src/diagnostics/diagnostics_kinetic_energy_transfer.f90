@@ -78,27 +78,6 @@ contains
 
     end subroutine init_diagnostics_kinetic_energy_transfer_theta_kysource
 
-    subroutine get_kxky_values(kx_array,ky_array)
-        use kt_grids, only: ntheta0, naky, aky, akx
-        use gs2_layouts, only: g_lo, ik_idx, it_idx
-
-        implicit none
-
-        real, dimension(:), intent(out) :: kx_array, ky_array
-        integer :: iglo, it, ik
-        real :: kx_value, ky_value
-
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-                it = it_idx(g_lo,iglo)
-                ik = ik_idx(g_lo,iglo)
-                kx_value = akx(it)
-                ky_value = aky(ik)
-                kx_array(it) = kx_value
-                ky_array(ik) = ky_value
-        end do
-
-    end subroutine get_kxky_values
-
     subroutine extend_ky(ky,naky,kynew)
         !# extend ky to negative values.
         !# due to reality condition only ky >= 0 is used in GS2.
@@ -374,7 +353,7 @@ contains
     subroutine calculate_kinetic_energy_transfer(gnostics)
 
         use diagnostics_config, only: diagnostics_type
-        use kt_grids, only: ntheta0, naky
+        use kt_grids, only: ntheta0, naky, aky, akx
         use fields_arrays, only: phinew
         use theta_grid, only: ntgrid, bmag, theta
         use mp, only: proc0, iproc, nproc, barrier, send, receive, broadcast
@@ -408,7 +387,7 @@ contains
         complex, dimension(:,:), allocatable :: phi_source
         complex, dimension(:), allocatable :: phi_target
         complex, dimension(:,:,:), allocatable :: phi_mediator
-        real, dimension(:), allocatable :: kx_array, ky_array, kynew_array 
+        real, dimension(:), allocatable :: kxnew_array, kynew_array 
         real, dimension(:,:,:), allocatable :: z_factor
         logical, dimension(:,:,:), allocatable :: valid_mediator_lookup
 
@@ -440,8 +419,7 @@ contains
                 !# **** calculation start ****
                 !# ***************************
                 !# allocate variables needed on each proc involved in calculation
-                allocate (kx_array(ntheta0)) ; kx_array = 0.
-                allocate (ky_array(naky)) ; ky_array = 0.
+                allocate (kxnew_array(ntheta0)) ; kxnew_array = 0.
                 allocate (kynew_array(2*naky-1)) ; kynew_array = 0.
                 allocate (valid_mediator_lookup(2*naky-1,ntheta0,ntheta0)) ; valid_mediator_lookup = .false.
                 allocate (z_factor(2*naky-1,ntheta0,ntheta0)) ; z_factor = 0.
@@ -450,10 +428,10 @@ contains
                 nkynew = 2*naky-1
                 ikx0 = (ntheta0+1)/2
                 iky0 = (nkynew+1)/2
-                call get_kxky_values(kx_array,ky_array)
-                call fftshift(kx_array,ntheta0)
-                call extend_ky(ky_array,naky,kynew_array)
-                call z_hat_factor(kx_array, kynew_array, z_factor, nkynew, iky0)
+                kxnew_array = akx
+                call fftshift(kxnew_array,ntheta0)
+                call extend_ky(aky,naky,kynew_array)
+                call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
                 call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
                 B_factor = 1. / bmag(theta_index)**3 !# bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
 
@@ -522,8 +500,7 @@ contains
         else
             !# allocate here once before cycling through batches
             !# allocate variables needed on each proc involved in calculation
-            allocate (kx_array(ntheta0)) ; kx_array = 0.
-            allocate (ky_array(naky)) ; ky_array = 0.
+            allocate (kxnew_array(ntheta0)) ; kxnew_array = 0.
             allocate (kynew_array(2*naky-1)) ; kynew_array = 0.
             allocate (valid_mediator_lookup(2*naky-1,ntheta0,ntheta0)) ; valid_mediator_lookup = .false.
             allocate (z_factor(2*naky-1,ntheta0,ntheta0)) ; z_factor = 0.
@@ -532,10 +509,10 @@ contains
             nkynew = 2*naky-1
             ikx0 = (ntheta0+1)/2
             iky0 = (nkynew+1)/2
-            call get_kxky_values(kx_array,ky_array)
-            call fftshift(kx_array,ntheta0)
-            call extend_ky(ky_array,naky,kynew_array)
-            call z_hat_factor(kx_array, kynew_array, z_factor, nkynew, iky0)
+            kxnew_array = akx
+            call fftshift(kxnew_array,ntheta0)
+            call extend_ky(aky,naky,kynew_array)
+            call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
             call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
 
             allocate (T_result_3D(2*naky-1,ntheta0,ntheta0)) ; T_result_3D = 0.
@@ -641,8 +618,7 @@ contains
         if (iproc < ntheta) then
             deallocate(z_factor)
             deallocate(valid_mediator_lookup)
-            deallocate(kx_array)
-            deallocate(ky_array)
+            deallocate(kxnew_array)
             deallocate(kynew_array)
             deallocate(T_result_3D)
             deallocate(T_result_theta_kxsource_temp)
