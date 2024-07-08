@@ -98,7 +98,7 @@ contains
     end subroutine extend_ky
 
     !> calculate:
-    !> (b_hat x k_t . k_s)(b_hat x k_t) . (b_hat x k_s) = (k^x_t * k^y_s - k^y_t * k^x_s) * (k^x_t * k^x_s + k^y_t * k^y_s)
+    !> -(b_hat x k_t . k_s)(b_hat x k_t) . (b_hat x k_s) = -(k^x_t * k^y_s - k^y_t * k^x_s) * (k^x_t * k^x_s + k^y_t * k^y_s)
     !> where the second term
     !> (b_hat x k_t) . (b_hat x k_s)
     !> is unique for kinetic energy transfer and does not appear for internal energy transfer or entropy transfer
@@ -119,8 +119,6 @@ contains
         do ikxt=1, ntheta0
             do ikxs=1, ntheta0
                 do ikys=1, nkynew
-                    ! the second term in specific for kinetic energy transfer
-                    ! NOTE: the factor -1,0 is from the outer minus sign
                     result_array(ikys,ikxs,ikxt) = -1.0 * ( kx_array(ikxt)*ky_array(ikys) - ky_array(ikyt)*kx_array(ikxs) ) * ( kx_array(ikxt)*kx_array(ikxs) + ky_array(ikyt)*ky_array(ikys) )
                 end do
             end do
@@ -128,7 +126,7 @@ contains
 
     end subroutine z_hat_factor
 
-    !> extend a 2D data array to negative kx-values
+    !> extend a 2D data array to negative ky-values
     !> with the original "unshifted" order
     subroutine get_full(field_arr,result_array,nkx,nky)
 
@@ -138,23 +136,18 @@ contains
         complex, dimension(2*nky-1,nkx) :: result_array
         integer :: i
 
+        ! copy in the values for ky >= 0 without change
         result_array(1:nky,:) = field_arr
-        temp = field_arr(2:,:) ! contains non-zero ky's and all kx's
 
-        ! reverse order of temp along x
-        do i = 1, nkx
-            temp2(:,nkx+1-i) = temp(:,i)
-        end do
+        ! reverse order along all kx's and all non-zero ky's.
+        ! Also take complex conjugate for reality condition.
+        temp3 = CONJG(field_arr(nky:2:-1,nkx:1:-1))
 
-        ! reverse order of temp along y
-        do i = 1, nky-1
-            temp3(nky-i,:) = temp2(i,:)
-        end do
-
-        ! equivalent to np.roll to have ikx0 as first index to be "fft-unshifted"
-        temp3 = cshift(temp3, SHIFT=-1,DIM=2)
-
-        result_array(nky+1:,:) = CONJG(temp3)
+        ! shift the entire negative ky-subarray one index along kx.
+        ! After this step the reality condition is satisfied.
+        ! This step is required due to the asymmetry which is introduced
+        ! by the "unshiftedness" of the array.
+        result_array(nky+1:,:) = cshift(temp3, SHIFT=-1,DIM=2)
 
     end subroutine get_full
 
