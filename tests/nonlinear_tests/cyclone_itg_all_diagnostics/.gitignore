@@ -1,0 +1,6 @@
+.cyclone_itg_low_res_new.in
+.cyclone_itg_low_res_old.in
+cyclone_itg_low_res_new.*
+cyclone_itg_low_res_old.*
+-cyclone_itg_low_res_new.in
+-cyclone_itg_low_res_old.in

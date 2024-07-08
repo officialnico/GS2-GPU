@@ -44,11 +44,16 @@ optional ones:
 
 - MPI
 - NetCDF (requires >= v4.2.0)
-- FFTW (support for v2 will be dropped in the near future)
+- FFTW (requires >= 3.3)
 - LAPACK
 - NAG
 - python (required for code generation, tests and documentation,
   requires >= 3.6)
+
+When compiled with netCDF, we also use the
+[neasy-f](https://github.com/PlasmaFAIR/neasy-f/) netCDF wrapper
+library, but we bundle this with GS2 so you don't need to build
+neasy-f separately.
 
 ### Fortran standard features
 

@@ -208,7 +208,9 @@ subroutine setup(this)
   use mp, only : init_mp
   class (MpiTestMethod), intent(inout) :: this
   ! Make sure GS2 variables like proc0 are populated correctly:
-  call init_mp(this%getMpiCommunicator())
+  integer :: mp_comm
+  mp_comm = this%getMpiCommunicator()
+  call init_mp(mp_comm)
 end subroutine setup
 
 @after
@@ -516,7 +518,9 @@ type(theta_grid_parameters_config_type) :: theta_grid_params_config
 type(theta_grid_config_type) :: theta_grid_config
 
 ! Setup MPI
-call init_mp(this%getMpiCommunicator())
+integer :: mp_comm
+mp_comm = this%getMpiCommunicator()
+call init_mp(mp_comm)
 
 ! Initialise the config variable, setting just three parameters
 theta_grid_params_config = theta_grid_parameters_config_type( &

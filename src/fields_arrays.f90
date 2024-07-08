@@ -9,6 +9,8 @@ module fields_arrays
   public :: phi, apar, bpar, phinew, aparnew, bparnew
   public :: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
   public :: apar_ext, time_field, response_file, time_field_mpi
+  public :: time_field_invert, time_field_invert_mpi
+  public :: time_dump_response, time_read_response
   public :: get_specific_response_file_name
 
   !Main fields
@@ -22,7 +24,10 @@ module fields_arrays
 
   !Timing data
   real :: time_field(2) = 0., time_field_mpi = 0.
-  
+  real :: time_field_invert(2) = 0., time_field_invert_mpi = 0.
+  real :: time_dump_response(2) = 0.
+  real :: time_read_response(2) = 0.
+
   !For response data
   character(run_name_size) :: response_file = 'NOT_SET'
 

@@ -91,7 +91,7 @@
  write_flux_line =  F
  write_line =  F
  write_moments =  F
- write_nl_flux =  F
+ write_fluxes =  F
  write_omavg =  F
  write_omega =  F
  omegatol = -0.001

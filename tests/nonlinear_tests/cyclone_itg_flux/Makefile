@@ -2,9 +2,9 @@
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_cyclone_itg_flux
 clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME}
-
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -14,7 +14,7 @@ ifeq "$(VAL)" "0"
 all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_unsplit.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_rk.in)
 endif

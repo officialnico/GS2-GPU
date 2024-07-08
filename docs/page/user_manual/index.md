@@ -69,76 +69,24 @@ skip this step.
 
 ### Compiling
 
-There are two approaches to compiling GS2:
-
-1. using the `build_gs2` script
-2. using `make` directly
-
-### Compilation using `build_gs2`
-
-The level of difficulty of compiling depends on how much your system is supported.
-
-To use the automated build system try:
-
-``` shell
-./build_gs2 -o ls
-```
-
-This will print a list of systems that are supported by the automated build system. This
-configures your environment and then executes `make` automatically. If your system is
-supported you can simply execute:
-
-``` shell
-./build_gs2 -s <system>
-```
-
-Where your `<system>` is replaced by your system name. If your system is not supported try
-
-``` shell
-./build_gs2 -o update
-```
-
-which will try and update the build system. Then try the previous instructions again.
-
-If your system is still not supported, you can try the older process described below.
-However, if your system is similar to one of the already supported systems, you could try
-copying that system Makefile in the folder Makefiles and editing it to make it work.
-
-Failing that, please [raise a support request][newissue].
-
-### Compilation using `make`
-
-`build_gs2` is essentially just a wrapper around the `Makefiles`, and they can still be
-used manually.
-
 To compile GS2, you must set two environment variables: `GK_SYSTEM` and `MAKEFLAGS`. Since
 system-specific settings are written in `Makefiles/Makefile.$(GK_SYSTEM)`, you should
 specify what system you are on. There are many supported systems -- look in `Makefiles` to
 see if yours is already in there!
 
-In order to load `Makefile.$(GK_SYSTEM)` from the `Makefiles/` directory, you must tell
-`make` that it should search in that directory for files. This can be done with the
-command line option
+For example, to compile GS2 on the UK national supercomputer, Archer2, you would run:
 
-    make -I Makefiles
+    make GK_SYSTEM=archer2
 
-or, alternatively, use the `MAKEFLAGS` environment variable to give the `-I` option.
-
-For example, to compile GS2 on the UK national supercomputer, ARCHER, you would run:
-
-    make -I Makefiles GK_SYSTEM=archer
-
-Instead of setting them on the command line, you can also set the `GK_SYSTEM` and
-`MAKEFLAGS` environment variables in your `.cshrc` or `.bashrc`. Add the following:
+Instead of setting them on the command line, you can also set the `GK_SYSTEM` environment
+variable in your `.cshrc` or `.bashrc`. Add the following:
 
 (tcsh)
 
-    setenv MAKEFLAGS -IMakefiles
     setenv GK_SYSTEM 'your system'
 
 (bash)
 
-    export MAKEFLAGS=-IMakefiles
     export GK_SYSTEM='your system'
 
 After setting those environment variables, you just type `make` to get an executable. The
@@ -163,7 +111,7 @@ The following is the full list of switches the possible options in
    (64-bit)
  - `USE_MPI` (defined [defined]): turns on distributed memory parallelization with MPI
  - `USE_SHMEM` (defined [undefined]): turns on SHMEM parallel communications on SGI (not working yet)
- - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
+ - `USE_FFT` (`fftw3` [fftw]): turns on support for FFTs using FFTW3
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
  - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
@@ -217,8 +165,8 @@ might expect).
 |                 | `_LAHEY_`     |                                                  |
 |                 |               |                                                  |
 | `FFT`           | `_NONE_`      | We can choose to not compile fftw.               |
-|                 | `_FFTW_`      | At the moment only fftw is the available         |
-|                 | `_FFTW3_`     | fft option.                                      |
+|                 | `_FFTW3_`     | At the moment only fftw3 is the available        |
+|                 |               | fft option.                                      |
 |                 |               |                                                  |
 | `MPI`           | `_NONE_`      | Do not use MPI                                   |
 |                 |               | Use of -DMPI makes mpi work.                     |
@@ -331,6 +279,20 @@ Files](Example_Input_Files).
 
 Take the input file, edit it as you need and save it as `run_name.in`, where `run_name` is
 a name you have chosen for this simulation.
+
+GS2 has a built-in tool to check input files for consistency, as well as give some
+information on things like suggested number of cores to run on, and a description of some
+of the selected physics terms in plain English. You can run this checker on your input
+file with:
+
+    $ gs2 --check-input run_name.in
+
+This will create two files: `run_name.report` and `run_name.inp`. The first file is the
+report with all of the information above in, while the second file is a copy of the input
+file as GS2 sees it, with comments removed and all parameters set. Any parameters not set
+in the original input file will have their default value set here. This can be useful to
+see what defaults will be used, and to preserve the exact values used for a simulation,
+even if future GS2 versions change the default.
 
 Running GS2
 -----------

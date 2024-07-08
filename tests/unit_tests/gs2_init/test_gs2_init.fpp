@@ -24,7 +24,7 @@ program test_gs2_reinit
   !call test_gs2('Linear CBC (unit test) to test new diagnostics', checks)
     use gs2_reinit, only: reset_time_step
     use gs2_init, only: init
-    use gs2_reinit, only: gs2_reinit_unit_test_set_in_memory
+    use gs2_reinit, only: in_memory
     use gs2_main, only: run_gs2, finish_gs2
     use gs2_init, only:  init, init_level_list
     use gs2_main, only: finalize_diagnostics, initialize_diagnostics
@@ -40,7 +40,7 @@ program test_gs2_reinit
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
     use unit_tests, only: should_print
-    use mp, only: init_mp, test_driver_flag, finish_mp
+    use mp, only: init_mp, finish_mp
     use mp, only: broadcast, barrier, iproc, mp_comm
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gnew
@@ -73,10 +73,6 @@ program test_gs2_reinit
 
     call init_mp
     state%mp_comm = mp_comm
-
-
-    test_driver_flag = .true.
-    functional_test_flag = .true.
 
    call announce_module_test("gs2_reinit")
 
@@ -156,7 +152,7 @@ program test_gs2_reinit
     ! Reset the overrides
     call finalize_overrides(state)
 
-    call gs2_reinit_unit_test_set_in_memory(.true.)
+    in_memory = .true.
 
     call prepare_initial_values_overrides(state)
     call set_initval_overrides_to_current_vals(state%init%initval_ov)

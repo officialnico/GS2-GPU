@@ -1,4 +1,3 @@
-export
 include $(GK_HEAD_DIR)/Makefile.utils
 
 # Specify any required modules that are not in libgs2.a
@@ -18,18 +17,16 @@ else
 TESTS_ACTUAL := $(TESTS_TMP)
 endif
 
-.PHONY: all $(TESTS_ACTUAL) clean upload
+.PHONY: all $(TESTS_ACTUAL) clean_test_type
 
 all: $(TESTS_ACTUAL)
-
-upload:
-	$(call messageOp,"Uploading test results")
-	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
 
 clean_test_type:
 	$(call messageRm,"$(TEST_TYPE) test cases")
 	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) clean_individual_test -C $(element) TEST_NAME=$(dir $(element)) --no-print-directory;)
 
+TEST_TARGET_TYPE ?= all
+
 $(TESTS_ACTUAL):
 	$(call messageOp,"Making $(TEST_TYPE) test case","\\t:",$@)
-	$(QUIETSYM)$(MAKE) all -C $@ TEST_FOLD=$@
+	$(QUIETSYM)$(MAKE) $(TEST_TARGET_TYPE) -C $@ TEST_FOLD=$@

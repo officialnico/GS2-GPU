@@ -1,0 +1,13 @@
+!include cyclone_itg_low_res_base.in
+
+&knobs
+  wstar_units = .false. ! For linear runs only. Evolves each k_y with a different timestep.
+  fphi = 1.0 ! Multiplies Phi (electrostatic potential).
+  fapar = 1.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
+  fbpar = 1.0 ! Multiplies B_par. Use 1 for high beta, 0 otherwise
+  delt = 0.05 !0.05 ! Time step
+  nstep = 2 ! Maximum number of timesteps
+  use_old_diagnostics = .true.
+  beta = 0.1 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
+  zeff = 1.0 ! Effective ionic charge.
+/

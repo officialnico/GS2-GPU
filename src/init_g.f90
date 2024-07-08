@@ -2,6 +2,7 @@
 !> fields and the distribution function.
 module init_g
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use constants, only: run_name_size
   implicit none
 
   private
@@ -43,17 +44,18 @@ module init_g
        ginitopt_random_sine = 40, ginitopt_constant = 41
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
+  real :: init_spec_pow
   real :: den0, upar0, tpar0, tperp0
   real :: den1, upar1, tpar1, tperp1
   real :: den2, upar2, tpar2, tperp2
   real :: tstart, scale, apar0
   logical :: chop_side, clean_init, left, even, new_field_init
   logical :: initial_condition_is_nonadiabatic_dfn
-  character (2000) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
+  character (len = run_name_size) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
   integer, dimension(3) :: ikkk,ittt
-  complex, dimension (6) :: phiamp, aparamp
+  complex, dimension(3) :: phiamp, aparamp
   integer :: restart_eig_id
   integer :: max_mode
 
@@ -86,7 +88,7 @@ module init_g
   integer :: eq_mode_n=0, eq_mode_u=1
   ! mode number in x for sinusoidal equilibrium
   logical :: input_check_recon=.false.
-  complex :: nkxy_pt(3), ukxy_pt(3)
+  complex :: ukxy_pt(3)
   ! <RN
 
   !> Whether to use the constant_random number
@@ -117,7 +119,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem
      !> ([[init_g_knobs:ginit_option]] `"ot"`). Controls size of `jpar` term.
      !> FIXME: Reference equations?
-     complex, dimension(6) :: aparamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: aparamp = cmplx(0.0,0.0)
      !> Amplitude of equilibrium `By`: if `b0` is non-zero, \(u_0\) is
      !> rescaled to give this `By` amplitude by overriding [[init_g_knobs:a0]]
      real :: b0 = 0.0
@@ -230,6 +232,9 @@ module init_g
      !> Amplitude of imaginary part of \(\phi\) for various
      !> [[init_g_knobs:ginit_option]] options
      real :: imfac = 0.0
+     !> Initial spectrum power index. with
+     !> [[init_g_knobs:ginit_option]] `"noise"`.
+     real :: init_spec_pow = 0.0
      !> Do we want to include the explicit source terms and
      !> related timesteps when saving/restoring from the restart file.
      logical :: include_explicit_source_in_restart = .true.
@@ -255,10 +260,6 @@ module init_g
      !>
      !> FIXME: Add documentation
      logical :: new_field_init = .true.
-     !> Unused
-     !>
-     !> FIXME: Remove
-     complex, dimension(3) :: nkxy_pt = cmplx(0.,0.)
      !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
      !>
      !> FIXME: Add documentation
@@ -274,7 +275,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem.
      !>
      !> FIXME: expand
-     complex, dimension(6) :: phiamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: phiamp = cmplx(0.0,0.0)
      !> If doing multiple flux tube calculations, multiply
      !> [[init_g_knobs:phiinit]] by `(job * phifrac + 1)`. Allows for ensemble
      !> averaging of multiple flux tube calculations
@@ -289,7 +290,7 @@ module init_g
      !> Which processor is responsible for saving/reading potentials to/from restart
      !> files. If <0 then all procs write to restart files. If >= nproc then set to
      !> proc_to_save_fields = mod(proc_to_save_fields, nproc)
-     integer :: proc_to_save_fields = -1
+     integer :: proc_to_save_fields = 0
      !> Width of "porcelli", "doubleharris" profiles in
      !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
      !> ratio to the box size
@@ -310,7 +311,7 @@ module init_g
      !> Basename of restart files
      !>
      !> @note gets a smart default
-     character(len = 2000) :: restart_file = "restart_file_not_set.nc"
+     character(len = run_name_size) :: restart_file = "restart_file_not_set.nc"
      !> Rescale amplitudes of fields for restart [[init_g_knobs:ginit_option]]
      !> options such as `"restart"`. Note that if `scale` is negative, the
      !> fields are scaled by `-scale / max(abs(phi))`!
@@ -1024,6 +1025,7 @@ contains
     call broadcast (phifrac)
     call broadcast (dphiinit)
     call broadcast (zf_init)
+    call broadcast (init_spec_pow)
     call broadcast (apar0)
     call broadcast (tstart)
     call broadcast (chop_side)
@@ -1057,7 +1059,6 @@ contains
     call broadcast (eq_mode_n)
     call broadcast (eq_mode_u)
     call broadcast (input_check_recon)
-    call broadcast (nkxy_pt)
     call broadcast (ukxy_pt)
     
     call broadcast (ikpar_init)
@@ -1244,13 +1245,13 @@ contains
   !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
   !> calculate the consistent potentials to set the true gnew value.
   subroutine set_gnew_from_nonadiabatic_dfn
-    use dist_fn_arrays, only: gnew, g, g_adjust
+    use dist_fn_arrays, only: gnew, g, g_adjust, to_g_gs2
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
-    use run_parameters, only: fphi, fbpar
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use array_utils, only: copy
     implicit none
     integer :: iglo, ik, il, is
 
@@ -1268,13 +1269,13 @@ contains
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
 
     ! Adjust the nonadiabatic dfn to give the actual gnew we evolve
-    call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
     ! Ensure both timesteps are set correctly
-    g = gnew
-    phinew = phi
-    aparnew = apar
-    bparnew = bpar
+    call copy(gnew, g)
+    call copy(phi, phinew)
+    call copy(apar, aparnew)
+    call copy(bpar, bparnew)
   end subroutine set_gnew_from_nonadiabatic_dfn
 
   !> FIXME : Add documentation
@@ -1282,7 +1283,6 @@ contains
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
     use gs2_save, only: read_many, include_explicit_source_in_restart, proc_to_save_fields
-    use job_manage, only: trin_restart
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in
 
@@ -1365,6 +1365,7 @@ contains
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
     include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
+    init_spec_pow = init_g_config%init_spec_pow
     initial_condition_is_nonadiabatic_dfn = init_g_config%initial_condition_is_nonadiabatic_dfn
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
@@ -1373,7 +1374,6 @@ contains
     left = init_g_config%left
     max_mode = init_g_config%max_mode
     new_field_init = init_g_config%new_field_init
-    nkxy_pt = init_g_config%nkxy_pt
     null_apar = init_g_config%null_apar
     null_bpar = init_g_config%null_bpar
     null_phi = init_g_config%null_phi
@@ -1406,8 +1406,6 @@ contains
 
     exist = init_g_config%exist
     
-    if(trin_restart) ginit_option='many'
-    
     ierr = error_unit()
     call get_option_value &
          (ginit_option, ginitopts, ginitopt_switch, &
@@ -1427,6 +1425,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     logical :: right
@@ -1464,7 +1463,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_default
 
   !> Set initial condition to gaussian in \(\theta\)
@@ -1480,6 +1479,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     logical :: right
@@ -1517,7 +1517,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_default_odd
 
   !> Initialise with only the kparallel = 0 mode. 
@@ -1528,6 +1528,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     logical :: right
@@ -1563,7 +1564,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = -phi(:,it,ik)*spec(is)%z*phiinit*(den0 + sqrt(2.)*upar0*vpa(:,2,iglo) + tpar0*(vpa(:,2,iglo)**2-0.5) + tperp0*(vperp2(:,iglo)-1.))
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_kz0
 
   !> FIXME : Add documentation  
@@ -1610,14 +1611,17 @@ contains
     use constant_random, only: init_constant_random
     use constant_random, only: finish_constant_random
     use constant_random, only: constant_ranf=>ranf
+    use array_utils, only: copy, zero_array
+    use constants, only: twopi
+    use kt_grids, only: kperp2
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo, ig, ik, it, il, is, nn
-
+    real :: spec_pow
 
     !CMR: need to document tracer phit parameter   ;-)
-    phit = 0.
+    call zero_array(phit)
     do it=2,ntheta0/2+1
        nn = it-1
 ! extra factor of 4 to reduce the high k wiggles for now
@@ -1632,15 +1636,20 @@ contains
     do it = 1, ntheta0
        do ik = 1, naky
           do ig = -ntgrid, ntgrid
-            if (constant_random_flag) then 
-             a = constant_ranf()-0.5
-             b = constant_ranf()-0.5
-            else
-             a = ranf()-0.5
-             b = ranf()-0.5
-            end if
-             phi(ig,it,ik) = cmplx(a,b)
-           end do
+             if (constant_random_flag) then
+                a = constant_ranf()-0.5
+                b = constant_ranf()-0.5
+             else
+                a = ranf()-0.5
+                b = ranf()-0.5
+             end if
+             if (init_spec_pow > 0.) then
+                spec_pow = 1./sqrt(1.+kperp2(ig,it,ik)**(0.5*init_spec_pow))
+                phi(ig,it,ik) = spec_pow*exp(cmplx(0.,twopi*a))
+             else
+                phi(ig,it,ik) = cmplx(a,b)
+             end if
+          end do
 !CMR,28/1/13: 
 ! clean_init debrutalises influence of chop_side on phi with linked bc
           if (chop_side) then
@@ -1648,10 +1657,10 @@ contains
                 if (clean_init.and.(boundary_option_switch .eq. boundary_option_linked)) then
                    !Does this tube have more links to the right than the left?
                    !If so then it's on the left so set to zero
-                   if (l_links(ik,it) .lt. r_links(ik,it)) then
+                   if (l_links(it, ik) .lt. r_links(it, ik)) then
                       phi(:,it,ik) = 0.0 
                    !This tube is in the middle so only set the left half to 0
-                   else if (l_links(ik,it) .eq. r_links(ik,it)) then
+                   else if (l_links(it, ik) .eq. r_links(it, ik)) then
                       phi(:-1,it,ik) = 0.0
                    endif
                 else
@@ -1661,10 +1670,10 @@ contains
                 if (clean_init.and.(boundary_option_switch .eq. boundary_option_linked)) then
                    !Does this tube have more links to the left than the right?
                    !If so then it's on the right so set to zero
-                   if (r_links(ik,it) .lt. l_links(ik,it)) then
+                   if (r_links(it, ik) .lt. l_links(it, ik)) then
                       phi(:,it,ik) = 0.0
                    !This tube is in the middle so only set the right half to 0
-                   else if (l_links(ik,it) .eq. r_links(ik,it)) then
+                   else if (l_links(it, ik) .eq. r_links(it, ik)) then
                       phi(1:,it,ik) = 0.0
                    endif
                 else
@@ -1675,7 +1684,7 @@ contains
        end do
     end do
     if (constant_random_flag) call finish_constant_random
-    
+
     !Wipe out all but one kx if requested
     if (ikx_init  > 0) call single_initial_kx(phi)
     
@@ -1725,9 +1734,9 @@ contains
           !                         and outgoing particles
           !                      as initial condition sets g(:,1,:) = g(:,2,:) )
           !If no links to the left then we're at the left boundary
-          if ( l_links(ik,it) .eq. 0 ) g(-ntgrid,1,iglo)=0.0
+          if ( l_links(it, ik) .eq. 0 ) g(-ntgrid,1,iglo)=0.0
           !If no links to the right then we're at the right boundary
-          if ( r_links(ik,it) .eq. 0 ) g(ntgrid,1,iglo)=0.0
+          if ( r_links(it, ik) .eq. 0 ) g(ntgrid,1,iglo)=0.0
        endif
     end do
 
@@ -1753,11 +1762,11 @@ contains
        g(:,2,:)=g(:,1,:)
 
        !Set gnew to be the "fixed" data
-       gnew=g
+       call copy(g, gnew)
     else 
 ! finally initialise isign=2
        g(:,2,:) = g(:,1,:)
-       gnew = g
+       call copy(g, gnew)
     endif
 
   end subroutine ginit_noise
@@ -1768,33 +1777,32 @@ contains
   !> for linear calculations.
   subroutine ginit_single_parallel_mode
     use species, only: spec, tracer_species
-    use theta_grid, only: ntgrid, shat, theta 
+    use theta_grid, only: ntgrid, is_effectively_zero_shear, theta
     use kt_grids, only: naky, ntheta0, aky, reality
     use le_grids, only: forbid
     use mp, only: mp_abort
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-!    use ran, only: ranf
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo
     integer :: ig, ik, it, il, is, nn
 
-    phit = 0.
+    call zero_array(phit)
     do it=2,ntheta0/2+1
        nn = it-1
 ! extra factor of 4 to reduce the high k wiggles for now
        phit (:, it, 1) = (-1)**nn*exp(-8.*(real(nn)/ntheta0)**2)
     end do
 
-    if (abs(shat) < 1.0e-05) then 
-      if (ikpar_init+1 > ntgrid) then 
+    if (is_effectively_zero_shear()) then
+      if (ikpar_init+1 > ntgrid) then
         call mp_abort("Error: this value of k_parallel is too large. Increase ntheta or decrease ikpar_init.")
       end if
       kpar_init = ikpar_init
     end if
-
 
     do it = 1, ntheta0
        do ik = 1, naky
@@ -1802,10 +1810,10 @@ contains
               !Set the field to cos(kpar_init*theta), where we remember that the gridpoints are not necessarily evenly spaced in the parallel direction, so we use theta(ig).
                !reality for ky=0 means we must use -kpar for kx < 0
               !if (naky == 1 .and. it > (ntheta0+1)/2) then
-                !a = cos(-kpar_init * theta(ig)) 
+                !a = cos(-kpar_init * theta(ig))
                 !b = sin(-kpar_init * theta(ig))
               !else
-                a = cos(kpar_init * theta(ig)) 
+                a = cos(kpar_init * theta(ig))
                 b = sin(kpar_init * theta(ig))
               !end if
               
@@ -1853,8 +1861,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_single_parallel_mode
 
   !> Initialize with every parallel and perpendicular mode having equal amplitude. 
@@ -1863,34 +1870,23 @@ contains
   subroutine ginit_all_modes_equal
     use species, only: spec, tracer_species
     use theta_grid, only: ntgrid, theta, ntheta 
-!    use theta_grid, only: shat
     use kt_grids, only: naky, ntheta0, aky, reality
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use mp, only: mp_abort
-!     use file_utils, only: error_unit
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo
     integer :: ig, ik, it, il, is, nn, ikpar
 
-    phit = 0.
+    call zero_array(phit)
     do it=2,ntheta0/2+1
        nn = it-1
 ! extra factor of 4 to reduce the high k wiggles for now
        phit (:, it, 1) = (-1)**nn*exp(-8.*(real(nn)/ntheta0)**2)
     end do
-
-    !if (abs(shat) < 1.0e-05) then 
-      !if (ikpar_init+1 > ntgrid) then 
-        !call mp_abort("Error: this value of k_parallel is too large. Increase ntheta or decrease ikpar_init.")
-!!         stop 'Aborting...'
-      !end if
-      !kpar_init = ikpar_init
-    !end if
-
 
     do it = 1, ntheta0
        do ik = 1, naky
@@ -1948,8 +1944,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_all_modes_equal
 
   !> "nl": Two \(k_\perp\) modes set to constant amplitude. Controlled by:
@@ -1963,15 +1958,16 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid 
     use kt_grids, only: naky, ntheta0 
-    use le_grids, only: forbid, ng2
+    use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
+    call zero_array(phi)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2005,9 +2001,9 @@ contains
        g(:,1,iglo) = -phi(:,it,ik)*phiinit*spec(is)%z
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
-       if (il == ng2+1) g(:,:,iglo) = 0.0
+       if (il_is_wfb(il)) g(:,:,iglo) = 0.0
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_nl
 
   !> "nl2": Two \(k_\perp\) modes proportional to \(1 + v_\Vert
@@ -2022,15 +2018,16 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0 
-    use le_grids, only: forbid, ng2
+    use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
+    call zero_array(phi)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2066,10 +2063,9 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = -phi(:,it,ik)*phiinit*(1.+vpa(:,2,iglo)*sin(theta))*spec(is)%z
 !       g(:,1,iglo)*vpa(:,2,iglo)
-       if (il == ng2+1) g(:,:,iglo) = 0.0
+       if (il_is_wfb(il)) g(:,:,iglo) = 0.0
     end do
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_nl2
 
   !> "nl3": Two \(k_\perp\) modes with a Gaussian envelope, and perturbation in
@@ -2099,18 +2095,17 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2190,8 +2185,7 @@ contains
 !       call flae (g, gnew)
 !       g = g - gnew
 !    end if
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_nl3
 
   !> FIXME : Add documentation  
@@ -2200,20 +2194,19 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use fields_arrays, only: apar
     use fields_arrays, only: aparnew
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2296,8 +2289,7 @@ contains
 !       call flae (g, gnew)
 !       g = g - gnew
 !    end if
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_nl3r
 
   !> FIXME : Add documentation  
@@ -2309,10 +2301,10 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use constants, only: zi, pi
     use run_parameters, only: k0
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (ntheta0,naky) :: phi
     integer :: iglo
-!    integer :: ig, ik, it, il, is, j, j1
     integer :: ik, it, il, is, j, j1
     real, dimension(nx) :: lx_pr, a_pr
     complex,dimension(nx) :: ff_pr
@@ -2350,7 +2342,7 @@ contains
        end do
     end do
     
-    phi = 0.
+    call zero_array(phi)
 
 ! Dealiasing here:
     do j = 1, ntheta0/2-1
@@ -2376,7 +2368,7 @@ contains
        enddo
     end if
     
-    g = 0.
+    call zero_array(g)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo) 
@@ -2394,9 +2386,7 @@ contains
           
        end if
     end do
-
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_harris
 
   !> FIXME : Add documentation  
@@ -2406,26 +2396,26 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use gs2_save, only: gs2_restore
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use fields_arrays, only: phi, apar, bpar
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo, istatus, ierr
     integer :: ig, ik, it, il, is, j
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2443,8 +2433,7 @@ contains
     apar(:,:,2:naky) = 0.
     bpar(:,:,2:naky) = 0.
 
-    phiz = 0.
-    odd = 0.
+    call zero_array(phiz) ; call zero_array(odd)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2511,8 +2500,7 @@ contains
 !       call flae (g, gnew)
 !       g = g - gnew
 !    end if
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_recon
 
   !> FIXME : Add documentation
@@ -2531,18 +2519,19 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
     integer :: ig, ik, it, is, il, ierr
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2616,8 +2605,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        where (forbid(:,il)) g(:,2,iglo) = 0.0
     end do
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_nl4
 
   !> FIXME : Add documentation  
@@ -2633,18 +2621,19 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
     integer :: ig, ik, it, is, il, ierr
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2707,8 +2696,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        where (forbid(:,il)) g(:,2,iglo) = 0.0
     end do
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_nl5
 
   !> FIXME : Add documentation  
@@ -2723,21 +2711,20 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy, zero_array
     implicit none
-!    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
-!    integer :: ig, ik, it, is, il, ierr
     integer :: ik, it, ierr
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
-    gnew = 0.
+    call zero_array(gnew)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -2764,8 +2751,7 @@ contains
     apar(:,ntheta0,1) = 0.
     bpar(:,ntheta0,1) = 0.
 
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_nl6
 
   !> FIXME : Add documentation  
@@ -2777,14 +2763,14 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do it=1,ntheta0
        do ik=1,naky
           phi(:,it,ik) = cmplx(refac,imfac)*dphiinit
@@ -2849,9 +2835,7 @@ contains
        where (forbid(:,il)) g(:,2,iglo) = 0.0
 
     end do
-
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_nl7
 
   !> Orszag-Tang 2D vortex problem
@@ -2863,14 +2847,15 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn, only: get_init_field
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: iglo, ik, it, is, i
-    real :: fac
+    complex :: fac
     complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar ! local !
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
     !! phi, jpar are local !!
-    phi = 0.0 ; jpar = 0.0
+    call zero_array(phi) ; call zero_array(jpar)
 !!$    phi(:,1,2) = phiinit * cmplx(2.0, 0.0)  ! 2 cos(y)
 !!$    phi(:,2,1) = phiinit * cmplx(1.0, 0.0)  ! 2 cos(x)
 !!$    jpar(:,1,2) = apar0 * cmplx(2.0, 0.0) ! 2 cos(y)
@@ -2908,7 +2893,7 @@ contains
 
     end do
 
-    gnew = g
+    call copy(g, gnew)
 
     ! normalize
     call get_init_field (phinew, aparnew, bparnew)
@@ -2916,6 +2901,7 @@ contains
        it = ittt(i)
        ik = ikkk(i)
        if (abs(phiamp(i)) > epsilon(0.0)) then
+          ! Should this include abs?
           fac = phiamp(i) / phinew(0,it,ik)
           phi(:,it,ik) = phi(:,it,ik) * fac
        end if
@@ -2946,9 +2932,7 @@ contains
             + 2.*ufac* vpa(:,2,iglo)*spec(is)%u0 * jpar(:,it,ik) )
 
     end do
-
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_ot
 
   !> FIXME : Add documentation
@@ -2960,15 +2944,14 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac
     integer :: iglo
-!    integer :: ig, ik, it, il, is, j
     integer :: ig, ik, it, il, is
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     if (width0 > 0.) then
        do ig = -ntgrid, ntgrid
           phi(ig,:,:) = exp(-((theta(ig)-theta0(:,:))/width0)**2)*cmplx(refac, imfac)
@@ -3020,8 +3003,7 @@ contains
        call flae (g, gnew)
        g = g - gnew
     end if
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_kpar
 
   !> FIXME : Add documentation  
@@ -3034,15 +3016,14 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: pi, zi
     use ran, only: ranf
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     integer :: iglo
-!    integer :: ig, ik, it, il, is
     integer :: ik, it, il, is
     real :: phase
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do ik=1,naky
        do it=1,ntheta0
           phase = 2.*pi*ranf()
@@ -3087,7 +3068,7 @@ contains
        g = g - gnew
     end if
 
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_gs
 
   !> FIXME : Add documentation  
@@ -3096,24 +3077,23 @@ contains
     use le_grids, only: forbid, al
     use kt_grids, only: theta0
     use dist_fn_arrays, only: g, gnew
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    use array_utils, only: copy
     implicit none
     integer :: iglo
-    integer :: ik, it, il, ie, is
+    integer :: ik, it, il
     real, dimension(-ntgrid:ntgrid) :: xi
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
        xi = sqrt(max(1.0-bmag*al(il),0.0))
        g(:,1,iglo) = xi*exp(-((theta-theta0(it,ik))/width0)**2)
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = -g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_xi
 
   !> FIXME : Add documentation  
@@ -3122,34 +3102,33 @@ contains
     use le_grids, only: forbid, al
     use kt_grids, only: theta0
     use dist_fn_arrays, only: g, gnew
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    use array_utils, only: copy
     implicit none
     integer :: iglo
-    integer :: ik, it, il, ie, is
+    integer :: ik, it, il
     real, dimension(-ntgrid:ntgrid) :: xi
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
        xi = sqrt(max(1.0-bmag*al(il),0.0))
        g(:,1,iglo) = (1.0 - 3.0*xi*xi)*exp(-((theta-theta0(it,ik))/width0)**2)
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_xi2
 
   !> FIXME : Add documentation  
   subroutine ginit_rh
     use le_grids, only: forbid, energy
     use dist_fn_arrays, only: g, gnew
-    use gs2_layouts, only: g_lo, it_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: g_lo, il_idx, ie_idx, is_idx
+    use array_utils, only: copy    
     implicit none
     integer :: iglo
-!    integer :: it, il, ie, is
     integer :: il, ie, is
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -3160,7 +3139,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_rh
 
   !> FIXME : Add documentation
@@ -3170,7 +3149,7 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, il_idx, is_idx
     use species, only: spec, is_electron_species
-
+    use array_utils, only: copy
     implicit none
     integer :: iglo
     integer :: il, is
@@ -3185,15 +3164,16 @@ contains
        where (forbid(:,il)) g(:,2,iglo) = 0.0
     end do
     g = phiinit * g 
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_alf
 
   !> FIXME : Add documentation
   subroutine ginit_zero
     use dist_fn_arrays, only: g, gnew
+    use array_utils, only: zero_array
     implicit none
-    g = 0.0
-    gnew = 0.0
+    call zero_array(g)
+    call zero_array(gnew)
   end subroutine ginit_zero
 
   !> FIXME : Add documentation  
@@ -3205,6 +3185,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, il_idx
     use mp, only: broadcast
     use constants, only: zi
+    use array_utils, only: copy
     implicit none
     integer :: iglo, ik, il
     real :: c1, c2
@@ -3228,7 +3209,7 @@ contains
        g(:,1,iglo) = -zi*akx(ik)*epsl/eps/pk*vpa(:,1,iglo)/bmag - zi*c1
        g(:,2,iglo) = -zi*akx(ik)*epsl/eps/pk*vpa(:,2,iglo)/bmag - zi*c2
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_test3
 
   !> FIXME : Add documentation  
@@ -3238,6 +3219,7 @@ contains
     use kt_grids, only: theta0
     use gs2_layouts, only: g_lo, it_idx, ik_idx
     use run_parameters, only: k0
+    use array_utils, only: copy
     implicit none
     integer :: it, ik, iglo
 
@@ -3247,7 +3229,7 @@ contains
        g(:,1,iglo) = exp(cmplx(-(theta-theta0(it,ik))**2,k0*theta))
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_convect
 
   !> FIXME : Add documentation  
@@ -3262,16 +3244,19 @@ contains
     use gs2_transforms, only: inverse2,transform2
     use run_parameters, only: beta
     use le_grids, only: integrate_moment
-    use dist_fn, only: getmoms_notgc, get_init_field
-    use dist_fn, only: mom_coeff, mom_shift_para, mom_shift_perp
-    use dist_fn, only: gamtot, gamtot1, gamtot2
+    use diagnostics_moments, only: getmoms_notgc, init_mom_coeff
+    use dist_fn, only: gamtot, gamtot1, gamtot2, get_init_field
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
+    use array_utils, only: copy
     implicit none
+    real, dimension(:, :, :, :), allocatable :: mom_coeff
+    real, dimension(:, :, :), allocatable :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable :: mom_shift_para, mom_shift_perp
     integer :: iglo
-!    integer :: ig, ik, it, is, is2
     integer :: ig, ik, it, is
     integer :: i,j
 
@@ -3619,6 +3604,10 @@ contains
 
     allocate(nnrm(nakx,naky,nspec),unrm(nakx,naky,nspec))
     allocate(tparanrm(nakx,naky,nspec),tperpnrm(nakx,naky,nspec))
+
+    call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+         mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+
     do is=1,nspec
        nnrm(:,:,is)=mom_coeff(:,:,is,1)
        unrm(:,:,is)=2.*mom_coeff(:,:,is,2)
@@ -3776,7 +3765,7 @@ contains
     deallocate(g_eq)
 
     ! now store the actual g in gnew
-    gnew(:,:,:) = g(:,:,:)
+    call copy(g, gnew)
     call get_init_field(phi,apar,bpar)
 
 !!! check
@@ -3975,19 +3964,19 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
-    gnew = g
-    phi=phinew ; apar=aparnew ; bpar=bparnew
-
+    call copy(g, gnew)
+    call copy(phinew, phi) ; call copy(aparnew, apar) ; call copy(bparnew, bpar)
   end subroutine ginit_restart_file
 
   !> Restore `g` from restart files. Note that the timestep and simulation time
@@ -3998,19 +3987,20 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
 
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
-    gnew = g
-    phi=phinew ; apar=aparnew ; bpar=bparnew
+    call copy(g, gnew)
+    call copy(phinew, phi) ; call copy(aparnew, apar) ; call copy(bparnew, bpar)
   end subroutine ginit_restart_many
 
   !> Uses the restart files written by the eigensolver. File to read is set by
@@ -4021,21 +4011,22 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
     character(len=20) :: restart_unique_string
 
     write(restart_unique_string,'(".eig_",I0)') restart_eig_id
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar, fileopt=restart_unique_string)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar, fileopt=restart_unique_string)
 
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
-    gnew = g
-    phi=phinew ; apar=aparnew ; bpar=bparnew
+    call copy(g, gnew)
+    call copy(phinew, phi) ; call copy(aparnew, apar) ; call copy(bparnew, bpar)
   end subroutine ginit_restart_eig
 
   !> FIXME : Add documentation  
@@ -4043,11 +4034,12 @@ contains
     use dist_fn_arrays, only: g, gnew, g_restart_tmp
     use file_utils, only: error_unit
     use mp, only: proc0, mp_abort
+    use array_utils, only: copy
     implicit none
     
     if(allocated(g_restart_tmp))then
-       g=g_restart_tmp
-       gnew = g
+       call copy(g_restart_tmp, g)
+       call copy(g, gnew)
     else
        if(proc0) write(error_unit(),*) "ERROR: Attemping in memory restart but g_restart_tmp not allocated. ABORT"
        call mp_abort("ERROR in ginit_restart_memory")
@@ -4062,21 +4054,21 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
 
     call ginit_noise
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     g = g + gnew
-    gnew = g 
-
+    call copy(g, gnew)
   end subroutine ginit_restart_small
 
   !> Similar to `"small"`, restores fields from restart files _on top of_ a
@@ -4091,15 +4083,14 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
-
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: istatus, ierr
     real :: a, b
     integer :: iglo
-!    integer :: ig, ik, it, il, is
     integer :: ik, it, il, is
 
     do it = 1, ntheta0
@@ -4129,17 +4120,16 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-    gnew = g
+    call copy(g, gnew)
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     g = g + gnew
-    gnew = g 
-
+    call copy(g, gnew)
   end subroutine ginit_restart_smallflat
 
   !> Restart but set all non-zonal components \((k_y \ne 0)\) of the potential
@@ -4153,26 +4143,25 @@ contains
     use mp, only: proc0
     use file_utils, only: error_unit
     use kt_grids, only: naky, ntheta0
-!    use kt_grids, only: reality
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use fields_arrays, only: phinew
-    use run_parameters, only: fphi, fapar, fbpar
-
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
     integer :: iglo
     integer :: ik, it, il, is
 
     !  Load phi and g from the restart file
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
-    write (*,*) "Initialised g"
+    if (proc0) write (*,*) "Initialised g"
     
     ! Set all non-zonal components of phi to 0
     do it = 1, ntheta0
@@ -4193,7 +4182,7 @@ contains
     
     !Set non-zonal components of g to zero using phi
     
-    write(*,*) "Zeroing g"
+    if (proc0) write(*,*) "Zeroing g"
     
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -4212,9 +4201,7 @@ contains
       call ginit_noise
       g = g + gnew
     end if
-
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_restart_zonal_only
 
   !> Restart but remove the zonal flow (ky = 0) component upon restarting.
@@ -4228,15 +4215,15 @@ contains
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use fields_arrays, only: phinew
-    use run_parameters, only: fphi, fapar, fbpar
-
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: copy
     implicit none
     integer :: istatus, ierr
     integer :: iglo
     integer :: ik, it, il, is
 
     !Load phi and g from the restart file
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -4258,9 +4245,7 @@ contains
           g(:,2,iglo) = g(:,1,iglo)
        end if
     end do
-
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_restart_no_zonal
 
   !> The stationary mode test case is a method of testing the geometry
@@ -4271,14 +4256,13 @@ contains
   !! JRB
   subroutine ginit_stationary_mode
     use species, only: spec, nspec
-    use theta_grid, only: ntgrid, theta, bmag
+    use theta_grid, only: ntgrid, theta, bmag, rhoc
     use kt_grids, only: akx
-    use dist_fn_arrays, only: g, gnew, vpa,  aj0
+    use dist_fn_arrays, only: g, gnew, vpa, aj0
     use gs2_layouts, only: g_lo, it_idx, is_idx
     use constants
-    use geometry, only : rhoc, qinp, Rpos, R_geo
-    use spfunc, only: j0
-
+    use geometry, only : surf, geom !< Should be Rplot from theta_grid instead of geom%Rpos?
+    use array_utils, only: copy
     implicit none
 
     complex, dimension (-ntgrid:ntgrid) :: phi
@@ -4286,15 +4270,15 @@ contains
     integer :: ig, ik, it, is
 
     real, dimension (-ntgrid:ntgrid) :: numeratorSum
-    real :: denominatorSum
+    real :: denominatorSum, qinp, R_geo
 
-    numeratorSum(:) = 0
-    denominatorSum = 0
+    numeratorSum(:) = 0 ; denominatorSum = 0
+    qinp = surf%q ; R_geo = surf%r_geo
     it = 1
     ik = 1
     do is = 1, nspec
       do ig = -ntgrid, ntgrid
-        numeratorSum(ig) = numeratorSum(ig) + ((spec(is)%z)**2)*spec(is)%dens*exp(-((spec(is)%mass*spec(is)%temp)/(4*(spec(is)%z)**2))*((qinp/rhoc)*akx(it)*Rpos(rhoc,theta(ig)))**2)
+        numeratorSum(ig) = numeratorSum(ig) + ((spec(is)%z)**2)*spec(is)%dens*exp(-((spec(is)%mass*spec(is)%temp)/(4*(spec(is)%z)**2))*((qinp/rhoc)*akx(it)*geom%Rpos(rhoc,theta(ig)))**2)
       end do
       denominatorSum = denominatorSum + (spec(is)%z)**2*spec(is)%dens/spec(is)%temp
     end do
@@ -4310,8 +4294,7 @@ contains
        g(:,2,iglo) = spec(is)%z*exp(-zi*(qinp/rhoc)*akx(it)*vpa(:,2,iglo)*R_geo*(spec(is)%mass/(spec(is)%z*bmag(:)))) &
                    - (spec(is)%z/spec(is)%temp)*aj0(:,iglo)*phi(:)
     end do
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_stationary_mode
 
   !> Sets g to a constant value everywhere except zonal component which is 0
@@ -4344,9 +4327,8 @@ contains
     use kt_grids, only: akx, aky
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
-
+    use array_utils, only: copy
     implicit none
-    integer :: istatus, ierr
     integer :: iglo
     integer :: ik, it, il, in
     real :: arg, kxrange
@@ -4377,9 +4359,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
     end do
-
-    gnew = g
-
+    call copy(g, gnew)
   end subroutine ginit_cgyro
 
   !> Construct the initial condition from a sum of sine waves scaled
@@ -4398,6 +4378,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
     use constant_random, only: init_constant_random, finish_constant_random
     use mp, only: proc0, broadcast
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     real, dimension(-ntgrid:ntgrid) :: sin_theta_mode
@@ -4405,7 +4386,7 @@ contains
     real, parameter :: sqrt_two = sqrt(2.0)
     integer :: iglo, ik, it, il, imode, the_max_mode
 
-    phi = 0.0
+    call zero_array(phi)
 
     ! Make sure the max mode is at least 1, but no bigger than the smaller
     ! of the input max_mode and ntheta/8
@@ -4461,8 +4442,7 @@ contains
        where (forbid(:, il)) g(:, 1, iglo) = 0.0
        g(:, 2, iglo) = g(:, 1, iglo)
     end do
-
-    gnew = g
+    call copy(g, gnew)
   contains
     !> Real and imaginary weights are uniformly distributed between
     !> -1/sqrt(2) and 1/sqrt(2) using either the main random number
@@ -4493,6 +4473,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    use array_utils, only: copy
     implicit none
     integer :: iglo, ik, it, il
 
@@ -4512,8 +4493,7 @@ contains
        where (forbid(:, il)) g(:, 1, iglo) = 0.0
        g(:, 2, iglo) = g(:, 1, iglo)
     end do
-
-    gnew = g
+    call copy(g, gnew)
   end subroutine ginit_constant
 
   !> FIXME : Add documentation    
@@ -4614,20 +4594,20 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 150) :: restart_dir
     character(len = 20) :: eq_type, ginit_option
-    character(len = 2000) :: restart_file
-    complex, dimension(3) :: nkxy_pt, ukxy_pt
-    complex, dimension(6) :: aparamp, phiamp
+    character(len = run_name_size) :: restart_file
+    complex, dimension(3) :: aparamp, phiamp, ukxy_pt
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
-    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
-    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
-    real :: upar2, width0, zf_init
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi
+    logical :: read_many
+    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, init_spec_pow, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart
+    real :: upar0, upar1, upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, &
-         phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
-         upar1, upar2, width0, zf_init
+         include_explicit_source_in_restart, init_spec_pow, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, left, max_mode, new_field_init, null_apar, null_bpar, null_phi, &
+         phiamp, phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, &
+         tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4656,6 +4636,7 @@ contains
     ikx_init = self%ikx_init
     imfac = self%imfac
     include_explicit_source_in_restart = self%include_explicit_source_in_restart
+    init_spec_pow = self%init_spec_pow
     initial_condition_is_nonadiabatic_dfn = self%initial_condition_is_nonadiabatic_dfn
     input_check_recon = self%input_check_recon
     itt = self%itt
@@ -4664,7 +4645,6 @@ contains
     left = self%left
     max_mode = self%max_mode
     new_field_init = self%new_field_init
-    nkxy_pt = self%nkxy_pt
     null_apar = self%null_apar
     null_bpar = self%null_bpar
     null_phi = self%null_phi
@@ -4723,6 +4703,7 @@ contains
     self%ikx_init = ikx_init
     self%imfac = imfac
     self%include_explicit_source_in_restart = include_explicit_source_in_restart
+    self%init_spec_pow = init_spec_pow
     self%initial_condition_is_nonadiabatic_dfn = initial_condition_is_nonadiabatic_dfn
     self%input_check_recon = input_check_recon
     self%itt = itt
@@ -4731,7 +4712,6 @@ contains
     self%left = left
     self%max_mode = max_mode
     self%new_field_init = new_field_init
-    self%nkxy_pt = nkxy_pt
     self%null_apar = null_apar
     self%null_bpar = null_bpar
     self%null_phi = null_phi
@@ -4769,7 +4749,7 @@ contains
   subroutine write_init_g_config(self, unit)
     implicit none
     class(init_g_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
+    integer, intent(in), optional:: unit
     integer :: unit_internal
 
     unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -4801,6 +4781,7 @@ contains
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
     call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)
+    call self%write_key_val("init_spec_pow", self%init_spec_pow, unit_internal)
     call self%write_key_val("initial_condition_is_nonadiabatic_dfn", self%initial_condition_is_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
@@ -4809,7 +4790,6 @@ contains
     call self%write_key_val("left", self%left, unit_internal)
     call self%write_key_val("max_mode", self%max_mode, unit_internal)
     call self%write_key_val("new_field_init", self%new_field_init, unit_internal)
-    call self%write_key_val("nkxy_pt", self%nkxy_pt, unit_internal)
     call self%write_key_val("null_apar", self%null_apar, unit_internal)
     call self%write_key_val("null_bpar", self%null_bpar, unit_internal)
     call self%write_key_val("null_phi", self%null_phi, unit_internal)
@@ -4881,6 +4861,7 @@ contains
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
     call broadcast(self%include_explicit_source_in_restart)
+    call broadcast(self%init_spec_pow)
     call broadcast(self%initial_condition_is_nonadiabatic_dfn)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)
@@ -4889,7 +4870,6 @@ contains
     call broadcast(self%left)
     call broadcast(self%max_mode)
     call broadcast(self%new_field_init)
-    call broadcast(self%nkxy_pt)
     call broadcast(self%null_apar)
     call broadcast(self%null_bpar)
     call broadcast(self%null_phi)
