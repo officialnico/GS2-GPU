@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> Allows a general weight function (as specified by an external function) for integration.
 !!   Returns the Gaussian quadrature weights and abscissae corresponding to the 
 !!   set of orthogonal polynomials associated with this weight.
@@ -39,10 +40,11 @@ contains
        out_wgts, &        !< Output: The integration weights
        inf_flag1_in, &    !< Optional: Set to true to make lower bound -inf
        inf_flag2_in)      !< Optional: Set to true to make upper bound +inf
-
+#ifdef GENQUAD
     use quadpack, only: qagi, qags
+#else
     use mp, only: mp_abort, proc0
-
+#endif
     implicit none
     interface
        real function wgt_func_exp(x)
@@ -55,20 +57,8 @@ contains
     real,dimension(1:), intent(inout):: out_abscissae, out_wgts
     logical,optional,intent(in):: inf_flag1_in, inf_flag2_in
 #ifdef GENQUAD
-    real,dimension(0:N_out):: alpha,beta
-    integer:: i, nerr, ier, neval, n
+    integer:: ier, neval, n
     real:: errest, moment1, moment2
-!    procedure(wgt_x_func),pointer:: wgt_x => null
-!    procedure(poly_sq_func),pointer:: poly_sq => null
-!    procedure(poly_sqx_func),pointer:: poly_sqx => null
-    procedure(real),pointer:: wgt_x
-    procedure(real),pointer:: poly_sq 
-    procedure(real),pointer:: poly_sqx 
-
-    wgt_x => wgt_x_func
-    poly_sq => poly_sq_func
-    poly_sqx => poly_sqx_func
-
 
     if( present(inf_flag1_in)) then
        inf_flag1 = inf_flag1_in
@@ -86,7 +76,6 @@ contains
 
     call set_poly_type()
 
-
     ! Calculate the recursion coefficients for the polynomials orthogonal with respect to 
     ! new_wgt_fcn 
     call calculate_new_coeffs(N_out)
@@ -94,69 +83,69 @@ contains
 !    b_poly(0) = 0.0
 
     if (poly_type .EQ. 0) then
-       call qags( wgt_x,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qags( wgt_x_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
        call qags( wgt_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
        b_poly(0) = moment2
        a_poly(0) =  moment1/moment2
        poly_order = 1
-       call qags( poly_sqx,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
-       call qags( poly_sq,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
+       call qags( poly_sqx_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qags( poly_sq_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
        a_poly(1) = moment1/moment2
        poly_order = 0
-       call qags( poly_sq,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qags( poly_sq_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
        b_poly(1) = moment2/moment1
        do n = 2,N_out-1
           poly_order = n
-          call qags( poly_sqx,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
-          call qags( poly_sq,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
+          call qags( poly_sqx_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+          call qags( poly_sq_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
           a_poly(n) = moment1/moment2
           poly_order = n-1
-          call qags( poly_sq,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+          call qags( poly_sq_func,v0,vf,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
           b_poly(n) = moment2/moment1
        end do
 
     else if (poly_type .EQ. 1) then
-       call qagi( wgt_x,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qagi( wgt_x_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
        call qagi( wgt_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
        b_poly(0) = moment2
        a_poly(0) =  moment1/moment2
        poly_order = 1
-       call qagi( poly_sqx,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
-       call qagi( poly_sq,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
+       call qagi( poly_sqx_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qagi( poly_sq_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
 
        a_poly(1) = moment1/moment2
        poly_order = 0
-       call qagi( poly_sq,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qagi( poly_sq_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
        b_poly(1) = moment2/moment1
        do n = 2,N_out-1
           poly_order = n
-          call qagi( poly_sqx,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
-          call qagi( poly_sq,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
+          call qagi( poly_sqx_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+          call qagi( poly_sq_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
           a_poly(n) = moment1/moment2
           poly_order = n-1
-          call qagi( poly_sq,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+          call qagi( poly_sq_func,v0,1,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
           b_poly(n) = moment2/moment1
        end do
 
     else if (poly_type .EQ. 2) then
-       call qagi( wgt_x,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qagi( wgt_x_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
        call qagi( wgt_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
        b_poly(0) = moment2
        a_poly(0) =  moment1/moment2
        poly_order = 1
-       call qagi( poly_sqx,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
-       call qagi( poly_sq,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
+       call qagi( poly_sqx_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qagi( poly_sq_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
        a_poly(1) = moment1/moment2
        poly_order = 0
-       call qagi( poly_sq,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+       call qagi( poly_sq_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
        b_poly(1) = moment2/moment1
        do n = 2,N_out-1
           poly_order = n
-          call qagi( poly_sqx,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
-          call qagi( poly_sq,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
+          call qagi( poly_sqx_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+          call qagi( poly_sq_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment2,errest,neval,ier)
           a_poly(n) = moment1/moment2
           poly_order = n-1
-          call qagi( poly_sq,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
+          call qagi( poly_sq_func,v0,2,epsfac*epsilon(0.0),epsfac*epsilon(0.0),moment1,errest,neval,ier)
           b_poly(n) = moment2/moment1
        end do
     end if
@@ -180,7 +169,7 @@ contains
       implicit none
       real,intent(in):: x
       real:: ym1,y,temp
-      integer:: i,j
+      integer:: i
 
       ym1 = 0.0
       y = 1.0
@@ -198,7 +187,7 @@ contains
       implicit none
       real,intent(in):: x
       real:: ym1,y,temp
-      integer:: i,j
+      integer:: i
 
       ym1 = 0.0
       y = 1.0
@@ -251,7 +240,7 @@ contains
     real,intent(in):: x
     integer,intent(in):: n
     real:: y, ym1, temp
-    integer:: i,j
+    integer:: i
 
     ym1 = 0.0
     y = 1.0
@@ -267,19 +256,17 @@ contains
   end function evaluate_poly
 
   !> Uses Wheeler's algorithm to obtain the recurrence relation for the new polynomials
-  !! given the recurrence relation and modified moments of a given set of polynomials (here
-  !! we use Legendre)
+  !> given the recurrence relation and modified moments of a given set of polynomials (here
+  !> we use Legendre)
+  !>
+  !> @note It seems like this routine is unfinshed!
   subroutine calculate_new_coeffs(N)
     implicit none
     integer, intent(in):: N
-    integer:: k
-    real:: moment1, moment2
-
     b_poly(0) = 0.0 
-
     if (poly_type .EQ. 1) then
-
     end if
+    UNUSED_DUMMY(N)
   end subroutine calculate_new_coeffs
 
   !> FIXME : Add documentation  
@@ -296,6 +283,7 @@ contains
   !! them as the absissae and weights for Gaussian quadrature. See Numerical Recipes, 3rd Ed. 
   !! section 4.6.2. Uses the LAPACK routine, given as an external source file.
   subroutine solve_jacobi_matrix(N,abscissae,wgts)
+    use lapack_wrapper, only: steqr
     implicit none
     integer,intent(in):: N
     real,dimension(1:),intent(inout):: abscissae,wgts
@@ -309,7 +297,7 @@ contains
     b_use = sqrt(b_poly(0:N-1))
     a_use = a_poly(0:N-1)
 
-    call DSTEQR('I',N,a_use(0:N-1),b_use(1:N-1),eigenvectors(1:N,1:N),N,workspace(1:4*N),info)
+    call STEQR('I',N,a_use(0:N-1),b_use(1:N-1),eigenvectors(1:N,1:N),N,workspace(1:4*N),info)
 
     if (info .NE. 0) then
        write(*,*) "ERROR: LAPACK returned error code ", info, " in genquad routine."
