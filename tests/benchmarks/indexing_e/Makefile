@@ -6,10 +6,6 @@ all: time_indexing_e
 	  $(call BENCHMARKCOMMAND,1,time_indexing_e,time_indexing_e_xyles.in) ; \
 	  $(call BENCHMARKCOMMAND,1,time_indexing_e,time_indexing_e_yxles.in) ; \
 
-TIMINGFILES=$(wildcard *.timing.*)
-
-UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
 time_indexing_e.o:  ${TEST_MODS} 
 
 time_indexing_e: time_indexing_e.o $(TEST_MODS)

@@ -85,7 +85,7 @@ if __name__ == "__main__":
         module_with_dependencies(
             "dist_fn_level_3",
             module_name="dist_fn",
-            dependencies=["dist_fn_level_2", "hyper", "override_timestep"],
+            dependencies=["dist_fn_level_2", "hyper", "override_timestep", "collisions"],
         ),
         module_with_dependencies(
             "dist_fn_level_1", module_name="dist_fn", dependencies=["dist_fn_arrays"]
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                 "le_grids",
                 "dist_fn_layouts",
                 "run_parameters",
-                "dist_fn_level_3",
+                "override_timestep", # Collision arrays depend on code_dt
             ],
         ),
         module_with_dependencies(
@@ -145,8 +145,8 @@ if __name__ == "__main__":
             ],
             visit_routine=more_general_module_routine_string,
             visit_args={
-                "imports": "  use le_grids, only: init_le_grids, finish_le_grids\n  logical :: dummy1, dummy2",
-                "up_action": "    call init_le_grids(dummy1, dummy2)",
+                "imports": "  use le_grids, only: init_le_grids, finish_le_grids",
+                "up_action": "    call init_le_grids",
                 "down_action": "    call finish_le_grids",
             },
         ),

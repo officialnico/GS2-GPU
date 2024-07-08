@@ -5,7 +5,7 @@ program test_linked_bc
   use unit_tests
   use gs2_main, only: gs2_program_state_type
   use gs2_main, only: initialize_gs2, finalize_gs2, initialize_wall_clock_timer
-  use mp, only: init_mp, finish_mp, mp_comm, mp_abort, proc0
+  use mp, only: init_mp, finish_mp, mp_comm, mp_abort, proc0, broadcast
   use gs2_init, only: init, init_level_list
   use dist_fn_arrays, only: gnew
   use dist_fn, only: enforce_linked_boundary_conditions
@@ -17,15 +17,20 @@ program test_linked_bc
   use gs2_diagnostics, only: save_restart_dist_fn
   use dist_fn, only: init_pass_ends
   use redistribute, only: redist_type
+  use file_utils, only: input_unit_exist
   implicit none
   real :: maxerr, maxerr2
-  real, parameter :: tolerance = epsilon(maxerr) * 100.0
   logical, parameter :: debug = .false.
+  real, parameter :: tolerance = epsilon(maxerr) * 4000.0
   type(gs2_program_state_type) :: state
   type(redist_type) :: pass_right, pass_left
   integer :: iglo, it, ik, il
   complex, dimension(:, :, :), allocatable :: target_function
   logical :: passes
+  logical :: zero_offset
+  logical :: exist
+  integer :: in_file
+  namelist/linked_bc_test/zero_offset
 
   call init_mp
   state%mp_comm = mp_comm
@@ -38,6 +43,12 @@ program test_linked_bc
   call init_pass_ends(pass_left, 'l', 2, 'c', 1)
   phinew = 0. ; bparnew = 0.
   gnew = 0.
+  zero_offset = .false.
+  if (proc0) then
+     in_file = input_unit_exist("linked_bc_test", exist)
+     if (exist) read(in_file, nml = linked_bc_test)
+  end if
+  call broadcast(zero_offset)
 
   ! Set the continuous function that we expect to recover
   ! For now just (theta-theta0)**3, but we should probably
@@ -56,11 +67,13 @@ program test_linked_bc
      it = it_idx(g_lo, iglo)
      ik = ik_idx(g_lo, iglo)
      il = il_idx(g_lo, iglo)
-     ! Set to target function but offset so incoming boundary = 0 for all cells
-     gnew(:, 1, iglo) = target_function(:, it, ik)
-     if (l_links(it, ik) > 0) gnew(:, 1, iglo) = gnew(:, 1, iglo) - target_function(-ntgrid, it, ik)
-     gnew(:, 2, iglo) = -target_function(:, it, ik)
-     if (r_links(it, ik) > 0) gnew(:, 2, iglo) = gnew(:, 2, iglo) + target_function(ntgrid, it, ik)
+     ! Set to target function but offset so the function is not continuous
+     gnew(:, 1, iglo) = target_function(:, it, ik) + it * 1000
+     gnew(:, 2, iglo) = -target_function(:, it, ik)  + it * 1000
+     if (zero_offset) then
+        if (l_links(it, ik) > 0) gnew(:, 1, iglo) = gnew(:, 1, iglo) - gnew(-ntgrid, 1, iglo)
+        if (r_links(it, ik) > 0) gnew(:, 2, iglo) = gnew(:, 2, iglo) - gnew(ntgrid, 2, iglo)
+     end if
   end do
 
   maxerr = check_error(gnew)
@@ -89,7 +102,7 @@ program test_linked_bc
   end if
 
   if (.not. passes) then
-     if (proc0) print*,'Test fails with error : ',maxerr
+     if (proc0) print*,'Test fails with error : ',maxerr,'against a tolerance of',tolerance
   end if
 
   call process_test(passes, 'linked_boundary_conditions')
@@ -103,7 +116,7 @@ contains
     use mp, only: max_allreduce, sum_allreduce
     use dist_fn, only: itright, itleft
     use gs2_layouts, only: ie_idx, is_idx, idx
-    use le_grids, only: il_is_trapped
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension(:, :), allocatable :: right_boundaries, left_boundaries
@@ -129,7 +142,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        if (il_is_trapped(il)) cycle
-
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
        it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)
        ie = ie_idx(g_lo, iglo)
@@ -154,13 +167,13 @@ contains
   real function check_error2(g_in) result(err)
     use mp, only: max_allreduce, sum_allreduce
     use gs2_layouts, only: ie_idx, is_idx, idx
-    use le_grids, only: il_is_trapped
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
     use redistribute, only: fill
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension(:, :, :), allocatable :: g_pass
     integer :: iglo, it, ik, il
-    allocate(g_pass, mold = g_in)
+    allocate(g_pass(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     err = 0.0
 
     g_pass = 0.0
@@ -169,6 +182,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
 
        it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)

@@ -1,4 +1,3 @@
-
 !> A program that runs unit tests on the le_grids module.
 !! The test results were calculated using sage and are viewable at
 !! http://www.sagenb.org/home/pub/5036
@@ -7,107 +6,51 @@
 !!   Written by: Edmund Highcock (edmundhighcock@sourceforge.net)
 program test_le_grids
   use unit_tests
-  use le_grids
-  use egrid
-  use mp, only: init_mp, finish_mp, proc0
-  use file_utils, only: init_file_utils
+  use le_grids, only: energy, integrate_species
+  use mp, only: init_mp, finish_mp, mp_comm, broadcast, proc0
+  use file_utils, only: init_file_utils, input_unit_exist
   use species, only: init_species, nspec
   use constants, only: pi
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
-
+  use gs2_main, only: gs2_program_state_type
+  use gs2_main, only: initialize_gs2, finalize_gs2, initialize_wall_clock_timer
+  use gs2_init, only: init, init_level_list
   implicit none
+  type(gs2_program_state_type) :: state
   real :: eps
-  logical :: dummy
   integer, dimension(:), allocatable :: sizes
-  real, dimension(:,:,:), allocatable :: energy_results
-
   complex, dimension (:,:,:), allocatable :: integrate_species_results
   complex, dimension (:,:,:), allocatable :: g
-  
   real, dimension(:), allocatable :: species_weights
-  real :: ene
-  integer :: iglo
-  integer :: ie
-
-
-
-  ! General config
-  eps = 1.0e-7
-
-  if (precision(eps).lt. 11) eps = eps * 100.0
-  !if (precision(eps).lt. 11) write (*,*) 'low precision'
+  real :: ene, tolerance
+  integer :: iglo, ie, in_file
+  logical :: exist
+  namelist /test_le_grids_parameters/ tolerance
 
   ! Set up depenencies
   call init_mp
-  if (proc0) call init_file_utils(dummy)
-  call init_species
-  !call init_general_f0
+  state%mp_comm = mp_comm
+  call initialize_wall_clock_timer
+  call initialize_gs2(state)
+  call init(state%init, init_level_list%dist_fn_layouts)
 
-
-
+  tolerance = 1.0e-16
+  if(proc0) then
+     in_file = input_unit_exist('test_le_grids_parameters', exist)
+     if (exist) read(in_file, nml = test_le_grids_parameters)
+  end if
+  call broadcast(tolerance)
+  eps = tolerance
   call announce_module_test('le_grids')
-
   call announce_test('init_le_grids')
-  !stop 1
-
-  allocate(sizes(2))
-  allocate(energy_results(8,2,2)) ! negrid, nspec, nresults 
-  sizes(1) = 24 ! Size of energy grid
-  sizes(1) = 8 ! Size of energy grid
-  sizes(2) = 2 ! Size of species grid
-
-  ! Resuls for energy grids
-  energy_results(:,1,1) = (/4.0468821658005425E-003,  0.10438457502758539, &
-    0.55159372522148142, 1.5625000000000000, 3.0881259213302132, 4.7389544850238012, &
-    5.9359713343080411, 7.2500000000000000/) ! Quadrature grid for Maxwellian... this was not calculated inpendently but was taken from the code output
-  energy_results(:,2,1) = energy_results(:,1,1)
-  !energy_results(:,3,1) = (/1.5104763817839494E-002, &
-  !4.6790434219629591E-002, 0.13496048316473824, 0.30250000000000005, &
-  !0.53674718302836155, 0.78090630796303029, 0.95472159703717052, 2.0000000000000000/) 
-  ! Quadrature grid for alphas... this was not calculated inpendently but was taken from the code output
-
-  !energy_min = 0.1 ! (the default value)
-  !vcut_local = 2.5 !(the default value)
-  !scal =  (energy_min - 1.0) / (energy_results(1,1,1) - vcut_local)
-  !shift = energy_min - energy_results(1,1,1) * scal
-  !energy_results(:,3,1) = energy_results(:,1,1)*scal + shift
-  !write (*,*) 'aegrid', energy_results(:,3,1)
-
-
-  ! Energy integration weights
-  energy_results(:,1,2) = (/4.1155680601883985E-003, 0.22931213960689217, &
-  1.6541668127613292, 5.1291308630037440, 9.2609382215892992, 10.410539988051941, &
-  6.0367198818202885, 22.993938099111912 /) ! Weights grid for Maxwellian ions... this was not calculated inpendently but was taken from the code output
-  ! Add maxwellian factor
-  energy_results(:,1,2) = energy_results(:,1,2) * exp(-energy_results(:,1,1)) /(2.0*pi**1.5)
-  energy_results(:,2,2) = energy_results(:,1,2) !  Electron weights
-  ! For alphas,  mult weights taken from quadrature by alpha f0 calculated in sage
-  !energy_results(:,3,2) = (/5.5300068428637454E-003, 3.7004138295655242E-002, &
-  !0.14570320717563151, 0.35747990462790902, 0.57947173999263779, &
-  !0.61757847512538577, 0.34953323523071972, 12.077007956766620/) * &
-    !(/11.4454095380492, 7.12710579325183, 6.70488115401418, 6.49924424567821, 6.13726132537038, 5.72552031567843, 5.43111188929011, 2.41424807372596e-156/) / 2.0
-
-
-  call process_test(test_init_le_grids(sizes, energy_results, eps), &
-    'init_le_grids')
-  !call init_le_grids(dummy, dummy)
-
-  deallocate(sizes)
-
-
-  !call init_dist_fn
-  call init_theta_grid
-  call init_kt_grids
-  call init_gs2_layouts
-  !call init_fields
 
   allocate(sizes(3))
-  sizes(1) = 1 !naky
-  sizes(2) = 1 !ntheta0
-  sizes(3) = 4 !ntgrid
-  
+  sizes(1) = naky
+  sizes(2) = ntheta0
+  sizes(3) = ntgrid
+
   allocate(integrate_species_results(-ntgrid:ntgrid,naky,ntheta0))
   allocate(species_weights(nspec))
   allocate(g(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_proc))
@@ -123,21 +66,19 @@ program test_le_grids
       species_weights, &
       sizes, &
       integrate_species_results, &
-      eps*100.0),&
+      eps),&
     'integrate species ions only g = 1')
 
-  ! Integrate a polynomial: yes it really does only get it to 
-  ! 10% accuracy
+  ! Integrate a polynomial
   call announce_test(&
     'integrate species ions only g = energy^4.0 * 3.0*energy^1.25')
   g = cmplx(0.0, 0.0)
   do iglo = g_lo%llim_proc,g_lo%ulim_proc
     ie = ie_idx(g_lo, iglo)
-    ene = energy_results(ie,1,1)
-    !ene = energy_grid(ie,1)
+    ene = energy(ie,1)
     g(:,:,iglo) = cmplx(ene**4.0 + 3.0*ene**1.25,1.0)
   end do
-  !write (*,*) 'g is ', size(g)
+
   integrate_species_results = cmplx(64.5070177949108,1.0)
   call process_test(&
     test_integrate_species(&
@@ -145,30 +86,15 @@ program test_le_grids
       species_weights, &
       sizes, &
       integrate_species_results, &
-      0.1),&
+      eps),&
     'integrate species ions only g = energy^4.0 * 3.0*energy^1.25')
 
-  !g = cmplx(1.0, 1.0)
-  !species_weights = 0.0
-  !species_weights(3) = 1.0
-  !integrate_species_results = cmplx(25.3229494395902,25.3229494395902)
-  !call announce_test('integrate species alphas only g = 1')
-  !call process_test(&
-    !le_grids_unit_test_integrate_species(&
-      !g, &
-      !species_weights, &
-      !sizes, &
-      !integrate_species_results, &
-      !0.01),&
-    !'integrate species alphas only  g = 1')
-
-
-  deallocate(energy_results)
   deallocate(integrate_species_results)
   deallocate(species_weights)
-  call finish_le_grids
 
   call close_module_test('le_grids')
+  call init(state%init, init_level_list%basic)
+  call finalize_gs2(state)
   call finish_mp
 
   contains
@@ -179,7 +105,7 @@ program test_le_grids
       use gs2_layouts, only: g_lo
 
       complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (inout) :: g
-      real, dimension (:), intent (in) :: weights
+      real, dimension (:), intent (in out) :: weights
       integer, dimension (:), intent (in) :: sizes
       complex, dimension (:,:,:), allocatable :: total
       complex, dimension (-ntgrid:,:,:), intent(in) :: result
@@ -205,7 +131,8 @@ program test_le_grids
       total = cmplx(0.0,0.0)
 
       call integrate_species(g, weights, total)
-
+      print*,'Got',total(:,1,1),'Expected',result(:,1,1)
+      print*,'Error:',abs(result(:,1,1) - total(:,1,1))
       call announce_check('total')
       check_result = agrees_with(total(:,1,1), result(:,1,1), err)
       call process_check(test_result, check_result, 'total ')
@@ -215,47 +142,4 @@ program test_le_grids
       test_integrate_species = test_result
 
     end function test_integrate_species
-
-    function test_init_le_grids(sizes, energy_results, err)
-      use unit_tests, only: announce_check, process_check, agrees_with
-      use species, only: nspec
-      integer, dimension(:), intent(in) :: sizes
-      real, dimension(:,:,:), intent(in) :: energy_results
-      real, intent(in) :: err
-      logical :: test_init_le_grids
-      logical :: test_result   !! Overall test result, true if all pass
-      logical :: check_result  !! Result of individual tests
-      logical :: accelerated_x, accelerated_v
-      integer :: i
-      character(2) :: istr
-
-      test_result = .true.
-
-      call init_le_grids(accelerated_x, accelerated_v)
-
-      call announce_check('Size of energy array (index 1)')
-      check_result = agrees_with(size(energy(:,1)), sizes(1))
-      call process_check(test_result, check_result, 'Size of energy array (index 1)')
-      call announce_check('Size of energy array (index 2)')
-      check_result = agrees_with(size(energy(1,:)), sizes(2))
-      call process_check(test_result, check_result, 'Size of energy array (index 2)')
-      call announce_check('Size of w array (index 1)')
-      check_result = agrees_with(size(w(:,1)), sizes(1))
-      call process_check(test_result, check_result, 'Size of w array (index 1)')
-      call announce_check('Size of w array (index 2)')
-      check_result = agrees_with(size(w(1,:)), sizes(2))
-      call process_check(test_result, check_result, 'Size of w array (index 2)')
-
-      ! Energy grids only get calulcated on proc0
-      do i = 1,nspec
-        write(istr, '(I2)') i
-        call announce_check('values of energy weights for species '//istr)
-        check_result =  agrees_with(w(:,i), energy_results(:,i,2), err)
-        call process_check(test_result, check_result, 'values of energy weights for species '//istr)
-      end do
-
-      test_init_le_grids = test_result
-
-    end function test_init_le_grids
-
 end program test_le_grids

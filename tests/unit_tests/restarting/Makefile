@@ -37,6 +37,7 @@ all: build_test_exe
 .PHONY: all
 endif
 else
+link_gs2:
 all:
 	$(call SKIPCOMMAND,compiled without netCDF; compile with USE_NETCDF=on to run this test)
 endif

@@ -2,7 +2,7 @@
 sinclude ../Makefile.tests_common
 
 TEST_BASE_NAME:=test_gs2_diagnostics_new
-clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME} old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase,exit_reason} averages.dat tmpdata.dat
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME} old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,*vspace_integration*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase,exit_reason} averages.dat tmpdata.dat old_diagnostics/*.used_inputs.*
 build_test_exe: ${TEST_BASE_NAME}
 
 ifdef TESTNORUN

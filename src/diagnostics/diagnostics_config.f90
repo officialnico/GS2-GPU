@@ -33,30 +33,30 @@ module diagnostics_config
      real :: diffusivity = initial_value
 
      ! Individual heat fluxes
-     real, dimension(:), pointer :: species_es_heat_flux
-     real, dimension(:), pointer :: species_apar_heat_flux
-     real, dimension(:), pointer :: species_bpar_heat_flux
+     real, dimension(:), allocatable :: species_es_heat_flux
+     real, dimension(:), allocatable :: species_apar_heat_flux
+     real, dimension(:), allocatable :: species_bpar_heat_flux
 
      ! Total fluxes
-     real, dimension(:), pointer :: species_heat_flux
-     real, dimension(:), pointer :: species_momentum_flux
-     real, dimension(:), pointer :: species_particle_flux
-     real, dimension(:), pointer :: species_energy_exchange
+     real, dimension(:), allocatable :: species_heat_flux
+     real, dimension(:), allocatable :: species_momentum_flux
+     real, dimension(:), allocatable :: species_particle_flux
+     real, dimension(:), allocatable :: species_energy_exchange
 
      ! Average total fluxes
-     real, dimension(:), pointer :: species_heat_flux_avg
-     real, dimension(:), pointer :: species_momentum_flux_avg
-     real, dimension(:), pointer :: species_particle_flux_avg
+     real, dimension(:), allocatable :: species_heat_flux_avg
+     real, dimension(:), allocatable :: species_momentum_flux_avg
+     real, dimension(:), allocatable :: species_particle_flux_avg
 
      ! Heating
-     real, dimension(:), pointer :: species_heating
-     real, dimension(:), pointer :: species_heating_avg
+     real, dimension(:), allocatable :: species_heating
+     real, dimension(:), allocatable :: species_heating_avg
 
      ! Growth rates
-     complex, dimension(:,:), pointer :: omega_average
+     complex, dimension(:,:), allocatable :: omega_average
 
      ! free energy transfer due to nonlinearity
-     complex, dimension(:,:), pointer :: zonal_transfer
+     complex, dimension(:,:), allocatable :: zonal_transfer
 
   end type results_summary_type
 
@@ -79,12 +79,11 @@ module diagnostics_config
      logical :: exit
      logical :: vary_vnew_only
      logical :: calculate_fluxes
-     logical :: is_trinity_run
      logical :: appending
      real :: user_time
      real :: user_time_old
      real :: start_time
-     real, dimension(:), pointer :: fluxfac
+     real, dimension(:), allocatable :: fluxfac
      integer :: nwrite
      integer :: nwrite_mult
      logical :: write_any
@@ -129,7 +128,6 @@ module diagnostics_config
      logical :: write_ascii
      logical :: write_gyx
      logical :: write_g
-     logical :: write_lpoly
      integer :: conv_nstep_av
      real :: conv_test_multiplier
      integer :: conv_min_step
@@ -159,7 +157,6 @@ module diagnostics_config
      logical :: write_zonal_transfer
      logical :: write_collisional
      logical :: write_omavg
-     logical :: write_gg
      logical :: ob_midplane
      logical :: write_avg_moments
      logical :: dump_check1
@@ -269,6 +266,7 @@ contains
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use nonlinear_terms, only: nonlin
+    use collisions, only: use_le_layout
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
@@ -353,7 +351,6 @@ contains
     gnostics%write_fluxes_by_mode = new_gs2_diagnostics_config%write_fluxes_by_mode
     gnostics%write_full_moments_notgc = new_gs2_diagnostics_config%write_full_moments_notgc
     gnostics%write_g = new_gs2_diagnostics_config%write_g
-    gnostics%write_gg = new_gs2_diagnostics_config%write_gg
     gnostics%write_gs = new_gs2_diagnostics_config%write_gs
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
@@ -361,7 +358,6 @@ contains
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian
-    gnostics%write_lpoly = new_gs2_diagnostics_config%write_lpoly
     gnostics%write_max_verr = new_gs2_diagnostics_config%write_max_verr
     gnostics%write_moments = new_gs2_diagnostics_config%write_moments
     gnostics%write_nl_flux_dist = new_gs2_diagnostics_config%write_nl_flux_dist
@@ -380,6 +376,11 @@ contains
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
 
     exist = new_gs2_diagnostics_config%exist
+
+    !Override flags
+
+    ! The collision_error method assumes we have setup the lz layout.
+    if (use_le_layout) gnostics%write_cerr = .false.
 
     if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
        gnostics%nsave = -1

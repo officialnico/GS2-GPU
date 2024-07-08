@@ -23,11 +23,7 @@ all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_single_mode_npassing_odd.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_range.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_box.in)
-ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
-	$(call SKIPCOMMAND,current NTESTPROCS=${NTESTPROCS}; set NTESTPROCS>=6 to run this test)
-else
 	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_gf_local_single_mode.in)
-endif
 endif
 endif
 

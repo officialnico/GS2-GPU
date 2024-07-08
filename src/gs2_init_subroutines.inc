@@ -212,12 +212,11 @@ end subroutine override_profiles_subroutine
 
 subroutine le_grids_subroutine(current, going_up)
   use le_grids, only: init_le_grids, finish_le_grids
-  logical :: dummy1, dummy2
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   UNUSED_DUMMY(current)
   if (going_up) then
-    call init_le_grids(dummy1, dummy2)
+    call init_le_grids
   else
     call finish_le_grids
   end if
@@ -360,18 +359,6 @@ subroutine override_timestep_subroutine(current, going_up)
   end if
 end subroutine override_timestep_subroutine
 
-subroutine dist_fn_level_3_subroutine(current, going_up)
-  use dist_fn, only: init_dist_fn_level_3, finish_dist_fn_level_3
-  type(init_type), intent(in) :: current
-  logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
-  if (going_up) then
-    call init_dist_fn_level_3
-  else
-    call finish_dist_fn_level_3
-  end if
-end subroutine dist_fn_level_3_subroutine
-
 subroutine collisions_subroutine(current, going_up)
   use collisions, only: init_collisions, finish_collisions
   type(init_type), intent(in) :: current
@@ -383,6 +370,18 @@ subroutine collisions_subroutine(current, going_up)
     call finish_collisions
   end if
 end subroutine collisions_subroutine
+
+subroutine dist_fn_level_3_subroutine(current, going_up)
+  use dist_fn, only: init_dist_fn_level_3, finish_dist_fn_level_3
+  type(init_type), intent(in) :: current
+  logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
+  if (going_up) then
+    call init_dist_fn_level_3
+  else
+    call finish_dist_fn_level_3
+  end if
+end subroutine dist_fn_level_3_subroutine
 
 subroutine fields_level_2_subroutine(current, going_up)
   use fields, only: init_fields_level_2, finish_fields_level_2

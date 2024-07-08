@@ -1,22 +1,20 @@
 
 !> A program that runs unit tests on the theta_grid module.
-!!
-!! Current tests:
-!!   1. A given geometry is provided in Miller, EFIT and CHEASE form. We test 
-!!       to see that theta_grid gets the same coefficients in all three cases.
-!!
-!!
-!! This is free software released under the MIT license
-!!   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
+!>
+!> Current tests:
+!>   1. A given geometry is provided in Miller, EFIT and CHEASE form. We test 
+!>       to see that theta_grid gets the same coefficients in all three cases.
+!>
+!>
+!> This is free software released under the MIT license
+!>   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
 program test_theta_grid
-
   use unit_tests
   use theta_grid, only: init_theta_grid, finish_theta_grid, theta
   use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
   use egrid
   use mp, only: init_mp, finish_mp, proc0
   use file_utils, only: init_file_utils, finish_file_utils
-
   implicit none
   real :: eps
   logical :: dummy
@@ -24,78 +22,44 @@ program test_theta_grid
   real, dimension(33, 10) :: mill_rslt
   real, dimension(33) :: theta_rslt
 
-
   ! General config
   eps = 1.0e-7
 
   if (precision(eps).lt. 11) eps = eps * 1000.0
-  !if (precision(eps).lt. 11) write (*,*) 'low precision'
 
   ! Set up depenencies
   call init_mp
-  if (proc0) call init_file_utils(dummy, .true., .true., .false., 'local')
-  !call init_species
-  !call init_general_f0
-
-
-
+  if (proc0) call init_file_utils(dummy, .true., .true., .false., input_file = 'local')
   call announce_module_test('theta_grid')
-
-  !call announce_test('init_theta_grid')
-
-  !call process_test(theta_grid_unit_test_init_theta_grid(sizes, energy_results, eps), &
-    !'init_theta_grid')
-  !call init_theta_grid(dummy, dummy)
-
-  !call init_dist_fn
   call init_theta_grid
-  !write (*,*) 'size', size(bmag)
-
   mill_rslt = miller_result()
 
   rslt = 0.
   call get_results(1)
-!
-  !call finish_theta_grid
   if (proc0) call finish_file_utils
-  !write(*,*) 'MILLER', rslt(:,1,:)
-  
-  !write (*,*) 'Finished local'
 
-  !initialized = .false.
-
-  if (proc0) call init_file_utils(dummy, .true., .true., .false., 'chease')
+  if (proc0) call init_file_utils(dummy, .true., .true., .false., input_file = 'chease')
   call get_results(2)
   if (proc0) call finish_file_utils
 
-  !initialized = .false.
-
-  !theta_rslt = - theta_rslt
-
-  if (proc0) call init_file_utils(dummy, .true., .true., .false., 'efit')
+  if (proc0) call init_file_utils(dummy, .true., .true., .false., input_file = 'efit')
   call get_results(3)
   if (proc0) call finish_file_utils
 
 
   call announce_test(' that Miller has not changed')
-  !rslt(:,1,1) = rslt(:, 1, 1) * 0.9901928539149342 !* 0.9934 ! Adjust for different normalisation in
   ! Miller
-
   call process_test( &
     test_results(rslt(:,1,:), miller_result(), 1.0e-2, 1.0e-2), &
     ' that Miller has not changed')
 
   call announce_test(' that Miller and CHEASE give the same result')
-  !rslt(:,1,1) = rslt(:, 1, 1) * 0.9901928539149342 !* 0.9934 ! Adjust for different normalisation in
-  ! Miller
 
   call process_test( &
     test_results(rslt(:,1,:), rslt(:,2,:), 4.0e-1, 1.1e-2), &
     ' that Miller and CHEASE give the same result')
 
   call announce_test(' that CHEASE and EFIT give the same result')
-  !rslt(:,1,1) = rslt(:, 1, 1) * 0.9901928539149342 !* 0.9934 ! Adjust for different normalisation in
-  ! Miller
 
   call process_test( &
     test_results(rslt(:,2,:), rslt(:,3,:), 27.0e-2, 1.0e-1), &
@@ -122,26 +86,18 @@ contains
     call announce_check('cvdrift')
     call process_check(test_results, &
       agrees_with(rslt1(:,4), rslt2(:,4), epsin), 'cvdrift')
-    !call announce_check('theta')
-    !call process_check(test_results, &
-      !agrees_with(rslt1(:,7), rslt2(:,7), epsin), 'theta')
-
   end function test_results
+  
   subroutine get_results(i)
     integer, intent(in) :: i
     call init_theta_grid
     if (i .eq. 1) theta_rslt = mill_rslt(:,7)
-    !write (*,*) 'agwith', agrees_with(theta, theta_rslt, 0.1) 
-    !theta_rslt = 1.0
     rslt(:,i,1) = spl_fit(bmag)
     rslt(:,i,2) = spl_fit(grho)
     rslt(:,i,3) = spl_fit(gbdrift)
-    !write (*,*) 'gbdrift', gbdrift, 'rslt', rslt(:,i,3)
     rslt(:,i,4) = spl_fit(cvdrift)
     rslt(:,i,5) = spl_fit(gds2)
     rslt(:,i,6) = spl_fit(gds21)
-    !rslt(:,i,7) = spl_fit(theta)
-    !rslt(:,i,2) = bmag
     call finish_theta_grid
   end subroutine get_results
 
@@ -151,10 +107,7 @@ contains
     real, dimension(:), intent(in) :: var
     real, dimension(33) :: spl_fit
     integer :: i
-    !write (*,*) 'Size of theta = ', size(theta)
-    !write (*,*) 'Size of var = ', size(var)
-    !write (*,*) 'Size of theta_rslt = ', size(theta_rslt)
-    call new_spline(size(var), theta, var, spl)
+    spl = new_spline(theta, var)
     do i = 1,33
       spl_fit(i) = splint(theta_rslt(i), spl)
     end do

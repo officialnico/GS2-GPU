@@ -22,7 +22,7 @@ module fields_implicit
   ! has (2*ntgrid+1)*nfield points.
   !> FIXME : Add documentation  
   type dcell_type
-     complex, dimension(:), pointer :: supercell => null()
+     complex, dimension(:), allocatable :: supercell
   end type dcell_type
   !----------------------------------------------------------------
 
@@ -37,7 +37,7 @@ module fields_implicit
   !// FIELD_MATRIX_TYPE :
   !> FIXME : Add documentation  
   type :: field_matrix_type
-     type(dcell_type), dimension (:), pointer :: dcell => null()
+     type(dcell_type), dimension (:), allocatable :: dcell
   end type field_matrix_type
   !----------------------------------------------------------------
 
@@ -70,7 +70,6 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use unit_tests, only: should_print
     use mp, only: mp_abort
-!    use parameter_scan_arrays, only: run_scan
     implicit none
 
     logical :: debug=.false.
@@ -93,10 +92,6 @@ contains
     call init_theta_grid
     if (debug) write(6,*) "init_fields_implicit: kt_grids"
     call init_kt_grids
- !   if (debug .and. run_scan) &
- !       write(6,*) "init_fields_implicit: set_scan_parameter"
-        ! Must be done before resp. m.
-        !if (run_scan) call set_scan_parameter(dummy)
     if (debug) write(6,*) "init_fields_implicit: response_matrix"
     call init_response_matrix
     if (debug) write(6,*) "init_fields_implicit: antenna"
@@ -109,7 +104,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
-
+    use array_utils, only: copy
     implicit none
 
     logical, optional :: gf_lo
@@ -127,13 +122,14 @@ contains
        !AJ Note, we do not initialise phi, apar, and bpar here 
        !AJ as this is now done in fields_gf_local along with a 
        !AJ fields redistribute.
-       g = gnew
+       call copy(gnew, g)
     else if (new_field_init) then
        call get_init_field (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
+       call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
+       call copy(gnew, g)
     else
        call getfield (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew 
+       call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     end if
     ! <MAB
 
@@ -326,6 +322,7 @@ contains
     use unit_tests, only: debug_message
     use job_manage, only: time_message
     use mp, only: get_mp_times
+    use array_utils, only: copy
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -337,10 +334,8 @@ contains
        
     if (allocated(kx_shift) .or. allocated(theta0_shift)) call exb_shear (gnew, phinew, aparnew, bparnew, istep) 
     
-    g = gnew
-    phi = phinew
-    apar = aparnew 
-    bpar = bparnew       
+    call copy(gnew, g)
+    call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv 1')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
@@ -445,12 +440,12 @@ contains
       'fields_implicit::reset_init starting')
     if (.not. allocated (aminv)) return
     do i = 1, size(aminv)
-       if (.not. associated (aminv(i)%dcell)) cycle
+       if (.not. allocated (aminv(i)%dcell)) cycle
        do j = 1, size(aminv(i)%dcell)
-          if (associated (aminv(i)%dcell(j)%supercell)) &
+          if (allocated (aminv(i)%dcell(j)%supercell)) &
                deallocate(aminv(i)%dcell(j)%supercell)
        end do
-       if (associated (aminv(i)%dcell)) deallocate (aminv(i)%dcell)
+       if (allocated (aminv(i)%dcell)) deallocate (aminv(i)%dcell)
     end do
     deallocate (aminv)
 
@@ -472,6 +467,7 @@ contains
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use file_utils, only: error_unit
+    use array_utils, only: zero_array
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
@@ -554,15 +550,11 @@ contains
 
 
           !Do we need to zero all 8 arrays on every loop? This can be more expensive than might think.
-          am = 0.0
-          g = 0.0
-
-          phi = 0.0
-          apar = 0.0
-          bpar = 0.0
-          phinew = 0.0
-          aparnew = 0.0
-          bparnew = 0.0
+          call zero_array(am)
+          call zero_array(g)
+          call zero_array(phi) ; call zero_array(phinew)
+          call zero_array(apar) ; call zero_array(aparnew)
+          call zero_array(bpar) ; call zero_array(bparnew)
 
           !Loop over individual 2pi domains / cells
           do n = 1, N_class(i)
@@ -595,7 +587,7 @@ contains
                       phinew(ig,it,ik) = 1.0
                    end do
                    if (.not. skip_initialisation) call init_response_row (ig, ifield, am, i, n)
-                   phinew = 0.0
+                   call zero_array(phinew)
                 end if
 
                 !Find response to apar
@@ -616,7 +608,7 @@ contains
                       aparnew(ig,it,ik) = 1.0
                    end do
                    call init_response_row (ig, ifield, am, i, n)
-                   aparnew = 0.0
+                   call zero_array(aparnew)
                 end if
 
                 !Find response to bpar
@@ -637,7 +629,7 @@ contains
                       bparnew(ig,it,ik) = 1.0
                    end do
                    call init_response_row (ig, ifield, am, i, n)
-                   bparnew = 0.0
+                   call zero_array(bparnew)
                 end if
              end do
           end do
@@ -738,6 +730,7 @@ contains
     use gs2_layouts, only: if_idx, im_idx, in_idx, local_field_solve
     use gs2_layouts, only: ig_idx, ifield_idx, ij_idx
     use dist_fn, only: i_class, M_class, N_class
+    use array_utils, only: zero_array
     implicit none
     integer, intent (in) :: ic
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
@@ -760,7 +753,7 @@ contains
 
     !Create storage space
     allocate (a_inv(j,f_lo(ic)%llim_proc:f_lo(ic)%ulim_alloc))
-    a_inv = 0.0
+    call zero_array(a_inv)
     
     if (.not. skip_initialisation) then
       !Set (ifield*ig,ilo) "diagonal" to 1?
@@ -971,7 +964,7 @@ contains
     do jlo = jf_lo%llim_proc, jf_lo%ulim_proc
           
        !Allocate store in this class, on this proc to store the jlo points
-       if (.not.associated(aminv(ic)%dcell)) then
+       if (.not. allocated(aminv(ic)%dcell)) then
           allocate (aminv(ic)%dcell(dc))
        else
           !Just check the array is the correct size
@@ -992,7 +985,7 @@ contains
           jc = nidx*N_class(ic)
 
           !Allocate storage for the supercell if required
-          if (.not.associated(aminv(ic)%dcell(k)%supercell)) then
+          if (.not. allocated(aminv(ic)%dcell(k)%supercell)) then
              allocate (aminv(ic)%dcell(k)%supercell(jc))
           else
              !Just check the array is the correct size
@@ -1177,7 +1170,7 @@ contains
 
   !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1185,6 +1178,7 @@ contains
     use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_save_response
+    use job_manage, only: time_message
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
@@ -1194,6 +1188,7 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !Make a lookup array to convert itmin (the leftmost it in a connected domain)
     !to the supercell index "is" used in the local fields. This will be used to 
@@ -1405,13 +1400,13 @@ contains
 
     !Tidy
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
-
+    call time_message(.false.,time_dump_response,' Field Dump')
   end subroutine dump_response_to_file_imp
 
   !> A routine to read the response matrix from file and populate the implicit
   !> response storage, note we also allocate the response storage objects
   subroutine read_response_from_file_imp(could_read, suffix)
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1420,6 +1415,7 @@ contains
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_restore_response
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
@@ -1435,6 +1431,7 @@ contains
     logical :: file_found
     real :: file_time_step
 
+    call time_message(.false.,time_read_response,' Field Read')
     could_read = .true.
 
     !First allocate the matrix storage
@@ -1712,6 +1709,7 @@ contains
 
     !Tidy
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
+    call time_message(.false.,time_read_response,' Field Read')
   end subroutine read_response_from_file_imp
 
   !> A subroutine to allocate the response matrix storage objects
@@ -1760,14 +1758,14 @@ contains
        enddo
 
        !Next level, one object for each point in the class
-       if(.not.associated(aminv(ic)%dcell))then
+       if(.not. allocated(aminv(ic)%dcell))then
           allocate(aminv(ic)%dcell(dc))
        endif
 
        !Now loop over each point and allocate storage for the response data
        do idc=1,dc
           !Bottom level, this is actually where data is stored
-          if(.not.associated(aminv(ic)%dcell(idc)%supercell)) then
+          if(.not. allocated(aminv(ic)%dcell(idc)%supercell)) then
              allocate(aminv(ic)%dcell(idc)%supercell(sc_len))
           endif
        enddo

@@ -19,6 +19,8 @@ module genquad
   logical:: inf_flag1, inf_flag2
   real:: epsfac = 1.0 
   integer:: poly_type, poly_order
+#else
+#include "unused_dummy.inc"
 #endif
 
 contains
@@ -42,7 +44,12 @@ contains
     use mp, only: mp_abort, proc0
 
     implicit none
-    real, external:: wgt_func
+    interface
+       real function wgt_func_exp(x)
+         real, intent(in) :: x
+       end function wgt_func_exp
+    end interface
+    procedure(wgt_func_exp) :: wgt_func
     integer,intent(in):: N_out
     real,intent(in):: v0, vf
     real,dimension(1:), intent(inout):: out_abscissae, out_wgts
@@ -205,8 +212,13 @@ contains
     end function poly_sq_func
 
 #else
+    UNUSED_DUMMY(N_out); UNUSED_DUMMY(v0); UNUSED_DUMMY(vf);
+    UNUSED_DUMMY(inf_flag1_in); UNUSED_DUMMY(inf_flag2_in)
+    UNUSED_DUMMY(out_abscissae); UNUSED_DUMMY(out_wgts)
     if (proc0) write(*,*) "ERROR: Must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile."
     call mp_abort("You must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile.")
+    ! Hacky way to avoid unused argument warning
+    if (.false.) write(*,*) wgt_func(0.0)
 #endif
   end subroutine get_quadrature_rule
 

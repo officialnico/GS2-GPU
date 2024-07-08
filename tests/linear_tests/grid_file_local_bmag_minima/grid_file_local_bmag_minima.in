@@ -2,11 +2,6 @@
     collision_model = 'none'
 /
 
-&parameters
-    beta = 0.021272634780334476
-    zeff = 3.262000404398463
-/
-
 &theta_grid_knobs
     equilibrium_option = 'file'
 /
@@ -59,6 +54,8 @@
 /
 
 &knobs
+    beta = 0.021272634780334476
+    zeff = 3.262000404398463
     fphi = 1.0
     fapar = 0.0
     fbpar = 0.0
@@ -105,9 +102,8 @@
 /
 
 &gs2_diagnostics_knobs
-    write_hrate = .false.
+    write_heating = .false.
     print_flux_line = .false.
-    write_nl_flux = .false.
     write_fluxes = .false.
     write_fluxes_by_mode = .false.
     print_line = .false.

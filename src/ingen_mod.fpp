@@ -790,18 +790,16 @@ contains
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
+    use gs2_time, only: init_gs2_time
     implicit none
-    logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
 
     if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
-    call init_antenna
 
-    ! run_parameters:
     call init_run_parameters
-
+    call init_gs2_time
 if (debug) write(6,*) 'get_namelists: collisions'
     call coll_read_parameters
 
@@ -821,7 +819,7 @@ if (debug) write(6,*) 'get_namelists: kt_grids'
     call init_kt_grids
 
 if (debug) write(6,*) 'get_namelists: le_grids'
-    call init_le_grids(accelx, accelv)
+    call init_le_grids
 
 if (debug) write(6,*) 'get_namelists: nonlinear terms'
     call nonlinear_terms_read_parameters
@@ -833,6 +831,8 @@ if (debug) write(6,*) 'get_namelists: init_species'
         coll_on = spec(is)%vnewk > epsilon(0.0) .or. coll_on
     end do
     coll_on = coll_on .and. (collision_model_switch /= collision_model_none)
+
+    call init_antenna
 
 !CMR, 2/2/2011:  reduce much duplication by calling init_theta_grid
 if (debug) write(6,*) 'get_namelists: call init_theta_grid, ntgrid=',ntgrid

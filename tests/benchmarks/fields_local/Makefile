@@ -12,10 +12,6 @@ all: time_fields_local
 	  $(call BENCHMARKCOMMAND,$$d,time_fields_local,$(INPUTFILE)) ; \
 	done
 
-TIMINGFILES=$(wildcard *.timing.*)
-
-UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
 time_fields_local.o:  ${TEST_MODS} 
 
 time_fields_local: time_fields_local.o $(TEST_MODS)
