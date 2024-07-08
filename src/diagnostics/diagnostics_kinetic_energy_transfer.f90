@@ -19,7 +19,6 @@ module diagnostics_kinetic_energy_transfer
     private
 
     public :: init_diagnostics_kinetic_energy_transfer_theta, init_diagnostics_kinetic_energy_transfer_theta_kxsource, init_diagnostics_kinetic_energy_transfer_theta_kxtarget, init_diagnostics_kinetic_energy_transfer_theta_kysource
-    public :: finish_diagnostics_kinetic_energy_transfer_theta, finish_diagnostics_kinetic_energy_transfer_theta_kxsource, finish_diagnostics_kinetic_energy_transfer_theta_kxtarget, finish_diagnostics_kinetic_energy_transfer_theta_kysource
     public :: write_kinetic_energy_transfer_theta
     public :: write_kinetic_energy_transfer_theta_kxsource
     public :: write_kinetic_energy_transfer_theta_kxtarget
@@ -78,50 +77,6 @@ contains
         gnostics%current_results%kinetic_energy_transfer_theta_kysource = 0.0
 
     end subroutine init_diagnostics_kinetic_energy_transfer_theta_kysource
-
-    subroutine finish_diagnostics_kinetic_energy_transfer_theta(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        implicit none
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta) return
-
-    end subroutine finish_diagnostics_kinetic_energy_transfer_theta
-
-    subroutine finish_diagnostics_kinetic_energy_transfer_theta_kxsource(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        implicit none
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta_kxsource) return
-
-    end subroutine finish_diagnostics_kinetic_energy_transfer_theta_kxsource
-
-    subroutine finish_diagnostics_kinetic_energy_transfer_theta_kxtarget(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        implicit none
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta_kxtarget) return
-
-    end subroutine finish_diagnostics_kinetic_energy_transfer_theta_kxtarget
-
-    subroutine finish_diagnostics_kinetic_energy_transfer_theta_kysource(gnostics)
-        use diagnostics_config, only: diagnostics_type
-
-        implicit none
-
-        type(diagnostics_type), intent(inout) :: gnostics
-
-        if(.not. gnostics%write_kinetic_energy_transfer_theta_kysource) return
-
-    end subroutine finish_diagnostics_kinetic_energy_transfer_theta_kysource
 
     subroutine get_kxky_values(kx_array,ky_array)
         use kt_grids, only: ntheta0, naky, aky, akx
