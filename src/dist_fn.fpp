@@ -4093,8 +4093,7 @@ contains
   !!  Author : Joseph Parker, STFC
   subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, mode)
     use collisions, only: split_collisions
-    use dist_fn_arrays, only: gnew, g, g_work, g_adjust
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, g, g_work, g_adjust, to_g_gs2, from_g_gs2
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -4126,9 +4125,9 @@ contains
     ! We could save two g_adjust calls (the one on exit from vspace_derivatives and
     ! the first one below). Probably easiest to achieve this with an optional argument
     ! to vspace_derivatives.
-    call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust(gnew, phinew, bparnew, from_g_gs2)
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phinew, aparnew, bparnew)
-    call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust(gnew, phinew, bparnew, to_g_gs2)
   end subroutine collisions_advance
 
 ! communication initializations for exb_shear should be done once and 
