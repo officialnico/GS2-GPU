@@ -91,7 +91,7 @@ contains
     !> where the second term
     !> (b_hat x k_t) . (b_hat x k_s)
     !> is unique for kinetic energy transfer and does not appear for internal energy transfer or entropy transfer
-    subroutine z_hat_factor(kx_array,ky_array,result_array,nkynew,iky0)
+    subroutine z_hat_factor(kx_array, ky_array, result_array, nkynew, iky0)
         use kt_grids, only: ntheta0
 
         integer, intent(in) :: nkynew, iky0
@@ -113,7 +113,7 @@ contains
 
     !> extend a 2D data array to negative ky-values
     !> with the original "unshifted" order
-    subroutine get_full(field_arr,result_array,nkx,nky)
+    subroutine get_full(field_arr, result_array, nkx, nky)
         integer, intent(in) :: nkx, nky
         complex, dimension(:,:), intent(in) :: field_arr ! shape (nky,nkx)
         complex, dimension(:,:), intent(out) :: result_array ! shape (2*nky-1,nkx)
@@ -152,17 +152,55 @@ contains
         integer :: shift_no, dim
 
         dim = 1
-        shift_no = -(size(array,DIM=dim)-1)/2
+        shift_no = -(size(array, DIM=dim)-1)/2
         array = cshift(array, SHIFT=shift_no, DIM=dim)
 
         dim = 2
-        shift_no = -(size(array,DIM=dim)-1)/2
+        shift_no = -(size(array, DIM=dim)-1)/2
         array = cshift(array, SHIFT=shift_no, DIM=dim)
 
     end subroutine fftshift2D_complex
 
+    !> return the mediator index for either kx or ky
+    elemental integer function ikm(ikt, iks, ik0)
+        integer, intent(in) :: ikt, iks, ik0
+
+        ikm = ikt - iks + ik0
+
+    end function ikm
+
+    !> return bolean whether a source-mode and target-mode combination yields a valid mediator
+    elemental logical function valid_mediator(ikxt, ikxs, ikx0, ikyt, ikys, iky0, nkx, nky)
+        integer, intent(in) :: ikxt, ikxs, ikx0, ikyt, ikys, iky0, nkx, nky
+        integer :: ikxm, ikym
+
+        ikxm = ikm(ikxt, ikxs, ikx0)
+        ikym = ikm(ikyt, ikys, iky0)
+        valid_mediator = (ikxm > 0 .and. ikxm <= nkx) .and. (ikym > 0 .and. ikym <= nky)
+
+    end function valid_mediator
+
+    !> create a boolean lookup for the valid mediator attribute of a
+    !> pair of target wavevector and source wavevector
+    subroutine get_mediator_helpers(ikx0, iky0, nkx, nky, valid_mediator_lookup)
+        integer, intent(in) :: ikx0, iky0, nkx, nky
+        logical, dimension(:,:,:), intent(out) :: valid_mediator_lookup ! shape (nky,nkx,nkx)
+        integer :: ikys, ikyt, ikxs, ikxt, ikxm, ikym
+
+        ikyt = iky0
+
+        do ikxt = 1, nkx
+            do ikxs = 1, nkx
+                do ikys = 1, nky
+                    valid_mediator_lookup(ikys, ikxs, ikxt) = valid_mediator(ikxt, ikxs, ikx0, ikyt, ikys, iky0, nkx, nky)
+                end do
+            end do
+        end do
+
+    end subroutine get_mediator_helpers
+
     !> calculate the mediator mode for all possible pairs of source and target wavevectors
-    subroutine get_mediator(phi,ikx0,iky0,nkx,nky,result_array,valid_mediator_lookup)
+    subroutine get_mediator(phi, ikx0, iky0, nkx, nky, result_array, valid_mediator_lookup)
         integer, intent(in) :: ikx0, iky0, nkx, nky
         complex, dimension(:,:), intent(in) :: phi
         logical, dimension(:,:,:), intent(in) :: valid_mediator_lookup
@@ -175,47 +213,21 @@ contains
         do ikxt = 1, nkx
             do ikxs = 1, nkx
                 do ikys = 1, nky
-                    ikym = ikyt - ikys + iky0
-                    ikxm = ikxt - ikxs + ikx0
+                    ikym = ikm(ikyt, ikys, iky0)
+                    ikxm = ikm(ikxt, ikxs, ikx0)
 
-                    valid_mediator = valid_mediator_lookup(ikys,ikxs,ikxt)
+                    valid_mediator = valid_mediator_lookup(ikys, ikxs, ikxt)
 
                     if (valid_mediator) then
-                        result_array(ikys,ikxs,ikxt) = phi(ikym,ikxm)
+                        result_array(ikys, ikxs, ikxt) = phi(ikym,ikxm)
                     else
-                        result_array(ikys,ikxs,ikxt) = 0.0
+                        result_array(ikys, ikxs, ikxt) = 0.0
                     endif
                 end do
             end do
         end do
 
     end subroutine get_mediator
-
-    !> create a boolean lookup for the valid mediator attribute of a
-    !> pair of target wavevector and source wavevector
-    subroutine get_mediator_helpers(ikx0,iky0,nkx,nky,valid_mediator_lookup)
-        integer, intent(in) :: ikx0, iky0, nkx, nky
-        logical, dimension(:,:,:), intent(out) :: valid_mediator_lookup ! shape (nky,nkx,nkx)
-        integer :: ikys, ikyt, ikxs, ikxt, ikxm, ikym
-
-        ikyt = iky0
-
-        do ikxt = 1, nkx
-            do ikxs = 1, nkx
-                do ikys = 1, nky
-                    ikxm = ikxt - ikxs + ikx0
-                    ikym = ikyt - ikys + iky0
-
-                    if (.not.((1 .le. ikxm) .and. (ikxm .le. nkx) .and. (1 .le. ikym) .and. (ikym .le. nky))) then
-                        valid_mediator_lookup(ikys,ikxs,ikxt) = .false.
-                    else
-                        valid_mediator_lookup(ikys,ikxs,ikxt) = .true.
-                    end if
-                end do
-            end do
-        end do
-
-    end subroutine get_mediator_helpers
 
     !> compute the three-wave couplings
     subroutine compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_hat_factor, B_factor, nkx, nky, result_array)
@@ -227,8 +239,8 @@ contains
         real, intent(in) :: B_factor
         real, dimension(:,:,:), intent(out) :: result_array ! shape (nky,nkx,nkx)
 
-        complex, dimension(1,1,nkx) :: phi_target_new
-        complex, dimension(nky,nkx,1) :: phi_source_new
+        complex, dimension(1, 1, nkx) :: phi_target_new
+        complex, dimension(nky, nkx, 1) :: phi_source_new
         integer :: i, j, k
 
         phi_target_new = reshape(phi_target,(/1,1,nkx/))
