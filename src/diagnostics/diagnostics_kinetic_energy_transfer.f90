@@ -19,6 +19,7 @@ module diagnostics_kinetic_energy_transfer
     private
 
     public :: init_diagnostics_kinetic_energy_transfer
+    public :: define_custom_kinetic_energy_transfer_dims
     public :: finish_diagnostics_kinetic_energy_transfer
     public :: write_kinetic_energy_transfer
     public :: calculate_kinetic_energy_transfer
@@ -45,7 +46,7 @@ module diagnostics_kinetic_energy_transfer
 contains
     subroutine init_diagnostics_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
-        use mp, only: iproc, nproc
+        use mp, only: iproc, nproc, proc0
         use theta_grid, only: ntgrid
         use kt_grids, only: ntheta0, naky, aky, akx
 
@@ -95,6 +96,22 @@ contains
         endif
 
     end subroutine init_diagnostics_kinetic_energy_transfer
+
+    subroutine define_custom_kinetic_energy_transfer_dims(gnostics)
+        use diagnostics_config, only: diagnostics_type
+        use neasyf, only: neasyf_dim
+        use gs2_io, only: kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
+
+        type(diagnostics_type), intent(inout) :: gnostics
+
+        call neasyf_dim(gnostics%file_id, trim(kxs_shifted_dim), values=kxnew_array, &
+            long_name="Values of kx-source (shifted), used for kinetic energy transfer diagnostic", units="1/rho_r")
+        call neasyf_dim(gnostics%file_id, trim(kxt_shifted_dim), values=kxnew_array, &
+            long_name="Values of kx-target (shifted), used for entropy transfer", units="1/rho_r")
+        call neasyf_dim(gnostics%file_id, trim(kys_extended_dim), values=kynew_array, &
+            long_name="Values of ky-source extended (shifted), used for kinetic energy transfer diagnostic", units="1/rho_r")
+
+    end subroutine define_custom_kinetic_energy_transfer_dims
 
     subroutine finish_diagnostics_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
@@ -163,7 +180,7 @@ contains
 
     end function is_responsible_for_this_theta_grid_index
 
-    !> extend ky to negative values.
+    !> extend ky to negative values and return in "shifted" format.
     !> due to reality condition only ky >= 0 is used in GS2.
     subroutine extend_ky(kynew)
         use kt_grids, only: naky, aky
@@ -365,7 +382,7 @@ contains
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
         
-        type(diagnostics_type), intent(in out) :: gnostics
+        type(diagnostics_type), intent(inout) :: gnostics
 
         if (.not. gnostics%writing) return
         call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta", gnostics%current_results%kinetic_energy_transfer_theta, &

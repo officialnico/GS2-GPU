@@ -42,7 +42,7 @@ contains
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
-    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer
+    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer, define_custom_kinetic_energy_transfer_dims
     use collisional_heating, only: init_collisional
     use collisions, only: heating, set_heating
     use nonlinear_terms, only: nonlin
@@ -136,8 +136,8 @@ contains
     call init_diagnostics_antenna(gnostics)
     call init_diagnostics_transfer(gnostics)
     call init_collisional(gnostics)
-    call init_diagnostics_kinetic_energy_transfer(gnostics)
 
+    if (gnostics%write_kinetic_energy_transfer) call init_diagnostics_kinetic_energy_transfer(gnostics)
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
     
@@ -160,6 +160,7 @@ contains
 
          ! Write constants/parameters
          call define_dims(gnostics%file_id, gnostics%write_correlation_extend)
+         if (gnostics%write_kinetic_energy_transfer) call define_custom_kinetic_energy_transfer_dims(gnostics)
          call nc_norms(gnostics%file_id)
          call nc_species(gnostics%file_id)
          call nc_geo(gnostics%file_id)
@@ -272,7 +273,7 @@ contains
     call finish_collisional
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space()
-    call finish_diagnostics_kinetic_energy_transfer(gnostics)
+    if (gnostics%write_kinetic_energy_transfer) call finish_diagnostics_kinetic_energy_transfer(gnostics)
     
     if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
