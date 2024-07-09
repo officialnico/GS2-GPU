@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> A module for writing to netcdf.
 module gs2_io
 
@@ -12,7 +13,7 @@ module gs2_io
   public :: init_gs2_io, nc_eigenfunc, nc_final_fields, nc_final_epar
   public :: nc_final_moments, nc_final_an, nc_finish
   public :: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_loop, nc_loop_moments
-  public :: nc_loop_movie, nc_write_moments, nc_exchange
+  public :: nc_loop_movie, nc_write_moments, nc_exchange, nc_bc
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id, get_netcdf_movie_file_id
   public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
@@ -147,11 +148,11 @@ contains
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
   subroutine init_gs2_io (append_old, make_movie, write_correlation_extend, &
-      write_phi_over_time, write_apar_over_time, write_bpar_over_time, nout, ob_midplane, header)
-    use mp, only: proc0
+       write_phi_over_time, write_apar_over_time, write_bpar_over_time, nout, &
+       ob_midplane, header)
     use standard_header, only : standard_header_type
 # ifdef NETCDF
-    use mp, only: barrier
+    use mp, only: barrier, proc0
     use file_utils, only: run_name, error_unit
     use gs2_transforms, only: init_transforms
     use kt_grids, only: naky, ntheta0,nx,ny
@@ -175,7 +176,6 @@ contains
     integer, intent(out) :: nout
     !> Header for files with build and run information
     type(standard_header_type), intent(in) :: header
-
 # ifdef NETCDF
     logical :: accelerated
     character(run_name_size) :: filename
@@ -245,6 +245,7 @@ contains
             call nc_norms(ncid)
             call nc_species(ncid)
             call nc_geo(ncid)
+            call nc_bc(ncid)
             call save_input(ncid)
             nout = 1
         end if
@@ -253,6 +254,11 @@ contains
           call nc_grids_mymovie(ncid_movie)
         end if
     end if
+# else
+    UNUSED_DUMMY(append_old); UNUSED_DUMMY(make_movie); UNUSED_DUMMY(write_correlation_extend)
+    UNUSED_DUMMY(write_phi_over_time); UNUSED_DUMMY(write_apar_over_time)
+    UNUSED_DUMMY(write_bpar_over_time); UNUSED_DUMMY(nout); UNUSED_DUMMY(ob_midplane)
+    UNUSED_DUMMY(header)
 # endif
   end subroutine init_gs2_io
 
@@ -279,7 +285,7 @@ contains
     !> Create the dimensions for the extended correlation diagnostics
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
-    real :: nmesh
+    integer :: nmesh
 
     call neasyf_dim(file_id, trim(kx_dim), values=akx, &
          long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
@@ -345,7 +351,8 @@ contains
     end if
 
     call neasyf_write(file_id, "nmesh", nmesh, long_name="Total number of mesh points")
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(create_extended_correlation)
 # endif
   end subroutine define_dims
 
@@ -376,6 +383,8 @@ contains
          long_name="The reference magnetic field ", units="Tesla")
     call neasyf_write(file_id, "rhoref", norms%get_value("rhoref"), &
          long_name="The reference larmour radius ", units="m")
+#else
+    UNUSED_DUMMY(file_id)
 #endif
   end subroutine nc_norms
 
@@ -412,6 +421,8 @@ contains
     call neasyf_dim(file_id, trim(theta_dim), theta)
     call neasyf_dim(file_id, trim(time_movie_dim), unlimited=.true., long_name="Time", units="L/vt")
     deallocate(x,y)
+# else
+    UNUSED_DUMMY(file_id)
 # endif
   end subroutine nc_grids_mymovie
 
@@ -456,22 +467,22 @@ contains
 
     call neasyf_write(file_id, "input_file", input_file_array, &
          long_name="Input file", dim_names=["char200", "nlines "])
+#else
+    UNUSED_DUMMY(file_id)
 #endif
   end subroutine save_input
 
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
-  subroutine define_vars (write_correlation_extend, ob_midplane)
 # ifdef NETCDF
+  subroutine define_vars (write_correlation_extend, ob_midplane)
     use file_utils, only: error_unit
     use netcdf, only : NF90_CHAR, nf90_inq_libvers
     use netcdf_utils, only: get_netcdf_dim_length
     use netcdf_utils, only: ensure_netcdf_att_exists, ensure_netcdf_var_exists
-# endif
     implicit none
     logical, intent(inout) :: write_correlation_extend
     logical, optional, intent(in) :: ob_midplane
-# ifdef NETCDF
     character (20) :: datestamp, timestamp, timezone
     integer :: dimsize(5)
     real    :: total
@@ -535,8 +546,8 @@ contains
          'The difference between rho (normalized minor radius) and rho (gyroradius)')
     call ensure_netcdf_att_exists(ncid, code_id, "c11", &
          'should be clear from the context in which they appear below.')
-# endif
   end subroutine define_vars
+#endif
 
   !> Write the normalised fields to netCDF
   subroutine nc_eigenfunc(file_id, phase)
@@ -579,11 +590,14 @@ contains
        end do
        call netcdf_write_complex(file_id, "bpar_norm", tmp, final_field_dims)
     end if
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(phase)
 # endif
   end subroutine nc_eigenfunc
 
   !> Write various moments to netcdf
-  subroutine nc_write_moments (file_id, nout, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1, ob_midplane)
+  subroutine nc_write_moments (file_id, nout, ntot, density, upar, tpar, tperp, qparflux, &
+       pperpj1, qpperpj1, ob_midplane)
     use theta_grid, only: ntgrid
     implicit none
     !> NetCDF ID of the file to write to
@@ -610,7 +624,6 @@ contains
     !> otherwise write them out along the entire flux surface
     logical, optional, intent(in) :: ob_midplane
 #ifdef NETCDF
-
     if (present(ob_midplane)) then
        if (ob_midplane ) then
           call netcdf_write_complex(file_id, "ntot0", ntot(0, :, :, :), mom_dims, start=starts(5, nout), &
@@ -649,7 +662,10 @@ contains
           long_name="Pperpj1 over time")
     call netcdf_write_complex(file_id, 'qpperpj1_t', qpperpj1, mom_t_dims, start=starts(6, nout), &
           long_name="Qpperpj1 over time")
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(ntot); UNUSED_DUMMY(density)
+    UNUSED_DUMMY(upar); UNUSED_DUMMY(tpar); UNUSED_DUMMY(tperp); UNUSED_DUMMY(qparflux)
+    UNUSED_DUMMY(pperpj1); UNUSED_DUMMY(qpperpj1); UNUSED_DUMMY(ob_midplane)
 # endif
   end subroutine nc_write_moments
 
@@ -677,6 +693,8 @@ contains
        call netcdf_write_complex(file_id, "bpar", bparnew, final_field_dims, &
             long_name="delta B Parallel")
     end if
+# else
+    UNUSED_DUMMY(file_id)
 # endif
   end subroutine nc_final_fields
 
@@ -690,6 +708,8 @@ contains
     character(*), dimension(*), parameter :: dim_names = [complex_dim, theta_dim, kx_dim, ky_dim]
 
     call netcdf_write_complex(file_id, "epar", epar, dim_names)
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(epar)
 # endif
   end subroutine nc_final_epar
 
@@ -701,9 +721,8 @@ contains
     integer, intent(in) :: file_id
     complex, dimension (:,:,:,:), intent (in) :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), intent (in) :: qparflux, pperpj1, qpperpj1
-    character(*), dimension(*), parameter :: dim_names = [complex_dim, theta_dim, kx_dim, ky_dim, species_dim]
-
 #ifdef NETCDF
+    character(*), dimension(*), parameter :: dim_names = [complex_dim, theta_dim, kx_dim, ky_dim, species_dim]
     call netcdf_write_complex(file_id, 'ntot', ntot, dim_names)
     call netcdf_write_complex(file_id, 'density', density, dim_names)
     call netcdf_write_complex(file_id, 'upar', upar, dim_names)
@@ -712,6 +731,10 @@ contains
     call netcdf_write_complex(file_id, 'qparflux', qparflux, dim_names)
     call netcdf_write_complex(file_id, 'pperpj1', pperpj1, dim_names)
     call netcdf_write_complex(file_id, 'qpperpj1', qpperpj1, dim_names)
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(ntot); UNUSED_DUMMY(density); UNUSED_DUMMY(upar)
+    UNUSED_DUMMY(tpar); UNUSED_DUMMY(tperp); UNUSED_DUMMY(qparflux); UNUSED_DUMMY(pperpj1)
+    UNUSED_DUMMY(qpperpj1)
 #endif
   end subroutine nc_final_moments
 
@@ -756,6 +779,12 @@ contains
     call netcdf_write_complex(file_id, "upar00", upar00, loop_mom_dim, start=starts(4, nout))
     call netcdf_write_complex(file_id, "tpar00", tpar00, loop_mom_dim, start=starts(4, nout))
     call netcdf_write_complex(file_id, "tperp00", tperp00, loop_mom_dim, start=starts(4, nout))
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(ntot2)
+    UNUSED_DUMMY(ntot2_by_mode); UNUSED_DUMMY(ntot20); UNUSED_DUMMY(ntot20_by_mode)
+    UNUSED_DUMMY(phi00); UNUSED_DUMMY(ntot00); UNUSED_DUMMY(density00); UNUSED_DUMMY(upar00)
+    UNUSED_DUMMY(tpar00); UNUSED_DUMMY(tperp00); UNUSED_DUMMY(tpar2_by_mode)
+    UNUSED_DUMMY(tperp2_by_mode)
 #endif
   end subroutine nc_loop_moments
 
@@ -784,6 +813,8 @@ contains
        call netcdf_write_complex(file_id, "antotp", antotp, final_field_dims, &
             long_name="Velocity space moment of g used in calculating bpar")
     end if
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(antot); UNUSED_DUMMY(antota); UNUSED_DUMMY(antotp)
 # endif
   end subroutine nc_final_an
 
@@ -809,6 +840,9 @@ contains
        call neasyf_write (file_id, "es_exchange_by_k", exchange, &
             dim_names=fluxk_dims, start=starts(4, nout))
     end if
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(exchange)
+    UNUSED_DUMMY(exchange_avg)
 # endif
   end subroutine nc_exchange
 
@@ -858,6 +892,12 @@ contains
     end if
     
     call neasyf_write(file_id, "hflux_tot", hflux_tot, dim_names=[time_dim], start=[nout])
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(qheat); UNUSED_DUMMY(qmheat)
+    UNUSED_DUMMY(qbheat); UNUSED_DUMMY(heat_par); UNUSED_DUMMY(mheat_par)
+    UNUSED_DUMMY(bheat_par); UNUSED_DUMMY(heat_perp); UNUSED_DUMMY(mheat_perp)
+    UNUSED_DUMMY(bheat_perp); UNUSED_DUMMY(heat_fluxes); UNUSED_DUMMY(mheat_fluxes)
+    UNUSED_DUMMY(bheat_fluxes); UNUSED_DUMMY(x_qmflux); UNUSED_DUMMY(hflux_tot)
 # endif
   end subroutine nc_qflux
 
@@ -877,7 +917,6 @@ contains
     real, dimension(:), intent (in) :: part_fluxes, mpart_fluxes, bpart_fluxes
     real, intent (in) :: zflux_tot
 # ifdef NETCDF
-
     if (has_phi) then
        call neasyf_write(file_id, "es_part_flux", part_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_part_by_k", pflux, dim_names=fluxk_dims, start=starts(4, nout))
@@ -894,6 +933,10 @@ contains
     end if
     
     call neasyf_write(file_id, "zflux_tot", zflux_tot, dim_names=[time_dim], start=[nout])
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(pflux); UNUSED_DUMMY(pmflux)
+    UNUSED_DUMMY(pbflux); UNUSED_DUMMY(part_fluxes); UNUSED_DUMMY(mpart_fluxes)
+    UNUSED_DUMMY(bpart_fluxes); UNUSED_DUMMY(zflux_tot)
 # endif
   end subroutine nc_pflux
 
@@ -911,14 +954,15 @@ contains
     real, dimension (:,:,:), intent (in) :: pflux_tormom
     real, dimension(:), intent (in) :: part_tormom_fluxes
 # ifdef NETCDF
-
     if (has_phi) then
        call neasyf_write(file_id, "es_part_tormom_flux", part_tormom_fluxes, &
             dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_part_tormom_by_k", pflux_tormom, &
             dim_names=fluxk_dims, start=starts(4, nout))
     end if
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(pflux_tormom)
+    UNUSED_DUMMY(part_tormom_fluxes)
 # endif
   end subroutine nc_pflux_tormom
 
@@ -941,7 +985,6 @@ contains
     real, dimension(:), intent (in) :: mom_fluxes, mmom_fluxes, bmom_fluxes
     real, intent (in) :: vflux_tot
 # ifdef NETCDF
-
     if (has_phi) then
        call neasyf_write(file_id, "es_mom_flux", mom_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_mom_by_k", vflux, dim_names=fluxk_dims, start=starts(4, nout))
@@ -962,23 +1005,27 @@ contains
     end if
     
     call neasyf_write(file_id, "vflux_tot", vflux_tot, dim_names=[time_dim], start=[nout])
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(vflux); UNUSED_DUMMY(vmflux)
+    UNUSED_DUMMY(vbflux); UNUSED_DUMMY(mom_fluxes); UNUSED_DUMMY(mmom_fluxes)
+    UNUSED_DUMMY(bmom_fluxes); UNUSED_DUMMY(vflux_tot); UNUSED_DUMMY(vflux_par)
+    UNUSED_DUMMY(vflux_perp); UNUSED_DUMMY(vflux0); UNUSED_DUMMY(vflux1)
 # endif
   end subroutine nc_vflux
 
   !> Output the poloidal distributions of the fluxes of particles, perpendicular
   !> momentum, parallel momentum, and energy ! JRB
   subroutine nc_loop_dist (file_id, nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
-    use run_parameters, only: has_phi
-    use theta_grid, only: ntgrid
 # ifdef NETCDF
+    use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
 # endif
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
     !> Current timestep
     integer, intent (in) :: nout
-    real, dimension (-ntgrid:,:), intent (in) :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
-    real, dimension (2,-ntgrid:ntgrid), intent (in) :: phi_dist
+    real, dimension (:, :), intent (in) :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
+    real, dimension (:, :), intent (in) :: phi_dist
 # ifdef NETCDF
     character(*), dimension(*), parameter :: flux_dist_dim = [theta_dim, species_dim, time_dim]
     character(*), dimension(*), parameter :: phi_dist_dim = [complex_dim, theta_dim, time_dim]
@@ -999,13 +1046,15 @@ contains
        call neasyf_write(file_id, "es_phi_dist", phi_dist, &
             dim_names=phi_dist_dim, start=starts(3, nout))
     end if
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(part_fluxes_dist)
+    UNUSED_DUMMY(mom_fluxes_par_dist); UNUSED_DUMMY(mom_fluxes_perp_dist)
+    UNUSED_DUMMY(heat_fluxes_dist); UNUSED_DUMMY(phi_dist)
 # endif
   end subroutine nc_loop_dist
   
   !> Write the momentum flux as a function of \((v_\parallel, \theta, t)\) to netCDF
   subroutine nc_loop_sym (file_id, nout, vflx_sym)
-    use theta_grid, only: ntgrid
 # ifdef NETCDF
     use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
@@ -1015,7 +1064,7 @@ contains
     integer, intent(in) :: file_id
     !> Current timestep
     integer, intent (in) :: nout
-    real, dimension (-ntgrid:,:,:), intent (in) :: vflx_sym
+    real, dimension (:,:,:), intent (in) :: vflx_sym
 # ifdef NETCDF
     
     if (has_phi) then
@@ -1024,13 +1073,13 @@ contains
             long_name="Momentum flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
             & see Parra et al POP 18 062501 2011")
     end if
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(vflx_sym)
 # endif
   end subroutine nc_loop_sym
   
   !> Write the particle flux contribution to toroidal momentum flux to netCDF
   subroutine nc_loop_partsym_tormom (file_id, nout, partflx_sym)
-    use theta_grid, only: ntgrid
 # ifdef NETCDF
     use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
@@ -1040,22 +1089,21 @@ contains
     integer, intent(in) :: file_id
     !> Current timestep
     integer, intent (in) :: nout
-    real, dimension (-ntgrid:,:,:), intent (in) :: partflx_sym
+    real, dimension (:,:,:), intent (in) :: partflx_sym
 # ifdef NETCDF
-
     if (has_phi) then
        call neasyf_write(file_id, "es_part_tormom_sym", partflx_sym, &
             dim_names=sym_dims, start=starts(4, nout), &
             long_name="Particle flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
             & see Parra et al POP 18 062501 2011 and ask Jung-Pyo Lee")
     end if
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(partflx_sym)
 # endif
   end subroutine nc_loop_partsym_tormom
 
   !> Write the correlation function over the physical domain to netCDF
   subroutine nc_loop_corr (file_id, nout, phi_2pi_corr)
-    use theta_grid, only: ntgrid
 # ifdef NETCDF
     use run_parameters, only: has_phi
 # endif
@@ -1065,7 +1113,7 @@ contains
     !> Current output timestep
     integer, intent (in) :: nout
     !> The correlation function over the physical domain
-    complex, dimension (-ntgrid:,:), intent (in) :: phi_2pi_corr
+    complex, dimension (:,:), intent (in) :: phi_2pi_corr
 # ifdef NETCDF
 
     if (has_phi) then
@@ -1073,7 +1121,8 @@ contains
             dim_names=[complex_dim, theta_dim, ky_dim, time_dim], start=starts(4, nout), &
             long_name="2 point correlation function calculated from the electric potential")
     end if
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(phi_2pi_corr)
 # endif
   end subroutine nc_loop_corr
 
@@ -1107,7 +1156,9 @@ contains
        call neasyf_write(file_id, "phi2_extend", phi2_extend, &
             dim_names=phi2_extend_dims, start=starts(4, nout_big))
     end if
-
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout_big); UNUSED_DUMMY(time); UNUSED_DUMMY(phi_corr)
+    UNUSED_DUMMY(phi2_extend)
 # endif
   end subroutine nc_loop_corr_extend
 
@@ -1187,6 +1238,13 @@ contains
 
     call neasyf_write(file_id, "phtot", phitot, dim_names=mode_dims, start=starts(3, nout), &
          long_name="Roughly the field line averaged summed field amplitudes")
+# else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(time)
+    UNUSED_DUMMY(phi2); UNUSED_DUMMY(apar2); UNUSED_DUMMY(bpar2); UNUSED_DUMMY(igomega)
+    UNUSED_DUMMY(h); UNUSED_DUMMY(hk); UNUSED_DUMMY(omega); UNUSED_DUMMY(omegaavg)
+    UNUSED_DUMMY(woutunits); UNUSED_DUMMY(tunits); UNUSED_DUMMY(phitot)
+    UNUSED_DUMMY(ql_metric); UNUSED_DUMMY(write_omega); UNUSED_DUMMY(write_heating)
+    UNUSED_DUMMY(write_ql_metric)
 # endif
   end subroutine nc_loop
 
@@ -1222,6 +1280,9 @@ contains
          long_name="Complex frequency averaged over navg timesteps", units="aref/vtref")
     call netcdf_write_complex(file_id, "omega_average", tmp, dim_names=omega_dims, start=starts(4, nout), &
          long_name="Complex frequency averaged over navg timesteps", units="aref/vtref")
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(omega)
+    UNUSED_DUMMY(omega_average); UNUSED_DUMMY(woutunits)
 #endif
   end subroutine nc_write_omega
 
@@ -1241,6 +1302,8 @@ contains
 
     call neasyf_write(file_id, "ql_metric_by_mode", ql_metric, dim_names=ql_dims, &
          start=starts(3, nout), long_name="QL flux metric by mode number")
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(ql_metric)
 #endif
   end subroutine nc_write_ql_metric
 
@@ -1312,6 +1375,10 @@ contains
          long_name=long_name // " volume average", units="(T_ref/q_ref rho_ref/a_ref)**2")
 
     call nc_final_fields(file_id)
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(field); UNUSED_DUMMY(field_name)
+    UNUSED_DUMMY(long_name); UNUSED_DUMMY(igomega); UNUSED_DUMMY(write_field_over_time)
+    UNUSED_DUMMY(field2)
 #endif
   end subroutine nc_write_field
 
@@ -1334,42 +1401,43 @@ contains
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
 #ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
-
-    call neasyf_write(file_id, "h_energy", h%energy, dim_names=[time_dim], start=[nout], &
+    ! Note: Here parentheses around variables passed to neasyf_write are an intentional
+    ! workaround to a gfortran bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105658
+    call neasyf_write(file_id, "h_energy", (h%energy), dim_names=[time_dim], start=[nout], &
          long_name="Total free (turbulent) energy")
-    call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_energy_dot", (h%energy_dot), dim_names=[time_dim], start=[nout], &
          long_name="Time derivative of total free energy")
-    call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_antenna", (h%antenna), dim_names=[time_dim], start=[nout], &
          long_name="Energy injection from antenna")
-    call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_eapar", (h%eapar), dim_names=[time_dim], start=[nout], &
          long_name="Free energy in perpendicular magnetic field")
-    call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_ebpar", (h%ebpar), dim_names=[time_dim], start=[nout], &
          long_name="Free energy in parallel magnetic field")
-    call neasyf_write(file_id, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_delfs2", (h%delfs2), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Total free energy dfs^2")
-    call neasyf_write(file_id, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hs2", (h%hs2), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Non-adiabatic free energy hs^2")
-    call neasyf_write(file_id, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_phis2", (h%phis2), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Adiabatic free energy phi_bar^2")
-    call neasyf_write(file_id, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hypervisc", (h%hypervisc), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from hyperviscosity")
-    call neasyf_write(file_id, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hyperres", (h%hyperres), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from hyperresitivity")
-    call neasyf_write(file_id, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_collisions", (h%collisions), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from collisions -[h C(h) * T_0]")
-    call neasyf_write(file_id, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_gradients", (h%gradients), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from gradient")
-    call neasyf_write(file_id, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_imp_colls", (h%imp_colls), dim_names=flux_dims, start=starts(2, nout), &
          long_name="[h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0")
-    call neasyf_write(file_id, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
-    call neasyf_write(file_id, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hypercoll", (h%hypercoll), dim_names=flux_dims, start=starts(2, nout))
+    call neasyf_write(file_id, "h_heating", (h%heating), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Total heating by species")
 
-    call neasyf_write(file_id, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_energy", (hk%energy), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_energy_dot", (hk%energy_dot), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_antenna", (hk%antenna), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_eapar", (hk%eapar), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_ebpar", (hk%ebpar), dim_names=mode_dims, start=starts(3, nout))
 
     call hk_repack (hk, 1, tmps)
     call neasyf_write(file_id, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
@@ -1392,6 +1460,8 @@ contains
     call neasyf_write(file_id, "hk_phis2", tmps, dim_names=fluxk_dims, start=starts(4, nout))
     call hk_repack (hk, 10, tmps)
     call neasyf_write(file_id, "hk_imp_colls", tmps, dim_names=fluxk_dims, start=starts(4, nout))
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(h); UNUSED_DUMMY(hk)
 #endif
   end subroutine nc_write_heating
 
@@ -1419,6 +1489,9 @@ contains
          long_name="Tpar (theta=0) over time")
     call netcdf_write_complex(file_id, "tperp0", tperp0, mom_dim, start=startmom, &
          long_name="Tperp (theta=0) over time")
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(ntot0); UNUSED_DUMMY(density0)
+    UNUSED_DUMMY(upar0); UNUSED_DUMMY(tpar0); UNUSED_DUMMY(tperp0)
 #endif
   end subroutine nc_loop_fullmom
 
@@ -1469,6 +1542,8 @@ contains
             dim_names=xmode_dim, start=starts(4, nout_movie))
        deallocate(yxbpar)
     end if
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout_movie); UNUSED_DUMMY(time)
 # endif
   end subroutine nc_loop_movie
 
@@ -1509,6 +1584,9 @@ contains
           if (status /= NF90_NOERR) call netcdf_error(status)
        endif
     endif
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(nout); UNUSED_DUMMY(movie_file_id)
+    UNUSED_DUMMY(nout_movie);  UNUSED_DUMMY(nsync_freq)
 # endif
   end subroutine nc_sync
 
@@ -1522,29 +1600,48 @@ contains
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 #ifdef NETCDF
-    call neasyf_write(file_id, "charge", spec%z, dim_names=["species"], &
+    ! Note: Here parentheses around variables passed to neasyf_write are an intentional
+    ! workaround to a gfortran bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105658
+    call neasyf_write(file_id, "charge", (spec%z), dim_names=["species"], &
          long_name="Charge", units="e")
-    call neasyf_write(file_id, "mass", spec%mass, dim_names=["species"], &
+    call neasyf_write(file_id, "mass", (spec%mass), dim_names=["species"], &
          long_name="Atomic mass", units="AMU")
-    call neasyf_write(file_id, "dens", spec%dens, dim_names=["species"], &
+    call neasyf_write(file_id, "dens", (spec%dens), dim_names=["species"], &
          long_name="Normalised density", units="nref")
-    call neasyf_write(file_id, "temp", spec%temp, dim_names=["species"], &
+    call neasyf_write(file_id, "temp", (spec%temp), dim_names=["species"], &
          long_name="Normalised temperature", units="Tref")
-    call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
+    call neasyf_write(file_id, "tprim", (spec%tprim), dim_names=["species"], &
          long_name="Normalised temperature gradient scale length -1/rho dT/drho", units="1/aref")
-    call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
+    call neasyf_write(file_id, "fprim", (spec%fprim), dim_names=["species"], &
          long_name="Normalised density gradient scale length -Lref/n dn/drho", units="1/aref")
-    call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
+    call neasyf_write(file_id, "uprim", (spec%uprim), dim_names=["species"], &
          long_name="Normalised parallel velocity gradient scale length -1/v_t du_par/drho", units="1/aref")
-    call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
-    call neasyf_write(file_id, "vnewk", spec%vnewk, dim_names=["species"], &
+    call neasyf_write(file_id, "uprim2", (spec%uprim2), dim_names=["species"])
+    call neasyf_write(file_id, "vnewk", (spec%vnewk), dim_names=["species"], &
          long_name="Collisionality", units="vtref/aref")
 
     ! FIXME: duplicated variable, old/new diagnostics
-    call neasyf_write(file_id, "type_of_species", spec%type, dim_names=["species"], &
-         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
-    call neasyf_write(file_id, "type", spec%type, dim_names=["species"], &
-         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
+    call neasyf_write(file_id, "type_of_species", (spec%type), dim_names=["species"], &
+         long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
+    call neasyf_write(file_id, "type", (spec%type), dim_names=["species"], &
+         long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
+
+    call neasyf_write(file_id, "f0type", (spec%f0type), dim_names=["species"], &
+         long_name="Species type: 1=Maxwellian, 2=Tabulated, 3=Analytic slowing down")
+    call neasyf_write(file_id, "nu_h", (spec%nu_h), dim_names=["species"], &
+         long_name="Hypervicsous collision factor")
+    call neasyf_write(file_id, "bess_fac", (spec%bess_fac), dim_names=["species"], &
+         long_name="Artificial factor scaling Bessel function arguments")
+    ! Parameters used in slowing down calculation
+    call neasyf_write(file_id, "vcrit", (spec%vcrit), dim_names=["species"])
+    call neasyf_write(file_id, "vcprim", (spec%vcprim), dim_names=["species"])
+    ! Parameters only used for certain initialisation options
+    call neasyf_write(file_id, "dens0", (spec%dens0), dim_names=["species"])
+    call neasyf_write(file_id, "u0", (spec%u0), dim_names=["species"])
+    call neasyf_write(file_id, "tpar0", (spec%tpar0), dim_names=["species"])
+    call neasyf_write(file_id, "tperp0", (spec%tperp0), dim_names=["species"])
+#else
+    UNUSED_DUMMY(file_id)
 #endif
   end subroutine nc_species
   
@@ -1556,7 +1653,6 @@ contains
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
     use kt_grids, only: kperp2
-    use dist_fn, only: supercell_labels
     use run_parameters, only: beta
     use neasyf, only: neasyf_write
 #endif
@@ -1612,12 +1708,28 @@ contains
     ! Wavenumber related quantities -- not strictly geometrical information.
     call neasyf_write(file_id, "kperp2", kperp2, dim_names=[theta_dim, kx_dim, ky_dim], &
          long_name="The perpendicular wavenumber squared", units="1/rho_r^2")
-    call neasyf_write(file_id, "supercell_labels", supercell_labels, dim_names=[kx_dim, ky_dim], &
-         long_name="Labels which unique supercell each wavenumber pair belongs to", units="N/A")
-
     ! FIXME: check if we need surfarea?
+#else
+    UNUSED_DUMMY(file_id)
 #endif
   end subroutine nc_geo
+
+  !> Write various quantities related to BC to output netCDF file
+  subroutine nc_bc(file_id)
+#ifdef NETCDF
+    use dist_fn, only: supercell_labels
+    use neasyf, only: neasyf_write
+#endif
+    implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+#ifdef NETCDF
+    call neasyf_write(file_id, "supercell_labels", supercell_labels, dim_names=[kx_dim, ky_dim], &
+         long_name="Labels which unique supercell each wavenumber pair belongs to", units="N/A")
+#else
+    UNUSED_DUMMY(file_id)
+#endif
+  end subroutine nc_bc
 
   !> Wrapper around `nf90_inquire_dimension`. Aborts if any errors are
   !> detected.
@@ -1631,7 +1743,6 @@ contains
     integer, intent(in) :: file_id
     !> Name of the dimension
     character(len=*), intent(in) :: name
-
 #ifdef NETCDF
     integer :: dim_id
     ! Temporary variable for the dimension name
@@ -1644,6 +1755,9 @@ contains
 
     status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
     call neasyf_error(status, file_id, dimid=dim_id, dim=name)
+#else
+    UNUSED_DUMMY(file_id); UNUSED_DUMMY(name)
+    length = 0
 #endif
   end function get_dim_length
 
@@ -1666,10 +1780,14 @@ contains
     character(len=*), optional, intent(in) :: long_name
     !> Offset (one-indexed) for writing time-varying arrays. Must include the complex dimension as the first index
     integer, dimension(:), optional, intent(in) :: start
-
 #ifdef NETCDF
     call neasyf_write(parent_id, name, [real(values), aimag(values)], &
          dim_names=dim_names, units=units, long_name=long_name, start=start)
+#else
+    UNUSED_DUMMY(parent_id); UNUSED_DUMMY(name); UNUSED_DUMMY(values)
+    UNUSED_DUMMY(units); UNUSED_DUMMY(long_name); UNUSED_DUMMY(start)
+    ! Bug in gcc gives a supurious warning for UNUSED_DUMMY on character(len=*) arrays
+    if (.false.) write(*,*) dim_names
 #endif
   end subroutine write_complex_scalar
 
@@ -1692,12 +1810,15 @@ contains
     character(len=*), optional, intent(in) :: long_name
     !> Offset (one-indexed) for writing time-varying arrays. Must include the complex dimension as the first index 
     integer, dimension(:), optional, intent(in) :: start
-
 #ifdef NETCDF
     real, dimension(2, size(values, 1)) :: real_values
-
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#else
+    UNUSED_DUMMY(parent_id); UNUSED_DUMMY(name); UNUSED_DUMMY(values)
+    UNUSED_DUMMY(units); UNUSED_DUMMY(long_name); UNUSED_DUMMY(start)
+    ! Bug in gcc gives a supurious warning for UNUSED_DUMMY on character(len=*) arrays
+    if (.false.) write(*,*) dim_names
 #endif
   end subroutine write_complex_rank1
 
@@ -1719,12 +1840,15 @@ contains
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
     integer, dimension(:), optional, intent(in) :: start
-
 #ifdef NETCDF
     real, dimension(2, size(values, 1), size(values, 2)) :: real_values
-
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#else
+    UNUSED_DUMMY(parent_id); UNUSED_DUMMY(name); UNUSED_DUMMY(values)
+    UNUSED_DUMMY(units); UNUSED_DUMMY(long_name); UNUSED_DUMMY(start)
+    ! Bug in gcc gives a supurious warning for UNUSED_DUMMY on character(len=*) arrays
+    if (.false.) write(*,*) dim_names
 #endif
   end subroutine write_complex_rank2
 
@@ -1746,12 +1870,15 @@ contains
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
     integer, dimension(:), optional, intent(in) :: start
-
 #ifdef NETCDF
     real, dimension(2, size(values, 1), size(values, 2), size(values, 3)) :: real_values
-
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#else
+    UNUSED_DUMMY(parent_id); UNUSED_DUMMY(name); UNUSED_DUMMY(values)
+    UNUSED_DUMMY(units); UNUSED_DUMMY(long_name); UNUSED_DUMMY(start)
+    ! Bug in gcc gives a supurious warning for UNUSED_DUMMY on character(len=*) arrays
+    if (.false.) write(*,*) dim_names
 #endif
   end subroutine write_complex_rank3
 
@@ -1773,12 +1900,15 @@ contains
     !> Long descriptive name
     character(len=*), optional, intent(in) :: long_name
     integer, dimension(:), optional, intent(in) :: start
-
 #ifdef NETCDF
     real, dimension(2, size(values, 1), size(values, 2), size(values, 3), size(values, 4)) :: real_values
-
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#else
+    UNUSED_DUMMY(parent_id); UNUSED_DUMMY(name); UNUSED_DUMMY(values)
+    UNUSED_DUMMY(units); UNUSED_DUMMY(long_name); UNUSED_DUMMY(start)
+    ! Bug in gcc gives a supurious warning for UNUSED_DUMMY on character(len=*) arrays
+    if (.false.) write(*,*) dim_names
 #endif
   end subroutine write_complex_rank4
 end module gs2_io

@@ -26,12 +26,6 @@ module build_config
   logical, parameter :: gs2_has_fft = .false.
 #endif
 
-#ifdef ISO_C_BINDING
-  logical, parameter :: gs2_has_iso_c_binding = .true.
-#else
-  logical, parameter :: gs2_has_iso_c_binding = .false.
-#endif
-
 #ifdef NEW_DIAG
   logical, parameter :: gs2_has_new_diag = .true.
 #else
@@ -48,6 +42,12 @@ module build_config
   logical, parameter :: gs2_has_netcdf = .true.
 #else
   logical, parameter :: gs2_has_netcdf = .false.
+#endif
+
+#ifdef NETCDF_PARALLEL
+  logical, parameter :: gs2_has_netcdf_parallel = .true.
+#else
+  logical, parameter :: gs2_has_netcdf_parallel = .false.
 #endif
 
 #ifdef LAPACK
@@ -87,37 +87,31 @@ module build_config
 #endif
 
   character(len=*), parameter :: gs2_build_tag = GS2_BUILD_TAG
+  character(len=*), parameter :: gs2_gk_system = GK_SYSTEM
 
 contains
 
   function formatted_build_config() result(output)
-#ifdef GK_HAS_COMPILER_OPTIONS_2008
     use, intrinsic :: iso_fortran_env, only: compiler_version, compiler_options
-#endif
     character(len=:), allocatable :: output
-
     character(len=*), parameter :: nl = new_line('a')
     integer, parameter :: max_len = 3000
 
     allocate(character(len=max_len)::output)
 
-#ifdef GK_HAS_COMPILER_OPTIONS_2008
     write(output, '(a, a)') "Built with ", compiler_version()
     write(output, '(a, a)') trim(output) // nl // "Build flags: ", compiler_options()
-#else
-    write(output, '(a, a)') "Built with compiler which does not support compiler_version()"
-    write(output, '(a, a)') trim(output) // nl // "Build flags: Cannot be detected"
-#endif
     write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
+    write(output, '(a, a)') trim(output) // nl // "GS2_GK_SYSTEM: ", gs2_gk_system
     write(output, '(a, a)') trim(output) // nl // "GS2_BUILD_TAG: ", gs2_build_tag
     write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi
     write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
     write(output, '(a, l)') trim(output) // nl // "OPENMP: ", gs2_has_openmp
     write(output, '(a, l)') trim(output) // nl // "FFTW: ", gs2_has_fft
-    write(output, '(a, l)') trim(output) // nl // "iso_c_binding: ", gs2_has_iso_c_binding
     write(output, '(a, l)') trim(output) // nl // "New diagnostics: ", gs2_has_new_diag
     write(output, '(a, l)') trim(output) // nl // "GENQUAD: ", gs2_has_genquad
     write(output, '(a, l)') trim(output) // nl // "NetCDF: ", gs2_has_netcdf
+    write(output, '(a, l)') trim(output) // nl // "NetCDF Parallel: ", gs2_has_netcdf_parallel
     write(output, '(a, l)') trim(output) // nl // "LAPACK: ", gs2_has_lapack
     write(output, '(a, l)') trim(output) // nl // "Lowflow: ", gs2_has_lowflow
     write(output, '(a, l)') trim(output) // nl // "Eigensolver: ", gs2_has_with_eig

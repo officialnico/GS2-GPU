@@ -47,22 +47,13 @@ contains
   !! to the new netcdf file
   subroutine write_omega(gnostics)
     use gs2_time, only: woutunits
-    use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: nc_write_omega
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    integer :: ik !, it
-    complex, dimension(0:gnostics%navg-1,ntheta0,naky) :: omegahist_woutunits
-    complex, dimension(ntheta0, naky) :: omega_average_woutunits
 
     if (.not. gnostics%writing) return
 
-    do ik=1,naky
-       omegahist_woutunits(:,:,ik) = omegahist(:,:,ik) * woutunits(ik)
-       omega_average_woutunits(:,ik) = omega_average(:,ik) * woutunits(ik)
-    end do
-    
     call nc_write_omega(gnostics%file_id, gnostics%nout, &
          omegahist(mod(gnostics%istep, gnostics%navg), :, :), omega_average, woutunits)
 

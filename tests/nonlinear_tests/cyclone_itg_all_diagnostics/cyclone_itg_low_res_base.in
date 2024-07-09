@@ -19,11 +19,6 @@
 !==============================
 !GENERAL PARAMETERS
 !==============================
-&parameters
- beta = 0.1 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
- zeff = 1.0 ! Effective ionic charge.
-/
-
 &kt_grids_knobs
  grid_option = "box" ! The general layout of the perpendicular grid.
 /
@@ -202,7 +197,6 @@
  write_flux_line = .true. !
  write_full_moments_notgc = .true. !
  write_g = .true. ! Write the distribution function to the '.dist' (NetCDF?)
- write_gg = .true. !
  write_gs = .true. !
  write_gyx = .true. ! Write dist fn at a given physical spacial point to a file
  write_heating = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
@@ -210,7 +204,6 @@
  write_kpar = .true. !
  write_line = .true. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
  write_lorentzian = .true. ! Frequency Sweep Data
- write_lpoly = .true. !
  write_max_verr = .true. !
  write_moments = .true. !
  write_fluxes = .true. ! Write nonlinear fluxes as a function of time.

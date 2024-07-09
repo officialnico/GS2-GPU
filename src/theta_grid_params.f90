@@ -1,24 +1,23 @@
 !> FIXME : Add documentation
 module theta_grid_params
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use geo_utils, only: mxh_max_moments
 
   implicit none
 
   private
 
-  public :: init_theta_grid_params
-  public :: finish_theta_grid_params
-  public :: wnml_theta_grid_params, write_trinity_parameters
+  public :: init_theta_grid_params, finish_theta_grid_params, wnml_theta_grid_params
   public :: rhoc, rmaj, r_geo, eps, epsl, qinp, shat, alpmhd
   public :: pk, geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
   public :: deltampri, deltanpri, thetam, thetan
   public :: btor_slab, betaprim, ntheta, nperiod
-  public :: set_overrides
+  public :: set_overrides, get_parameters_as_surf
 
   public :: theta_grid_parameters_config_type
   public :: set_theta_grid_params_config
   public :: get_theta_grid_params_config
-  
+
   real :: rhoc, rmaj, r_geo, eps, epsl
   real :: qinp, shat, alpmhd, pk
   integer :: geoType, mMode, nMode
@@ -26,14 +25,14 @@ module theta_grid_params
   real :: akappa, tri, delta2, delta3, deltampri, deltanpri
   real :: akappri, tripri, thetam, thetan, thetak, thetad, theta2, theta3
   real :: btor_slab, betaprim
-  real :: asym, asympri ! JRB - these two geometry parameters are NOT functional
-
-  integer :: ntheta, nperiod
+  integer :: ntheta, nperiod, n_mxh
+  real :: c0_mxh
+  real, dimension(mxh_max_moments) :: c_mxh, s_mxh, dc_mxh_dr, ds_mxh_dr
 
   logical :: initialized = .false.
   real :: kp = -1.
   logical :: exist
-  
+
   !> Used to represent the input configuration of theta_grid. Sets a
   !> number of parameters used by the different theta grid
   !> implementations. Not all parameters are active for a given theta
@@ -60,14 +59,6 @@ module theta_grid_params
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
      !> documentation for more details.
      real :: asurf = 1.0
-     !> No longer functional.
-     !>
-     !> @todo Consider removing
-     real :: asym = 0.0
-     !> No longer functional.
-     !>
-     !> @todo Consider removing
-     real :: asympri = 0.0
      !> In the slab limit, determines the angle between the field and
      !> the background flow (which flows in an imaginary toroidal
      !> direction). It is effectively equal to
@@ -76,6 +67,12 @@ module theta_grid_params
      !> geometry, where flow is by definition in the toroidal
      !> direction.
      real :: btor_slab = 0.0
+     !> Zeroth cosine moment for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real :: c0_mxh = 0.0
+     !> Cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(mxh_max_moments) :: c_mxh = 0.0
+     !> Radial derivatives of cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(mxh_max_moments) :: dc_mxh_dr = 0.0
      !> The elongation of the flux surface labeled by aSurf (only used
      !> when `geoType`=1, which selects the Global MHD analytic
      !> geometry specifications). See Section 2.1.2 of the [Analytic
@@ -129,17 +126,25 @@ module theta_grid_params
      !>  is the major radius at the centre of the flux surface.
      real :: epsl = 0.3
      !> Selects between different analytic geometry specifications
-     !> (only used when `iflux=0` and `local_eq=T`): `geoType=0`
-     !> selects the Generalised Miller, `geoType=1` selects the Global
-     !> MHD, `geoType=2` selects the Generalised Elongation, and
-     !> `geoType=3` selects the Fourier specification. See Section 2.1
-     !> of the [Analytic Geometry
+     !> (only used when `local_eq = T`):
+     !>
+     !> - `geoType = 0`: Generalised Miller
+     !> - `geoType = 1`: Global MHD
+     !> - `geoType = 2`: Generalised Elongation
+     !> - `geoType = 3`: Fourier specification.
+     !> - `geoType = 4`: Miller Extended Harmonic (MXH)
+     !>
+     !> See Section 2.1 of the [Analytic Geometry
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
-     !> documentation for more details.  @note The default for this
-     !> *MUST* be zero otherwise the Trinity interface will break.
-     integer :: geotype = 0 
+     !> documentation for more details on options 0-3, and [PPCF 63
+     !> (2021) 012001 (5pp)](https://doi.org/10.1088/1361-6587/abc63b)
+     !> for details of 4 (MXH).
+     !>
+     !> @note The default for this *MUST* be zero otherwise the
+     !> Trinity interface will break.
+     integer :: geotype = 0
      !> `kp` sets parallel wavenumber and box length in slab
-     !> geometry. \(k_p = \frac{2 \pi L_\textrm{ref}}{L_z}\).     
+     !> geometry. \(k_p = \frac{2 \pi L_\textrm{ref}}{L_z}\).
      !>
      !> - always use `kp` instead of `pk` in slab geometry (if `kp > 0`
      !> then gs2 sets `pk = 2*kp`)
@@ -163,6 +168,10 @@ module theta_grid_params
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
      !> documentation for more details.
      integer :: nmode = 3
+     !> Number of moments for the MXH local equilibrum. Maximum value
+     !> is [[mxh_max_moments]]. See [[geoType]] and [[local_eq]] for
+     !> more details.
+     integer :: n_mxh = 0
      !> Sets the number of \(2\pi\) segments along equilibrium
      !> magnetic field to include in simulation
      !> domain. \(N_\textrm{segments} = (2n_\textrm{period} - 1)\).
@@ -191,8 +200,8 @@ module theta_grid_params
      !> Sets value of the safety factor when using local toroidal
      !> equilibrium model.
      real :: qinp = 1.5
-     !> When `iflux = 1`: Centerpoint of LCFS (normalized to
-     !> \(L_\textrm{ref}\)) - When `iflux /= 1`: Major radius of
+     !> When not local_eq: Centerpoint of LCFS (normalized to
+     !> \(L_\textrm{ref}\)) - When local_eq: Major radius of
      !> magnetic field reference point (normalized to
      !> \(L_\textrm{ref}\)). Specifically, the reference magnetic
      !> field is defined to be the value of the toroidal magnetic
@@ -216,10 +225,14 @@ module theta_grid_params
      !> - When `irho` = 3, `rhoc` = poloidal flux/(poloidal flux of LCFS)
      !>
      real :: rhoc = 0.5
-     !> When `iflux = 1`: Position of magnetic axis (normalized to \(L_\textrm{ref}\)).
-     !> When `iflux /= 1`: Major radius of the centre of the
+     !> When not local_eq: Position of magnetic axis (normalized to \(L_\textrm{ref}\)).
+     !> When local_eq: Major radius of the centre of the
      !> flux surface of interest (normalized to \(L_\textrm{ref}\))
      real :: rmaj = 3.0
+     !> Sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(mxh_max_moments) :: s_mxh = 0.0
+     !> Radial derivatives of sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(mxh_max_moments) :: ds_mxh_dr = 0.0
      !> Sets value of magnetic shear in simple geometric models.
      !> Over-ridden by `s_hat_input` in [[theta_grid_eik_knobs]] for most values of `bishop`.
      real :: shat = 0.75
@@ -246,7 +259,7 @@ module theta_grid_params
      !> - in s-alpha(i.e. equilibrium_option='s-alpha'), no additional parameter
      !> is required as the piece of \(J_{\phi} \propto\) p' is
      !> specified by shift.
-     !> - in other analytic specifications (i.e. equilibrium_option='eik'), 
+     !> - in other analytic specifications (i.e. equilibrium_option='eik'),
      !> an additional parameter(beta_prime) is required to specify the piece of
      !> \(J_{\phi} \propto\) p'
      !>
@@ -323,18 +336,18 @@ module theta_grid_params
      procedure, public, nopass :: get_default_name => get_default_name_theta_grid_parameters_config
      procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_parameters_config
   end type theta_grid_parameters_config_type
-  
+
   type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
-  
+
 contains
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_theta_grid_params(theta_grid_parameters_config_in)
     use unit_tests, only: debug_message
     implicit none
-    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in   
+    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
-    
+
     call debug_message(verb, "theta_grid_params::init_theta_grid_params start")
     if (initialized) return
     initialized = .true.
@@ -359,15 +372,17 @@ contains
   subroutine read_parameters(theta_grid_parameters_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use unit_tests, only: debug_message
+    use geo_utils, only: geo_type_miller, geo_type_global, &
+         geo_type_generalized_elongation, geo_type_fourier_series, &
+         geo_type_miller_extended_harmonic, mxh_max_moments
     implicit none
     type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
-    
+
     call debug_message(verb, "theta_grid_params::read_parameters start")
-    
-    
+
     if (present(theta_grid_parameters_config_in)) theta_grid_parameters_config = theta_grid_parameters_config_in
-    
+
     call theta_grid_parameters_config%init(name = 'theta_grid_parameters', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
@@ -375,20 +390,23 @@ contains
     akappri = theta_grid_parameters_config%akappri
     alpmhd = theta_grid_parameters_config%alpmhd
     asurf = theta_grid_parameters_config%asurf
-    asym = theta_grid_parameters_config%asym
-    asympri = theta_grid_parameters_config%asympri
     btor_slab = theta_grid_parameters_config%btor_slab
+    c0_mxh = theta_grid_parameters_config%c0_mxh
+    c_mxh = theta_grid_parameters_config%c_mxh
+    dc_mxh_dr = theta_grid_parameters_config%dc_mxh_dr
     delta2 = theta_grid_parameters_config%delta2
     delta3 = theta_grid_parameters_config%delta3
     deltam = theta_grid_parameters_config%deltam
     deltampri = theta_grid_parameters_config%deltampri
     deltan = theta_grid_parameters_config%deltan
     deltanpri = theta_grid_parameters_config%deltanpri
+    ds_mxh_dr = theta_grid_parameters_config%ds_mxh_dr
     eps = theta_grid_parameters_config%eps
     epsl = theta_grid_parameters_config%epsl
     geotype = theta_grid_parameters_config%geotype
     kp = theta_grid_parameters_config%kp
     mmode = theta_grid_parameters_config%mmode
+    n_mxh = theta_grid_parameters_config%n_mxh
     nmode = theta_grid_parameters_config%nmode
     nperiod = theta_grid_parameters_config%nperiod
     ntheta = theta_grid_parameters_config%ntheta
@@ -398,6 +416,7 @@ contains
     raxis = theta_grid_parameters_config%raxis
     rhoc = theta_grid_parameters_config%rhoc
     rmaj = theta_grid_parameters_config%rmaj
+    s_mxh = theta_grid_parameters_config%s_mxh
     shat = theta_grid_parameters_config%shat
     shift = theta_grid_parameters_config%shift
     shiftvert = theta_grid_parameters_config%shiftvert
@@ -418,7 +437,7 @@ contains
     ! Print warning if the user has specified non-default values for the
     ! geometrical input parameters of other geometry types ! JRB
     select case (geoType)
-       case (0)
+       case (geo_type_miller)
           if (mMode/=2) write (*,*) "WARNING: ignoring value of mMode, value not needed"
           if (nMode/=3) write (*,*) "WARNING: ignoring value of nMode, value not needed"
           if (deltam/=1.0) write (*,*) "WARNING: ignoring value of deltam, did you mean akappa?"
@@ -440,7 +459,7 @@ contains
           deltanpri = tripri
           thetam = thetak
           thetan = thetad
-       case (1)
+       case (geo_type_global)
           if (mMode/=2) write (*,*) "WARNING: ignoring value of mMode, value not needed"
           if (nMode/=3) write (*,*) "WARNING: ignoring value of nMode, value not needed"
           if (deltam/=1.0) write (*,*) "WARNING: ignoring value of deltam, did you mean delta2?"
@@ -469,7 +488,7 @@ contains
           deltan = delta3
           thetam = theta2
           thetan = theta3
-       case (2)
+       case (geo_type_generalized_elongation)
           if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, did you mean deltam?"
           if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, did you mean deltan?"
           if (akappa/=1.0) write (*,*) "WARNING: ignoring value of akappa, did you mean deltam?"
@@ -483,8 +502,8 @@ contains
           if (aSurf/=1.0) write (*,*) "WARNING: ignoring value of aSurf, value not needed"
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
-          
-       case (3)
+
+       case (geo_type_fourier_series)
           if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, did you mean deltam?"
           if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, did you mean deltan?"
           if (akappa/=1.0) write (*,*) "WARNING: ignoring value of akappa, did you mean deltam?"
@@ -498,15 +517,62 @@ contains
           if (aSurf/=1.0) write (*,*) "WARNING: ignoring value of aSurf, value not needed"
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
-          
-       case default
+
+       case (geo_type_miller_extended_harmonic)
+          if (deltam/=1.0) write (*,*) "WARNING: ignoring value of deltam, did you mean akappa?"
+          if (deltampri/=0.0) write (*,*) "WARNING: ignoring value of deltampri, did you mean akappri?"
+
+          if (mMode/=2) write (*,*) "WARNING: ignoring value of mMode, value not needed"
+          if (nMode/=3) write (*,*) "WARNING: ignoring value of nMode, value not needed"
+          if (deltan/=1.0) write (*,*) "WARNING: ignoring value of deltan, value not needed"
+          if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, value not needed"
+          if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, value not needed"
+          if (deltampri/=0.0) write (*,*) "WARNING: ignoring value of deltampri, value not needed"
+          if (deltanpri/=0.0) write (*,*) "WARNING: ignoring value of deltanpri, value not needed"
+          if (thetam/=0.0) write (*,*) "WARNING: ignoring value of thetam, value not needed"
+          if (thetan/=0.0) write (*,*) "WARNING: ignoring value of thetan, value not needed"
+          if (theta2/=0.0) write (*,*) "WARNING: ignoring value of theta2, value not needed"
+          if (theta3/=0.0) write (*,*) "WARNING: ignoring value of theta3, value not needed"
+          if (aSurf/=1.0) write (*,*) "WARNING: ignoring value of aSurf, value not needed"
+          if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
+          if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
+
+          deltam = akappa
+          deltampri = akappri
+
+          if (theta_grid_parameters_config%n_mxh > mxh_max_moments) then
+             write(*, '(A, I0, A, I0, A, I0)') &
+                  "WARNING: ''n_mxh'' (", &
+                  theta_grid_parameters_config%n_mxh, &
+                  ") is larger than maximum number of moments for MXH geometry (", &
+                  mxh_max_moments, "), truncating to ", mxh_max_moments
+          end if
+
+       case default ! We should abort here, but we don't know if local_eq is true so maybe this is fine.
           write (*,*) "ERROR: invalid analytic geometry specification"
     end select
 
-    if (asym/=0.0) write (*,*) "WARNING: ignoring value of asym (not functional)"
-    if (asympri/=0.0) write (*,*) "WARNING: ignoring value of asympri (not functional)"
-
   end subroutine read_parameters
+
+  !> Packs all relevant parameters into a flux_surface_type instance.
+  !> Note we can't fully populate the surface instance as we don't hold delrho
+  function get_parameters_as_surf() result(surf)
+    use geo_utils, only: flux_surface_type
+    implicit none
+    type(flux_surface_type) :: surf
+    surf = flux_surface_type(geotype, &
+         mMode=mMode, nMode=nMode, &
+         rmaj=rmaj, r_geo=R_geo, r=rhoc, &
+         aSurf=aSurf, sHorz=shift, &
+         sVert=shiftVert, delm=deltam,&
+         deln=deltan, delmp=deltampri, &
+         delnp=deltanpri, thm=thetam, &
+         thn=thetan, q=qinp, shat=shat, &
+         nt=ntheta,& ! Might not want to pack this here
+         n_mxh=n_mxh, c0_mxh=c0_mxh,&
+         c_mxh=c_mxh, s_mxh=s_mxh,&
+         dc_mxh_dr=dc_mxh_dr, ds_mxh_dr=ds_mxh_dr)
+  end function get_parameters_as_surf
 
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_params(unit)
@@ -544,31 +610,6 @@ contains
   end subroutine wnml_theta_grid_params
 
   !> FIXME : Add documentation
-  subroutine write_trinity_parameters(trinpars_unit)
-    integer, intent(in) :: trinpars_unit
-    write (trinpars_unit, "(A22)") '&theta_grid_parameters'
-    write (trinpars_unit, *) ' rhoc = ', rhoc
-    write (trinpars_unit, *) ' qinp = ', qinp
-    write (trinpars_unit, *) ' shat = ', shat
-    write (trinpars_unit, *) ' rmaj = ', rmaj
-    write (trinpars_unit, *) ' r_geo = ', r_geo
-    write (trinpars_unit, *) ' geoType = ', geoType
-    write (trinpars_unit, *) ' aSurf = ', aSurf
-    write (trinpars_unit, *) ' shift = ', shift
-    write (trinpars_unit, *) ' shiftVert = ', shiftVert
-    write (trinpars_unit, *) ' mMode = ', mMode
-    write (trinpars_unit, *) ' nMode = ', nMode
-    write (trinpars_unit, *) ' deltam = ', deltam
-    write (trinpars_unit, *) ' deltan = ', deltan
-    write (trinpars_unit, *) ' deltampri = ', deltampri
-    write (trinpars_unit, *) ' deltanpri = ', deltanpri
-    write (trinpars_unit, *) ' thetam = ', thetam
-    write (trinpars_unit, *) ' thetan = ', thetan
-    write (trinpars_unit, *) ' betaprim = ', betaprim
-    write (trinpars_unit, "(A1)") '/'
-  end subroutine write_trinity_parameters
-
-  !> FIXME : Add documentation
   subroutine set_overrides(mgeo_ov)
     use overrides, only: miller_geometry_overrides_type
     type(miller_geometry_overrides_type), intent(in) :: mgeo_ov
@@ -594,14 +635,14 @@ contains
     else if (mgeo_ov%override_tri) then
       deltan = mgeo_ov%tri
     end if
-    if (mgeo_ov%override_deltampri) then 
+    if (mgeo_ov%override_deltampri) then
       deltampri = mgeo_ov%deltampri
-    else if (mgeo_ov%override_akappri) then 
+    else if (mgeo_ov%override_akappri) then
       deltampri = mgeo_ov%akappri
     end if
-    if (mgeo_ov%override_deltanpri) then 
+    if (mgeo_ov%override_deltanpri) then
       deltanpri = mgeo_ov%deltanpri
-    else if (mgeo_ov%override_tripri) then 
+    else if (mgeo_ov%override_tripri) then
       deltanpri = mgeo_ov%tripri
     end if
     if (mgeo_ov%override_thetam) thetam = mgeo_ov%thetam
@@ -631,8 +672,8 @@ contains
 
   !---------------------------------------
   ! Following is for the config_type
-  !--------------------------------------- 
-  
+  !---------------------------------------
+
   !> Reads in the theta_grid_parameters namelist and populates the member variables
   subroutine read_theta_grid_parameters_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -645,12 +686,13 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: geotype, mmode, nmode, nperiod, ntheta
-    real :: akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
-    real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
+    integer :: geotype, mmode, n_mxh, nmode, nperiod, ntheta
+    real :: akappa, akappri, alpmhd, asurf, btor_slab, c0_mxh, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2, theta3
+    real :: thetad, thetak, thetam, thetan, tri, tripri, zaxis
+    real, dimension(mxh_max_moments) :: c_mxh, dc_mxh_dr, ds_mxh_dr, s_mxh
 
-    namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
-         rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
+    namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, btor_slab, c0_mxh, c_mxh, dc_mxh_dr, delta2, delta3, deltam, deltampri, deltan, deltanpri, ds_mxh_dr, eps, epsl, geotype, kp, mmode, n_mxh, nmode, nperiod, ntheta, pk, &
+         qinp, r_geo, raxis, rhoc, rmaj, s_mxh, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -660,20 +702,23 @@ contains
     akappri = self%akappri
     alpmhd = self%alpmhd
     asurf = self%asurf
-    asym = self%asym
-    asympri = self%asympri
     btor_slab = self%btor_slab
+    c0_mxh = self%c0_mxh
+    c_mxh = self%c_mxh
+    dc_mxh_dr = self%dc_mxh_dr
     delta2 = self%delta2
     delta3 = self%delta3
     deltam = self%deltam
     deltampri = self%deltampri
     deltan = self%deltan
     deltanpri = self%deltanpri
+    ds_mxh_dr = self%ds_mxh_dr
     eps = self%eps
     epsl = self%epsl
     geotype = self%geotype
     kp = self%kp
     mmode = self%mmode
+    n_mxh = self%n_mxh
     nmode = self%nmode
     nperiod = self%nperiod
     ntheta = self%ntheta
@@ -683,6 +728,7 @@ contains
     raxis = self%raxis
     rhoc = self%rhoc
     rmaj = self%rmaj
+    s_mxh = self%s_mxh
     shat = self%shat
     shift = self%shift
     shiftvert = self%shiftvert
@@ -705,20 +751,23 @@ contains
     self%akappri = akappri
     self%alpmhd = alpmhd
     self%asurf = asurf
-    self%asym = asym
-    self%asympri = asympri
     self%btor_slab = btor_slab
+    self%c0_mxh = c0_mxh
+    self%c_mxh = c_mxh
+    self%dc_mxh_dr = dc_mxh_dr
     self%delta2 = delta2
     self%delta3 = delta3
     self%deltam = deltam
     self%deltampri = deltampri
     self%deltan = deltan
     self%deltanpri = deltanpri
+    self%ds_mxh_dr = ds_mxh_dr
     self%eps = eps
     self%epsl = epsl
     self%geotype = geotype
     self%kp = kp
     self%mmode = mmode
+    self%n_mxh = n_mxh
     self%nmode = nmode
     self%nperiod = nperiod
     self%ntheta = ntheta
@@ -728,6 +777,7 @@ contains
     self%raxis = raxis
     self%rhoc = rhoc
     self%rmaj = rmaj
+    self%s_mxh = s_mxh
     self%shat = shat
     self%shift = shift
     self%shiftvert = shiftvert
@@ -748,7 +798,7 @@ contains
   subroutine write_theta_grid_parameters_config(self, unit)
     implicit none
     class(theta_grid_parameters_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
+    integer, intent(in), optional:: unit
     integer :: unit_internal
 
     unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -761,20 +811,23 @@ contains
     call self%write_key_val("akappri", self%akappri, unit_internal)
     call self%write_key_val("alpmhd", self%alpmhd, unit_internal)
     call self%write_key_val("asurf", self%asurf, unit_internal)
-    call self%write_key_val("asym", self%asym, unit_internal)
-    call self%write_key_val("asympri", self%asympri, unit_internal)
     call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
+    call self%write_key_val("c0_mxh", self%c0_mxh, unit_internal)
+    call self%write_key_val("c_mxh", self%c_mxh, unit_internal)
+    call self%write_key_val("dc_mxh_dr", self%dc_mxh_dr, unit_internal)
     call self%write_key_val("delta2", self%delta2, unit_internal)
     call self%write_key_val("delta3", self%delta3, unit_internal)
     call self%write_key_val("deltam", self%deltam, unit_internal)
     call self%write_key_val("deltampri", self%deltampri, unit_internal)
     call self%write_key_val("deltan", self%deltan, unit_internal)
     call self%write_key_val("deltanpri", self%deltanpri, unit_internal)
+    call self%write_key_val("ds_mxh_dr", self%ds_mxh_dr, unit_internal)
     call self%write_key_val("eps", self%eps, unit_internal)
     call self%write_key_val("epsl", self%epsl, unit_internal)
     call self%write_key_val("geotype", self%geotype, unit_internal)
     call self%write_key_val("kp", self%kp, unit_internal)
     call self%write_key_val("mmode", self%mmode, unit_internal)
+    call self%write_key_val("n_mxh", self%n_mxh, unit_internal)
     call self%write_key_val("nmode", self%nmode, unit_internal)
     call self%write_key_val("nperiod", self%nperiod, unit_internal)
     call self%write_key_val("ntheta", self%ntheta, unit_internal)
@@ -784,6 +837,7 @@ contains
     call self%write_key_val("raxis", self%raxis, unit_internal)
     call self%write_key_val("rhoc", self%rhoc, unit_internal)
     call self%write_key_val("rmaj", self%rmaj, unit_internal)
+    call self%write_key_val("s_mxh", self%s_mxh, unit_internal)
     call self%write_key_val("shat", self%shat, unit_internal)
     call self%write_key_val("shift", self%shift, unit_internal)
     call self%write_key_val("shiftvert", self%shiftvert, unit_internal)
@@ -819,20 +873,23 @@ contains
     call broadcast(self%akappri)
     call broadcast(self%alpmhd)
     call broadcast(self%asurf)
-    call broadcast(self%asym)
-    call broadcast(self%asympri)
     call broadcast(self%btor_slab)
+    call broadcast(self%c0_mxh)
+    call broadcast(self%c_mxh)
+    call broadcast(self%dc_mxh_dr)
     call broadcast(self%delta2)
     call broadcast(self%delta3)
     call broadcast(self%deltam)
     call broadcast(self%deltampri)
     call broadcast(self%deltan)
     call broadcast(self%deltanpri)
+    call broadcast(self%ds_mxh_dr)
     call broadcast(self%eps)
     call broadcast(self%epsl)
     call broadcast(self%geotype)
     call broadcast(self%kp)
     call broadcast(self%mmode)
+    call broadcast(self%n_mxh)
     call broadcast(self%nmode)
     call broadcast(self%nperiod)
     call broadcast(self%ntheta)
@@ -842,6 +899,7 @@ contains
     call broadcast(self%raxis)
     call broadcast(self%rhoc)
     call broadcast(self%rmaj)
+    call broadcast(self%s_mxh)
     call broadcast(self%shat)
     call broadcast(self%shift)
     call broadcast(self%shiftvert)
@@ -857,7 +915,7 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_parameters_config
-  
+
   !> Gets the default name for this namelist
   function get_default_name_theta_grid_parameters_config()
     implicit none

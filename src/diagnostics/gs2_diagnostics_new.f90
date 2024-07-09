@@ -1,8 +1,8 @@
 !> A module for calculating and writing gs2 outputs. It can write
-!! these outputs both to a netcdf file <run_name>.cdf or to ascii text
-!! files. It is controlled via the namelist diagnostics_config. 
-!! This module is intended to replace the old gs2_diagnostics module with a 
-!! simpler and more structured interface. 
+!> these outputs both to a netcdf file <run_name>.cdf or to ascii text
+!> files. It is controlled via the namelist diagnostics_config.
+!> This module is intended to replace the old gs2_diagnostics module with a
+!> simpler and more structured interface.
 module gs2_diagnostics_new
   use diagnostics_config, only: diagnostics_type
   implicit none
@@ -14,27 +14,20 @@ module gs2_diagnostics_new
   public :: reset_averages_and_counters
   public :: run_diagnostics
   public :: gnostics
-  
-  !> Options passed to init_gs2_diagnostics_new 
-  public :: diagnostics_init_options_type
 
-  !> FIXME : Add documentation  
-  type diagnostics_init_options_type
-     logical :: parallel_io_capable
-     logical :: default_double
-     logical :: initialized
-     logical :: is_trinity_run
-  end type diagnostics_init_options_type
+  !> Do we have parallel IO capability in the build. This is always disabled
+  !> for now whilst we actually implement this feature
+  logical, parameter :: parallel_io_capable = .false.
 
   type(diagnostics_type) :: gnostics 
 
-  logical, parameter :: debug=.false.
+  logical, parameter :: debug = .false.
 
 contains
 
   !> Read namelist diagnostics_config, initialise submodules,
-  !! open output file 'run_name.cdf' and create dimensions.
-  subroutine init_gs2_diagnostics_new(init_options, header)
+  !> open output file 'run_name.cdf' and create dimensions.
+  subroutine init_gs2_diagnostics_new(header)
     use kt_grids, only: nx, ny, naky, ntheta0
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -50,6 +43,7 @@ contains
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
     use collisional_heating, only: init_collisional
+    use collisions, only: heating, set_heating
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
@@ -64,7 +58,6 @@ contains
     use neasyf, only: neasyf_open
     use gs2_io, only: define_dims, nc_norms, nc_species, nc_geo, save_input, get_dim_length, nc_grids_mymovie
     implicit none
-    type(diagnostics_init_options_type), intent(in) :: init_options
     !> Header for files with build and run information
     type(standard_header_type), intent(in) :: header
     logical :: ex, accelerated
@@ -91,14 +84,13 @@ contains
     save_many = gnostics%save_many
 
     if (.not. gnostics%write_any) return
-
-    ! Set whether this is a Trinity run.. enforces certain 
-    ! calculations
-    gnostics%is_trinity_run = init_options%is_trinity_run
     
     gnostics%parallel = .false.
     if (gnostics%enable_parallel) then
-       if (init_options%parallel_io_capable) then 
+       !> We should replace parallel_io_capable below with
+       !> [[build_config:gs2_has_netcdf_parallel]] once we actually
+       !> want to allow parallel diagnostics.
+       if (parallel_io_capable) then
           gnostics%parallel = .true.
        else
           if (proc0) write (*,*) "WARNING: you have selected &
@@ -118,6 +110,14 @@ contains
     !<DD>This is only correct if running in box mode surely?
     !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
     if(aky(1)==0.0) gnostics%fluxfac(1) = 1.0
+
+    if (gnostics%write_heating .and. .not. heating) then
+       if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
+       gnostics%write_heating = .false.
+    else if (heating .and. .not. &
+       (gnostics%write_heating .or. gnostics%write_collisional)) then
+       call set_heating(.false.)
+    end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!! Open Text Files (if required)
@@ -221,6 +221,8 @@ contains
     gnostics%ascii_files%write_to_vres   = gnostics%write_verr    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_vres2  = gnostics%write_verr    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_cres   = gnostics%write_cerr    .and.  gnostics%write_ascii
+    gnostics%ascii_files%write_to_dist   = gnostics%write_g    .and.  gnostics%write_ascii
+    gnostics%ascii_files%write_to_yxdist   = gnostics%write_gyx    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_phase  = gnostics%write_cross_phase .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_jext   = gnostics%write_jext    .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_parity = gnostics%write_parity  .and.  gnostics%write_ascii
@@ -238,9 +240,8 @@ contains
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
     use collisional_heating, only: finish_collisional
-    use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom
+    use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom, do_write_fyx, do_write_f
     use nonlinear_terms, only: nonlin
-    use dist_fn, only: write_fyx, write_f, write_poly, collision_error
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use unit_tests, only: debug_message
@@ -275,30 +276,39 @@ contains
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
        call neasyf_close(gnostics%file_id)
     end if
-    if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
     
     ! Random stuff that needs to be put in properly or removed
-    if (gnostics%write_gyx) call write_fyx (phinew,bparnew,.true.)
-    if (gnostics%write_g) call write_f (.true.)
-    if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.true.,gnostics%istep)
+    ! Note we don't use gnostics%ascii_files%write_to_yxdist here
+    ! because do_write_fyx is collective but gnostics%ascii_files%write_to_yxdist
+    ! is only set on proc0
+    if (gnostics%write_ascii .and. gnostics%write_gyx) &
+         call do_write_fyx (gnostics%ascii_files%yxdist, phinew, bparnew)
+    if (gnostics%write_ascii .and. gnostics%write_g) &
+         call do_write_f (gnostics%ascii_files%dist)
     if (gnostics%write_ascii) call do_write_geom()
-    
+    if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
+
     call finish_diagnostics_config(gnostics)
   end subroutine finish_gs2_diagnostics_new
 
   !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_fyx, write_f, write_poly, collision_error
+    use gs2_diagnostics, only: do_write_fyx, do_write_f
     implicit none
     integer :: nwrite_large
 
     nwrite_large = gnostics%nwrite*gnostics%nwrite_mult
+    if (mod(gnostics%istep,nwrite_large) /= 0) return
+
     ! Random stuff that needs to be put in properly or removed
-    if (gnostics%write_gyx .and. &
-      mod(gnostics%istep,nwrite_large) == 0) call write_fyx (phinew,bparnew,.false.)
-    if (gnostics%write_g   .and. mod(gnostics%istep,nwrite_large) == 0) call write_f (.false.)
-    if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.false.,gnostics%istep)
+    ! Note we don't use gnostics%ascii_files%write_to_yxdist here
+    ! because do_write_fyx is collective but gnostics%ascii_files%write_to_yxdist
+    ! is only set on proc0
+    if (gnostics%write_ascii .and. gnostics%write_gyx) &
+         call do_write_fyx (gnostics%ascii_files%yxdist, phinew, bparnew)
+    if (gnostics%write_ascii .and. gnostics%write_g) &
+         call do_write_f (gnostics%ascii_files%dist)
   end subroutine run_diagnostics_to_be_updated
 
   !> Calculates and write the QL flux metric to netcdf
@@ -312,7 +322,7 @@ contains
     real, dimension(ntheta0, naky) :: growth_rates
     if (.not. gnostics%writing) return
 
-    growth_rates = imag(calculate_instantaneous_omega(&
+    growth_rates = aimag(calculate_instantaneous_omega(&
          ig = gnostics%igomega, tolerance = gnostics%omegatol))
     call nc_write_ql_metric(gnostics%file_id, gnostics%nout, &
          ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates))
@@ -394,8 +404,7 @@ contains
     
     gnostics%calculate_fluxes = (gnostics%write_fluxes &
          .or.  gnostics%print_flux_line &
-         .or.  gnostics%write_flux_line &
-         .or.  gnostics%is_trinity_run)
+         .or.  gnostics%write_flux_line)
 
     gnostics%user_time = user_time
     if (istep .eq. 0) gnostics%start_time = user_time

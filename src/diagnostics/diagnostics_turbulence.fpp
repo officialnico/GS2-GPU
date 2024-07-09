@@ -11,7 +11,9 @@ contains
   subroutine write_cross_phase(gnostics)
     use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     use gs2_io, only: time_dim
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
@@ -23,7 +25,7 @@ contains
     call get_cross_phase (gnostics, phase_tot, phase_theta)
     
     if (.not. gnostics%writing) return
-
+#ifdef NETCDF
     call neasyf_write(gnostics%file_id, "electron_cross_phase_theta", phase_theta, &
          dim_names=[time_dim], start=[gnostics%nout], &
          long_name="Cross phase between electron density and perpendicular electron temperature, &
@@ -32,7 +34,7 @@ contains
          dim_names=[time_dim], start=[gnostics%nout], &
          long_name="Cross phase between electron density and perpendicular electron temperature, &
          & averaged across all space", units="radians")
-    
+#endif
     if (proc0 .and. gnostics%ascii_files%write_to_phase .and. (.not. gnostics%create)) write (unit=gnostics%ascii_files%phase, &
          fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
          & t, phase_tot, phase_theta
@@ -49,7 +51,7 @@ contains
     use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
-    use dist_fn, only: getemoms
+    use diagnostics_moments, only: getemoms
     use fields_arrays, only: phinew, bparnew
     use volume_averages, only: average_all
     use diagnostics_config, only: diagnostics_type

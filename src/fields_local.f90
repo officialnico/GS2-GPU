@@ -1090,7 +1090,7 @@ contains
   subroutine sc_store_fq(self, fq, fqa, fqp, ifl_in, it_in, ig_in)
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use mp, only: mp_abort, iproc
+    use mp, only: mp_abort
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:, :), intent(in) :: fq, fqa, fqp
@@ -2301,7 +2301,7 @@ contains
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
-    integer :: ik, is
+    integer :: ik
 
     !First get the field eq
     if(pc%has_to_gather)then

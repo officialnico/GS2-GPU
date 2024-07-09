@@ -173,7 +173,7 @@ contains
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension(:, :, :), allocatable :: g_pass
     integer :: iglo, it, ik, il
-    allocate(g_pass, mold = g_in)
+    allocate(g_pass(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     err = 0.0
 
     g_pass = 0.0

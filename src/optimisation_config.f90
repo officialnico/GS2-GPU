@@ -38,8 +38,8 @@ module optimisation_config
      integer :: nproc_max
      type(optimisation_results_type) :: results
      type(optimisations_overrides_type), &
-          dimension(:), pointer :: sorted_optimisations
-     type(optimisation_results_type), dimension(:), pointer :: sorted_results
+          dimension(:), allocatable :: sorted_optimisations
+     type(optimisation_results_type), dimension(:), allocatable :: sorted_results
      real :: timing_rel_error
      real :: timing_max_rel_error
      integer :: outunit

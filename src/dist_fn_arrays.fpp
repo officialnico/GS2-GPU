@@ -12,10 +12,10 @@ module dist_fn_arrays
 
   public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
-  public :: vperp2, aj0, aj1
+  public :: vperp2, aj0, aj1, wstar
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
-  public :: c_rate, to_g_gs2, from_g_gs2
+  public :: c_rate, to_g_gs2, from_g_gs2, get_adjust
   public :: g_adjust, check_g_bouncepoints, set_h_zero
   public :: antot, antota, antotp, fieldeq, fieldeqa, fieldeqp
 
@@ -26,6 +26,9 @@ module dist_fn_arrays
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
   ! (-ntgrid:ntgrid,2, -g-layout-)
+
+  real, dimension (:,:,:), allocatable :: wstar
+  ! (naky,negrid,nspec) replicated
 
 #ifndef SHMEM
   complex, dimension (:,:,:), allocatable :: g_work
@@ -170,6 +173,19 @@ contains
     end do
     !$OMP END PARALLEL DO
   end subroutine g_adjust_floats
+
+  !> Return the offset between g and h at a specific set of indices
+  pure complex function get_adjust(ig, it, ik, ie, is, iglo, &
+       facphi, facbpar, phi, bpar) result(adjust)
+    use theta_grid, only: ntgrid
+    use species, only: spec, nonmaxw_corr
+    integer, intent(in) :: ig, it, ik, ie, is, iglo
+    real, intent (in) :: facphi, facbpar
+    complex, dimension(-ntgrid:, :, :), intent(in) :: phi, bpar
+
+    adjust = 2 * vperp2(ig, iglo) * aj1(ig, iglo) * bpar(ig, it, ik) * facbpar + &
+         spec(is)%zt * phi(ig, it, ik) * aj0(ig, iglo) * facphi * nonmaxw_corr(ie, is)
+  end function get_adjust
 
   !> This routine checks trapped particle bounce conditions: 
   !!     g(thetab,1:ik,it,il,ie,is)=g(thetab,2:ik,it,il,ie,is)

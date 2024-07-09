@@ -1,6 +1,11 @@
 !include basic_settings.in
 
-!include ke_low_coll.in
+&test_settings
+  tolerance = 1.0e-5
+  gamma_expected = 0.171047
+  omega_expected = 0.189769
+/
+  
 
 &species_knobs
     nspec = 2

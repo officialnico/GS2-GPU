@@ -13,7 +13,7 @@ header() {
 
 add_to_local_makefile() {
     header "Adding to Makefile.local"
-    echo ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
+    echo -e ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
     cat Makefile.local
 }
 
@@ -34,7 +34,7 @@ make_and_run_pfunit_tests() {
     else
         make -j pfunit_coverage ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
     fi
-
+    pipeline_test_scripts/didPfunitTestsFail.sh ${PWD}/ pfunit.error
 }
 
 make_and_run_integrated_tests() {

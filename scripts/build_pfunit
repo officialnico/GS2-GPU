@@ -16,9 +16,16 @@ pfunit_use_mpi="YES"
 # Should pFUnit use OpenMP
 pfunit_use_openmp="NO"
 
+# Should we try to find git
+pfunit_try_git="YES"
+
+# Should we skip if install directory already exists
+pfunit_skip_if_present="YES"
+
 # Which major version of pfunit are we using
 # Version 4+ needs very recent compilers
-pfunit_version_major=3
+pfunit_version_major=4
+pfunit_version_minor=8
 
 # Number of make jobs to use (i.e. argument to `make -j N`)
 make_jobs=1
@@ -27,7 +34,6 @@ make_jobs=1
 gs2_directory=$(pwd)
 externals_directory="${gs2_directory}/externals"
 pfunit_directory="${externals_directory}/pFUnit"
-pfunit_version_directory="${externals_directory}/pFUnit-${pfunit_version}"
 pfunit_build_directory="${externals_directory}/pFUnit_build"
 pfunit_install_directory="${externals_directory}/pFUnit_build/install"
 
@@ -38,7 +44,10 @@ function usage {
     echo "Arguments:"
     echo "  -m              Disable MPI"
     echo "  -o              Enable OpenMP"
+    echo "  -g              Ignore git"
+    echo "  -f              Force install (ignores presence of existing directory)"
     echo "  -v 3|4          Set which major version of pFUnit to use"
+    echo "  -V              Set which minor version of pFUnit to use"
     echo "  -b BUILD_DIR    Directory to build pFUnit in"
     echo "  -i INSTALL_DIR  Directory to install pFUnit in"
     echo "  -j N            Number of make jobs to use (default: 1)"
@@ -52,47 +61,59 @@ if [[ "$1" == "--help" ]]; then
     exit 0
 fi
 
-while getopts ":mov:b:i:hrj:" OPT; do
+while getopts ":mogfv:V:b:i:hrj:" OPT; do
     case $OPT in
-        m )
-            echo "Disabling MPI"
-            echo "WARNING: currently some pFUnit tests require MPI and this might not work"
-            pfunit_use_mpi="NO"
-            ;;
-        o )
-            echo "Enabling OpenMP"
-            pfunit_use_openmp="YES"
-            ;;
-        v )
-            if [[ ! "$OPTARG" -eq 3 && ! "$OPTARG" -eq 4 ]]; then
-                echo "pFUnit major version number must be either '3' or '4'" 1>&2
-                exit $error_wrong_version_numer
-            fi
-            echo "Using pFUnit major version $OPTARG"
-            pfunit_version_major="$OPTARG"
-            ;;
-        b )
-            echo "Building pFUnit in $OPTARG"
-            pfunit_build_directory="$OPTARG"
-            ;;
-        i )
-            echo "Installing pFUnit in $OPTARG"
-            pfunit_install_directory="$OPTARG"
-            ;;
-        r )
-            remove_installation_directory=true
-            ;;
-        j )
-            make_jobs="$OPTARG"
-            ;;
-        h )
-            usage
-            exit 0
-            ;;
-        \* )
-           usage
-           exit $error_bad_arguments
-           ;;
+	m )
+	    echo "Disabling MPI"
+	    echo "WARNING: currently some pFUnit tests require MPI and this might not work"
+	    pfunit_use_mpi="NO"
+	    ;;
+	o )
+	    echo "Enabling OpenMP"
+	    pfunit_use_openmp="YES"
+	    ;;
+	g )
+	    echo "Ignoring git"
+	    pfunit_try_git="NO"
+	    ;;
+	f )
+	    echo "Forcing install"
+	    pfunit_skip_if_present="NO"
+	    ;;
+	v )
+	    if [[ ! "$OPTARG" -eq 3 && ! "$OPTARG" -eq 4 ]]; then
+		echo "pFUnit major version number must be either '3' or '4'" 1>&2
+		exit $error_wrong_version_numer
+	    fi
+	    echo "Using pFUnit major version $OPTARG"
+	    pfunit_version_major="$OPTARG"
+	    ;;
+	V )
+	    echo "Using pFUnit minor version $OPTARG"
+	    punit_version_minor="$OPTARG"
+	    ;;
+	b )
+	    echo "Building pFUnit in $OPTARG"
+	    pfunit_build_directory="$OPTARG"
+	    ;;
+	i )
+	    echo "Installing pFUnit in $OPTARG"
+	    pfunit_install_directory="$OPTARG"
+	    ;;
+	r )
+	    remove_installation_directory=true
+	    ;;
+	j )
+	    make_jobs="$OPTARG"
+	    ;;
+	h )
+	    usage
+	    exit 0
+	    ;;
+	\* )
+	   usage
+	   exit $error_bad_arguments
+	   ;;
     esac
 done
 shift $(( OPTIND - 1 ))
@@ -114,26 +135,34 @@ if [[ ${pfunit_version_major} == 3 ]]; then
     fi
     pfunit_mpi_flag="-DMPI=${pfunit_use_mpi}"
 else
-    pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/releases/download/v4.0.0/pFUnit-4.0.tar.gz"
-    pfunit_version="4.0.0"
+    pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/releases/download/v4.${pfunit_version_minor}.0/pFUnit-v4.${pfunit_version_minor}.0.tar"
+    pfunit_version="v4.${pfunit_version_minor}.0"
     if [[  ${pfunit_use_openmp} == "NO" ]]; then
 	pfunit_openmp_flag="-DSKIP_OPENMP=YES"
     else
 	pfunit_openmp_flag="-DSKIP_OPENMP=NO"
     fi
     if [[  ${pfunit_use_mpi} == "NO" ]]; then
-        pfunit_mpi_flag="-DSKIP_MPI=YES"
+	pfunit_mpi_flag="-DSKIP_MPI=YES"
     else
-        pfunit_mpi_flag="-DSKIP_MPI=NO"
+	pfunit_mpi_flag="-DSKIP_MPI=NO"
     fi
 fi
+
+pfunit_version_directory="${externals_directory}/pFUnit-${pfunit_version}"
 
 # What to rename the tarball to
 pfunit_downloaded_file="pFUnit-${pfunit_version}.tar.gz"
 
+if [[  ${pfunit_version_major} == 3 ]]; then
+    pfunit_full_install_directory=${pfunit_install_directory}
+else
+    pfunit_full_install_directory=${pfunit_install_directory}/PFUNIT-4.${pfunit_version_minor}
+fi
+
 # If pFUnit is already installed, we don't need to go any further and can exit cleanly
-if [[ -d ${pfunit_install_directory} ]]; then
-    echo "pFUnit installation directory \"${pfunit_install_directory}\" already exists, nothing to do"
+if [[ -d ${pfunit_full_install_directory} && ${pfunit_skip_if_present} == "YES" ]]; then
+    echo "pFUnit full installation directory \"${pfunit_full_install_directory}\" already exists, nothing to do"
     exit 0
 fi
 
@@ -150,13 +179,15 @@ if [[ ! $(command -v cmake) ]]; then
 fi
 
 # Check if we're in a git repo and, if so, that the pFUnit submodule is up-to-date
+if [[  ${pfunit_try_git} == "YES" ]]; then
 if [[ ! $(git rev-parse --git-dir >/dev/null 2>&1 || [[ -d ${gs2_directory}/.git ]]) ]]; then
     echo "Making sure pFUnit submodule is up-to-date"
     git submodule update --init --recursive externals/pFUnit
 fi
+fi
 
 # If we're not in a git repo and the pFUnit submodule isn't there, best download it
-if [[ ! -d ${pfunit_directory} ]]; then
+if [[ ${pfunit_try_git} == "NO" || ! -d ${pfunit_directory} ]]; then
     echo "pFUnit submodule not availabe downloading pFUnit tarball"
     cd ${externals_directory}
     wget ${pfunit_url} -O ${pfunit_downloaded_file}
