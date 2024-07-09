@@ -58,6 +58,7 @@ contains
         gnostics%current_results%kinetic_energy_transfer_theta_kxtarget = 0.0
         gnostics%current_results%kinetic_energy_transfer_theta_kysource = 0.0
 
+        ! check if this proc every does any work for this diagnostic
         any_responsibility = is_responsible_for_any_theta_grid_point(iproc, nproc, ntgrid)
 
         ! allocate regardless of whether this proc does any work because sum_reduce needs
@@ -89,8 +90,8 @@ contains
             kxnew_array = akx
             call fftshift1D_real(kxnew_array)
             call extend_ky(kynew_array)
-            call z_hat_factor(kxnew_array, kynew_array, z_factor, nkynew, iky0)
-            call get_mediator_helpers(ikx0, iky0, ntheta0, nkynew, valid_mediator_lookup)
+            call z_hat_factor(kxnew_array, kynew_array, z_factor)
+            call get_mediator_helpers(valid_mediator_lookup)
         endif
 
     end subroutine init_diagnostics_kinetic_energy_transfer
@@ -183,10 +184,10 @@ contains
     !> where the second term
     !> (b_hat x k_t) . (b_hat x k_s)
     !> is unique for kinetic energy transfer and does not appear for internal energy transfer or entropy transfer
-    subroutine z_hat_factor(kx_array, ky_array, result_array, nkynew, iky0)
+    subroutine z_hat_factor(kx_array, ky_array, result_array)
         use kt_grids, only: ntheta0
 
-        integer, intent(in) :: nkynew, iky0
+        ! integer, intent(in) :: nkynew, iky0
         real, dimension(:), intent(in) :: kx_array, ky_array
         real, dimension(:,:,:), intent(out) :: result_array
         integer :: ikys, ikyt, ikxs, ikxt
@@ -205,24 +206,31 @@ contains
 
     !> extend a 2D data array to negative ky-values
     !> with the original "unshifted" order
-    subroutine get_full(field_arr, result_array, nkx, nky)
-        integer, intent(in) :: nkx, nky
-        complex, dimension(:,:), intent(in) :: field_arr ! shape (nky,nkx)
+    subroutine get_full(field_arr, result_array)
+        use kt_grids, only: ntheta0, naky
+
+        complex, dimension(:,:), intent(in) :: field_arr ! shape (nkx,nky)
         complex, dimension(:,:), intent(out) :: result_array ! shape (2*nky-1,nkx)
-        complex, dimension(nky-1,nkx) :: temp
+        complex, dimension(naky-1,ntheta0) :: temp
+        complex, dimension(naky,ntheta0) :: field_arr_transpose
+
+        ! phinew comes in with shape (nkx, nky) but we want
+        ! to move to general shape of (kys, kxs, kxt) which means 
+        ! ky dimensions before the kx dimensions
+        field_arr_transpose = TRANSPOSE(field_arr)
 
         ! copy in the values for ky >= 0 without change
-        result_array(1:nky,:) = field_arr
+        result_array(1:naky,:) = field_arr_transpose
 
         ! reverse order along all kx's and all non-zero ky's.
         ! Also take complex conjugate for reality condition.
-        temp = CONJG(field_arr(nky:2:-1,nkx:1:-1))
+        temp = CONJG(field_arr_transpose(naky:2:-1,ntheta0:1:-1))
 
         ! shift the entire negative ky-subarray one index along kx.
         ! After this step the reality condition is satisfied.
         ! This step is required due to the asymmetry which is introduced
         ! by the "unshiftedness" of the array.
-        result_array(nky+1:,:) = cshift(temp, SHIFT=-1,DIM=2)
+        result_array(naky+1:,:) = cshift(temp, SHIFT=-1,DIM=2)
 
     end subroutine get_full
 
@@ -274,17 +282,18 @@ contains
 
     !> create a boolean lookup for the valid mediator attribute of a
     !> pair of target wavevector and source wavevector
-    subroutine get_mediator_helpers(ikx0, iky0, nkx, nky, valid_mediator_lookup)
-        integer, intent(in) :: ikx0, iky0, nkx, nky
+    subroutine get_mediator_helpers(valid_mediator_lookup)
+        use kt_grids, only: ntheta0
+
         logical, dimension(:,:,:), intent(out) :: valid_mediator_lookup ! shape (nky,nkx,nkx)
         integer :: ikys, ikyt, ikxs, ikxt, ikxm, ikym
 
         ikyt = iky0
 
-        do ikxt = 1, nkx
-            do ikxs = 1, nkx
-                do ikys = 1, nky
-                    valid_mediator_lookup(ikys, ikxs, ikxt) = valid_mediator(ikxt, ikxs, ikx0, ikyt, ikys, iky0, nkx, nky)
+        do ikxt = 1, ntheta0
+            do ikxs = 1, ntheta0
+                do ikys = 1, nkynew
+                    valid_mediator_lookup(ikys, ikxs, ikxt) = valid_mediator(ikxt, ikxs, ikx0, ikyt, ikys, iky0, ntheta0, nkynew)
                 end do
             end do
         end do
@@ -292,8 +301,9 @@ contains
     end subroutine get_mediator_helpers
 
     !> calculate the mediator mode for all possible pairs of source and target wavevectors
-    subroutine get_mediator(phi, ikx0, iky0, nkx, nky, result_array, valid_mediator_lookup)
-        integer, intent(in) :: ikx0, iky0, nkx, nky
+    subroutine get_mediator(phi, result_array, valid_mediator_lookup)
+        use kt_grids, only: ntheta0
+
         complex, dimension(:,:), intent(in) :: phi
         logical, dimension(:,:,:), intent(in) :: valid_mediator_lookup
         complex, dimension(:,:,:), intent(out) :: result_array
@@ -302,9 +312,9 @@ contains
 
         ikyt = iky0
     
-        do ikxt = 1, nkx
-            do ikxs = 1, nkx
-                do ikys = 1, nky
+        do ikxt = 1, ntheta0
+            do ikxs = 1, ntheta0
+                do ikys = 1, nkynew
                     ikym = get_ikm(ikyt, ikys, iky0)
                     ikxm = get_ikm(ikxt, ikxs, ikx0)
 
@@ -322,8 +332,9 @@ contains
     end subroutine get_mediator
 
     !> compute the three-wave couplings
-    subroutine compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_hat_factor, B_factor, nkx, nky, result_array)
-        integer, intent(in) :: nkx, nky
+    subroutine compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_hat_factor, B_factor, result_array)
+        use kt_grids, only: ntheta0
+
         complex, dimension(:,:), intent(in) :: phi_source ! shape (nky,nkx)
         complex, dimension(:), intent(in) :: phi_target ! shape (nkx)
         complex, dimension(:,:,:), intent(in) :: phi_mediator ! shape (nky,nkx,nkx)
@@ -332,9 +343,9 @@ contains
         real, dimension(:,:,:), intent(out) :: result_array ! shape (nky,nkx,nkx)
         integer :: i, j, k
     
-        do k=1,nkx
-            do j=1,nkx
-                do i=1,nky
+        do k=1,ntheta0
+            do j=1,ntheta0
+                do i=1,nkynew
                     result_array(i,j,k) = 2.0 &
                                         * B_factor &
                                         * z_hat_factor(i,j,k) & 
@@ -388,16 +399,16 @@ contains
         real, intent(out) :: T_result_theta_temp
         real, dimension(:), intent(out) :: T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp
 
-        complex, dimension(naky,ntheta0) :: phi_2D
+        complex, dimension(ntheta0,naky) :: phi_temp
         real :: B_factor
         
         B_factor = 1. / bmag(theta_index)**3 ! bmag is indexed like theta [-ntgrid,...,0,...,ntgrid]
-        phi_2D(:,:) = TRANSPOSE(phinew(theta_index,:,:)) ! shape (kx, ky) -> (ky, kx)
-        call get_full(phi_2D, phi_source, ntheta0,  naky)
+        phi_temp = phinew(theta_index,:,:) ! shape (kx, ky)
+        call get_full(phi_temp, phi_source) ! phi_source has shape (kys, kxs) because we want to keep the general order (kys, kxs, kxt) in this file
         call fftshift2D_complex(phi_source)
-        call get_mediator(phi_source, ikx0, iky0, ntheta0, nkynew, phi_mediator, valid_mediator_lookup)
+        call get_mediator(phi_source, phi_mediator, valid_mediator_lookup)
         phi_target = CONJG(phi_source(iky0,:))
-        call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, ntheta0, nkynew, T_result_3D)
+        call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, T_result_3D)
 
         T_result_theta_temp = SUM(SUM(SUM(T_result_3D, DIM=1), DIM=1), DIM=1) ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> ()
         T_result_theta_kxsource_temp = SUM(SUM(T_result_3D, DIM=1), DIM=2) ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
@@ -409,18 +420,14 @@ contains
     subroutine calculate_kinetic_energy_transfer(gnostics)
 
         use diagnostics_config, only: diagnostics_type
-        use kt_grids, only: ntheta0, naky, aky, akx
-        use fields_arrays, only: phinew
         use theta_grid, only: ntgrid
-        use mp, only: proc0, iproc, nproc, send, receive, sum_reduce
+        use mp, only: proc0, iproc, nproc, sum_reduce
         
         type(diagnostics_type), intent(in out) :: gnostics
 
         integer :: timestep = 0
         integer :: theta_index
-        integer :: ntheta, n_batches, ibatch, itheta_temp, nproc_counter, nproc_max_temp
         real :: T_result_theta_temp
-        integer :: ig
         logical :: responsible
 
         T_result_theta = 0.
@@ -428,18 +435,20 @@ contains
         T_result_theta_kxtarget = 0.
         T_result_theta_kysource = 0.
 
-        do theta_index = -ntgrid, ntgrid
-            responsible = is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid)
-            if (responsible) then
-                call calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
-                T_result_theta(theta_index) = T_result_theta_temp
-                T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
-                T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
-                T_result_theta_kysource(:,theta_index) = T_result_theta_kysource_temp
-            endif
-        end do
+        if (any_responsibility) then
+            do theta_index = -ntgrid, ntgrid
+                responsible = is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid)
+                if (responsible) then
+                    call calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
+                    T_result_theta(theta_index) = T_result_theta_temp
+                    T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
+                    T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
+                    T_result_theta_kysource(:,theta_index) = T_result_theta_kysource_temp
+                endif
+            end do
+        endif
 
-        !Only proc0 needs to know the result
+        ! only proc0 needs to know the result
         call sum_reduce (T_result_theta, 0)
         call sum_reduce (T_result_theta_kxsource, 0)
         call sum_reduce (T_result_theta_kxtarget, 0)
