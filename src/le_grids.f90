@@ -164,6 +164,9 @@ module le_grids
      integer :: ngauss = 5
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
+     !> When using high ntheta with new_trap_int active it is possible
+     !> that numerical instability can arise. Dropping nmax < ntheta
+     !> can sometimes help in such situations.
      integer :: nmax = 500
      !> The default lambda grid is now gauss-radau, for passing
      !> particles up to and including the passing-trapped boundary
