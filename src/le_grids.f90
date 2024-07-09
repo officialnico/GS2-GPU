@@ -559,7 +559,7 @@ contains
 
   end subroutine init_weights
 
-  !> The get_weights subroutine determines how to divide up the integral into 
+  !> The get_weights subroutine determines how to divide up the integral into
   !> subintervals and how many grid points should be in each subinterval
   subroutine get_weights (maxpts_in, llim, ulim, nodes, wgts, ndiv, divmax, err_flag)
     implicit none
@@ -573,90 +573,95 @@ contains
     integer, dimension (:), allocatable :: divpts
     real :: wgt_max
 
-! npts is the number of grid points in the integration interval
+    err_flag = .false.
+
+    ! npts is the number of grid points in the integration interval
     npts = size(nodes)
 
-    wgts = 0.0; epts = npts; basepts = nmax; divrmndr = 0; ndiv = 1; divmax = npts
-
-! maxpts is the max number of pts in an integration subinterval
-    maxpts = min(maxpts_in,npts)
+    ! maxpts is the max number of pts in an integration subinterval. It
+    ! is the lower of npts and maxpts_in (which in practice is always
+    ! the input nmax).
+    maxpts = min(maxpts_in, npts)
 
     do
+       wgts = 0.0; divmax = npts
+       wgt_max = abs(ulim - llim) * wgt_fac / npts
 
-!       wgt_max = wgt_fac/maxpts
-       wgt_max = abs(ulim-llim)*wgt_fac/npts
-
-! only need to subdivide integration interval if maxpts < npts
-       if (maxpts .ge. npts) then
+       ! only need to subdivide integration interval if maxpts < npts
+       ! This will be the typical case unless nmax < ntheta.
+       if (maxpts >= npts) then
           call get_intrvl_weights (llim, ulim, nodes, wgts)
        else
-          rmndr = mod(npts-maxpts,maxpts-1)
-          
-! if rmndr is 0, then each subinterval contains maxpts pts
+          rmndr = mod(npts - maxpts, maxpts - 1)
+
+          ! if rmndr is 0, then each subinterval contains maxpts pts
           if (rmndr == 0) then
-! ndiv is the number of subintervals
-             ndiv = (npts-maxpts)/(maxpts-1) + 1
+             ! ndiv is the number of subintervals
+             ndiv = (npts - maxpts) / (maxpts - 1) + 1
              allocate (divpts(ndiv))
-! divpts is an array containing the # of pts for each subinterval
+             ! divpts is an array containing the number of pts for each subinterval
              divpts = maxpts
           else
-             ndiv = (npts-maxpts)/(maxpts-1) + 2
+             ndiv = (npts - maxpts) / (maxpts - 1) + 2
              allocate (divpts(ndiv))
-! epts is the effective number of pts after taking into account double
-! counting of some grid points (those that are boundaries of subintervals
-! are used twice)
+             ! epts is the effective number of pts after taking into account double
+             ! counting of some grid points (those that are boundaries of subintervals
+             ! are used twice)
              epts = npts + ndiv - 1
-             basepts = epts/ndiv
-             divrmndr = mod(epts,ndiv)
-             
-! determines if all intervals have same # of pts
+             basepts = epts / ndiv
+             divrmndr = mod(epts, ndiv)
+
+             ! determines if all intervals have same number of pts
              if (divrmndr == 0) then
                 divpts = basepts
              else
+                ! First divrmndr intervals get one extra point each
                 divpts(:divrmndr) = basepts + 1
                 divpts(divrmndr+1:) = basepts
              end if
           end if
-          
+
           base_idx = 0
-          
-! loop calls subroutine to get weights for each subinterval
-          do idiv=1,ndiv
+
+          ! loop calls subroutine to get weights for each subinterval
+          do idiv = 1, ndiv
              if (idiv == 1) then
                 call get_intrvl_weights (llim, nodes(base_idx+divpts(idiv)), &
-                     nodes(base_idx+1:base_idx+divpts(idiv)),wgts(base_idx+1:base_idx+divpts(idiv)))
+                     nodes(base_idx+1:base_idx+divpts(idiv)), &
+                     wgts(base_idx+1:base_idx+divpts(idiv)))
              else if (idiv == ndiv) then
                 call get_intrvl_weights (nodes(base_idx+1), ulim, &
-                     nodes(base_idx+1:base_idx+divpts(idiv)),wgts(base_idx+1:base_idx+divpts(idiv)))
+                     nodes(base_idx+1:base_idx+divpts(idiv)), &
+                     wgts(base_idx+1:base_idx+divpts(idiv)))
              else
                 call get_intrvl_weights (nodes(base_idx+1), nodes(base_idx+divpts(idiv)), &
-                     nodes(base_idx+1:base_idx+divpts(idiv)),wgts(base_idx+1:base_idx+divpts(idiv)))
+                     nodes(base_idx+1:base_idx+divpts(idiv)), &
+                     wgts(base_idx+1:base_idx+divpts(idiv)))
              end if
              base_idx = base_idx + divpts(idiv) - 1
           end do
-          
-          divmax = maxval(divpts)
 
+          divmax = maxval(divpts)
           deallocate (divpts)
        end if
 
-       ! check to make sure the weights do not get too large
-       ! @Warning: This looks a bit unusual -- we're taking the magnitude of
-       ! the maximum value, whilst usually we would find the maximum value of
-       ! the magnitude.
-       if (abs(maxval(wgts)) .gt. wgt_max) then
-          if (maxpts .lt. 3) then
+       ! check to make sure the weights do not get too large @Warning:
+       ! This looks a bit unusual -- we're taking the magnitude of the
+       ! maximum value, whilst usually we would find the maximum value
+       ! of the magnitude.
+       if (abs(maxval(wgts)) > wgt_max) then
+          if (maxpts < 3) then
+             ! If we can't split any more then set the error flag and leave.
              err_flag = .true.
              exit
           end if
+          ! Otherwise we can reduce the allowed number of points per interval
+          ! by one and try again.
           maxpts = divmax - 1
        else
           exit
        end if
-
-       wgts = 0.0; epts = npts; divrmndr = 0; basepts = nmax
     end do
-
   end subroutine get_weights
 
   !> Used by [[get_weights]] to find the Lagrange quadrature weights for the given grid.
