@@ -26,28 +26,26 @@ import multiprocessing as mp
 import numpy as np
 import sys
 import xarray as xr
+import os
 
 
-def parse_args():
-    input_filename, it_start, it_end, nproc = sys.argv[1:]
-    it_start = int(it_start)
-    it_end = int(it_end)
-    nproc = int(nproc)
-    return input_filename, it_start, it_end, nproc
+def compute_transfer_along_theta():
+    T_v_theta = np.zeros_like(theta)
+    T_v_theta_kxs = np.zeros((ntheta, nkx))
+    T_v_theta_kxt = np.zeros((ntheta, nkx))
+    T_v_theta_kys = np.zeros((ntheta, nky))
 
+    for i_theta in range(ntheta):
+        T_v, T_v_kxs, T_v_kxt, T_v_kys = compute_transfer_wrapper(i_theta)
+        T_v_theta[i_theta] = T_v
+        T_v_theta_kxs[i_theta] = T_v_kxs
+        T_v_theta_kxt[i_theta] = T_v_kxt
+        T_v_theta_kys[i_theta] = T_v_kys
 
-def parallel_compute_transfer_along_theta():
-    # Loop over theta in parallel
-    with mp.Pool(processes=nproc) as p:
-        result = np.array(
-            p.map(parallel_compute_transfer_wrapper, range(ntheta), ntheta // nproc),
-            dtype=float,
-        )
-    return result
+    return T_v_theta, T_v_theta_kxs, T_v_theta_kxt, T_v_theta_kys
 
-
-def parallel_compute_transfer_wrapper(i_theta):
-    print("Computing net transfer for theta = {}".format(ds["theta"].values[i_theta]))
+def compute_transfer_wrapper(i_theta):
+    print(f"Computing net transfer for theta = {theta[i_theta]:.4f}")
     return compute_net_transfer_this_theta(
         ds["phi_t"][:, :, :, i_theta, :], ds["bmag"].values[i_theta],
     )
@@ -131,20 +129,25 @@ def compute_phi_m(phi, ikx0, iky0):
 
 
 def compute_net_transfer(phi, phi_star, phi_m, B_factor):
-    T_v = (
-        2 * B_factor
-        * z_hat_dot_k_cross_k_prime
-        * k_factor_for_T_v
-        * compute_time_average(
-            (
-                np.reshape(phi_star, (1, 1, nkx, nt))
-                * phi_m
-                * np.reshape(phi, (nky, nkx, 1, nt))
-            ).real
-        )
-    )
+    T_v_kys_kxs_kxt = (
+                            2 * B_factor
+                            * z_hat_dot_k_cross_k_prime
+                            * k_factor_for_T_v
+                            * compute_time_average(
+                                (
+                                    np.reshape(phi_star, (1, 1, nkx, nt))
+                                    * phi_m
+                                    * np.reshape(phi, (nky, nkx, 1, nt))
+                                ).real
+                            )
+                        )
 
-    return np.sum(T_v, axis=(0, 1)) # T_v has dims (kys, kxs, kxt). Sum leaves only kxt dimension
+    T_v = np.sum(T_v_kys_kxs_kxt)
+    T_v_kxs = np.sum(T_v_kys_kxs_kxt, axis=(0,2)) # shape (kys, kxs, kxt) -> (kxs)
+    T_v_kxt = np.sum(T_v_kys_kxs_kxt, axis=(0,1)) # shape (kys, kxs, kxt) -> (kxt)
+    T_v_kys = np.sum(T_v_kys_kxs_kxt, axis=(1,2)) # shape (kys, kxs, kxt) -> (kys)
+
+    return T_v, T_v_kxs, T_v_kxt, T_v_kys
 
 
 def compute_time_average(field):
@@ -165,12 +168,18 @@ def compute_time_average(field):
     return time_average
 
 def write_output():
-    np.savez("Tv_theta_kxtarget.npz", theta=theta, kxt=kx, T_v=result)
-
+    np.savetxt("kinetic_energy_transfer_theta_golden_answer.txt", T_v)
+    np.savetxt("kinetic_energy_transfer_theta_kxsource_golden_answer.txt", T_v_kxs)
+    np.savetxt("kinetic_energy_transfer_theta_kxtarget_golden_answer.txt", T_v_kxt)
+    np.savetxt("kinetic_energy_transfer_theta_kysource_golden_answer.txt", T_v_kys)
 
 if __name__ == "__main__":
-    # Parse command line inputs
-    input_filename, it_start, it_end, nproc = parse_args()
+    # input
+    input_filename = os.path.join(os.getcwd(), "test_kinetic_energy_transfer.out.nc")
+    it_start = -2
+    it_end = -1
+    nproc = 1
+
     # Open Dataset
     if "," in input_filename:
         input_filename_list = [f for f in input_filename.split(",")]
@@ -205,7 +214,7 @@ if __name__ == "__main__":
     ds.load()
     # Pre-compute various quantities for performance
     theta = ds["theta"].values # added TMS
-    ntheta = len(theta)
+    ntheta = len(ds["theta"])
     kx = np.fft.fftshift(ds["kx"].values)
     nkx = len(kx)
     ky = np.fft.fftshift(np.concatenate((ds["ky"].values, -ds["ky"].values[-1:0:-1])))
@@ -224,6 +233,7 @@ if __name__ == "__main__":
         (1, nkx, nkx),
     )
     # Do calculation
-    result = parallel_compute_transfer_along_theta()
+    #result = parallel_compute_transfer_along_theta()
+    T_v, T_v_kxs, T_v_kxt, T_v_kys = compute_transfer_along_theta()
     # Write output
     write_output()
