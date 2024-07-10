@@ -536,7 +536,11 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_zonal_transfer = .false.
-
+    !> Calculates and writes the electrostatic drive of zonal flows every [[gs2_diagnostics_knobs:nwrite]] timesteps.
+    !> The output `kinetic_energy_transfer_theta` resolves this over \(\theta\) only.
+    !> `kinetic_energy_transfer_theta_kxsource`, `kinetic_energy_transfer_theta_kxtarget`, 
+    !> and `kinetic_energy_transfer_theta_kysource` give additional insights by resolving over
+    !> individual source or target scales.
     logical :: write_kinetic_energy_transfer = .false.
   contains
     procedure, public :: read => read_diagnostics_base_config
