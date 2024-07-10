@@ -58,11 +58,6 @@ module diagnostics_config
      ! free energy transfer due to nonlinearity
      complex, dimension(:,:), allocatable :: zonal_transfer
 
-     real, dimension(:), allocatable :: kinetic_energy_transfer_theta
-     real, dimension(:,:), allocatable :: kinetic_energy_transfer_theta_kxtarget
-     real, dimension(:,:), allocatable :: kinetic_energy_transfer_theta_kxsource
-     real, dimension(:,:), allocatable :: kinetic_energy_transfer_theta_kysource 
-
   end type results_summary_type
 
   !> A type for storing the diagnostics configuration,
@@ -228,10 +223,6 @@ contains
     allocate(gnostics%current_results%species_heating_avg(nspec))
     allocate(gnostics%current_results%omega_average(ntheta0, naky))
     allocate(gnostics%current_results%zonal_transfer(ntheta0,naky))
-    allocate(gnostics%current_results%kinetic_energy_transfer_theta(-ntgrid:ntgrid))
-    allocate(gnostics%current_results%kinetic_energy_transfer_theta_kxtarget(ntheta0,-ntgrid:ntgrid))
-    allocate(gnostics%current_results%kinetic_energy_transfer_theta_kxsource(ntheta0,-ntgrid:ntgrid))
-    allocate(gnostics%current_results%kinetic_energy_transfer_theta_kysource(2*naky-1,-ntgrid:ntgrid))
 
   end subroutine allocate_current_results
 
@@ -252,10 +243,6 @@ contains
     deallocate(gnostics%current_results%species_heating_avg)
     deallocate(gnostics%current_results%omega_average)
     deallocate(gnostics%current_results%zonal_transfer)
-    deallocate(gnostics%current_results%kinetic_energy_transfer_theta)
-    deallocate(gnostics%current_results%kinetic_energy_transfer_theta_kxtarget)
-    deallocate(gnostics%current_results%kinetic_energy_transfer_theta_kxsource)
-    deallocate(gnostics%current_results%kinetic_energy_transfer_theta_kysource)
   end subroutine deallocate_current_results
 
   !> Set values according to the new diagnostics defaults.

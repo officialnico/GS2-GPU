@@ -54,11 +54,6 @@ contains
 
         if(.not. gnostics%write_kinetic_energy_transfer) return
         
-        gnostics%current_results%kinetic_energy_transfer_theta = 0.0
-        gnostics%current_results%kinetic_energy_transfer_theta_kxsource = 0.0
-        gnostics%current_results%kinetic_energy_transfer_theta_kxtarget = 0.0
-        gnostics%current_results%kinetic_energy_transfer_theta_kysource = 0.0
-
         ! check if this proc every does any work for this diagnostic
         any_responsibility = is_responsible_for_any_theta_grid_point(iproc, nproc, ntgrid)
 
@@ -385,22 +380,23 @@ contains
         type(diagnostics_type), intent(inout) :: gnostics
 
         if (.not. gnostics%writing) return
-        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta", gnostics%current_results%kinetic_energy_transfer_theta, &
+
+        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta", T_result_theta, &
         dim_names=[theta_dim, time_dim], start=starts(2, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta", &
         units="GS2 units (to be specified)")
 
-        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kxsource", gnostics%current_results%kinetic_energy_transfer_theta_kxsource, &
+        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kxsource", T_result_theta_kxsource, &
         dim_names=[kxs_shifted_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and kx-source", &
         units="GS2 units (to be specified)")
 
-        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kxtarget", gnostics%current_results%kinetic_energy_transfer_theta_kxtarget, &
+        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kxtarget", T_result_theta_kxtarget, &
         dim_names=[kxt_shifted_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and kx-target", &
         units="GS2 units (to be specified)")
 
-        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kysource", gnostics%current_results%kinetic_energy_transfer_theta_kysource, &
+        call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta_kysource", T_result_theta_kysource, &
         dim_names=[kys_extended_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and ky-source", &
         units="GS2 units (to be specified)")
@@ -470,13 +466,6 @@ contains
         call sum_reduce (T_result_theta_kxsource, 0)
         call sum_reduce (T_result_theta_kxtarget, 0)
         call sum_reduce (T_result_theta_kysource, 0)
-
-        if (proc0) then
-            gnostics%current_results%kinetic_energy_transfer_theta = T_result_theta
-            gnostics%current_results%kinetic_energy_transfer_theta_kxsource  = T_result_theta_kxsource
-            gnostics%current_results%kinetic_energy_transfer_theta_kxtarget  = T_result_theta_kxtarget 
-            gnostics%current_results%kinetic_energy_transfer_theta_kysource = T_result_theta_kysource
-        endif
 
     end subroutine calculate_kinetic_energy_transfer
 
