@@ -49,9 +49,9 @@ module diagnostics_kinetic_energy_transfer
 contains
     subroutine init_diagnostics_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
-        use mp, only: iproc, nproc, proc0
+        use mp, only: iproc, nproc
         use theta_grid, only: ntgrid
-        use kt_grids, only: ntheta0, naky, aky, akx
+        use kt_grids, only: ntheta0, naky, akx
 
         type(diagnostics_type), intent(inout) :: gnostics
 
@@ -411,7 +411,7 @@ contains
     subroutine wrapper_calculate_kinetic_energy_transfer_this_theta(theta_index)
         use fields_arrays, only: phinew
         use kt_grids, only: ntheta0, naky
-        use theta_grid, only: ntgrid, bmag
+        use theta_grid, only: bmag
 
         integer, intent(in) :: theta_index
         complex, dimension(ntheta0,naky) :: phi_temp
@@ -435,7 +435,7 @@ contains
 
         use diagnostics_config, only: diagnostics_type
         use theta_grid, only: ntgrid
-        use mp, only: proc0, iproc, nproc, sum_reduce
+        use mp, only: iproc, nproc, sum_reduce
         
         type(diagnostics_type), intent(in out) :: gnostics
 
