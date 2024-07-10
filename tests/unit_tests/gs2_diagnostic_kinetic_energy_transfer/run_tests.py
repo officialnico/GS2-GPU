@@ -1,15 +1,22 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 
-import netCDF4 as nc
+from netCDF4 import Dataset
 import numpy as np
-import os
+import sys
+import argparse
 
-VERBOSE_LEVEL = 2 # 0: no extra prints, 1: shape prints, 2: data print
+parser = argparse.ArgumentParser(description="Check kinetic energy transfer diagnostic against golden answers.")
 
+parser.add_argument('--file', help='Path to GS2 output .nc file (with .out.nc extension).',
+                    required = True)
+parser.add_argument('--verbosity', help='Verbosity (0 none, 1 shape, 2 full data).',
+                    default=0, choices = [0,1,2], type = int)
+args = parser.parse_args()
+
+VERBOSE_LEVEL = args.verbosity # 0: no extra prints, 1: shape prints, 2: data print
 
 test_time_step_index = -2 # must match the one used in "compute_kinetic_energy_transfer_golden_answers.py"
-filename = os.path.join(os.getcwd(), "test_kinetic_energy_transfer.out.nc")
-data = nc.Dataset(filename)
+data = Dataset(args.file)
 
 all_tests_passed = True
 
@@ -199,9 +206,11 @@ if all_tests_passed:
     print("######## ALL TESTS PASSED #############")
     print("#######################################")
     print("#######################################")
+    sys.exit(0)
 else:
     print("#######################################")
     print("#######################################")
     print("###### AT LEAST 1 TEST FAILED #########")
     print("#######################################")
     print("#######################################")
+    sys.exit(1)
