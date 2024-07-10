@@ -56,7 +56,7 @@ module gs2_diagnostics
   logical, public :: write_full_moments_notgc, write_cross_phase = .false.
   logical, public :: write_final_epar, write_kpar
   logical, public :: write_heating, write_lorentzian
-  logical, public :: write_fluxes, write_fluxes_by_mode
+  logical, public :: write_fluxes, write_fluxes_by_mode, write_kinetic_energy_transfer
   logical, public :: write_verr, write_cerr, write_max_verr
   logical, public :: exit_when_converged
   logical, public :: use_nonlin_convergence
@@ -569,6 +569,7 @@ contains
     use mp, only: proc0
     use standard_header, only: standard_header_type
     use diagnostics_fluxes, only: init_diagnostics_fluxes
+    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -656,6 +657,7 @@ contains
 
     call init_diagnostics_fluxes()
 
+    if (write_kinetic_energy_transfer) call init_diagnostics_kinetic_energy_transfer
     if (.not. allocated(omega)) then
        allocate(omega(ntheta0, naky))
        allocate(omegaavg(ntheta0, naky))
@@ -781,6 +783,7 @@ contains
     write_gs = gs2_diagnostics_config%write_gs
     write_gyx = gs2_diagnostics_config%write_gyx
     write_heating = gs2_diagnostics_config%write_heating
+    write_kinetic_energy_transfer = gs2_diagnostics_config%write_kinetic_energy_transfer
     write_kpar = gs2_diagnostics_config%write_kpar
     write_line = gs2_diagnostics_config%write_line
     write_lorentzian = gs2_diagnostics_config%write_lorentzian
@@ -986,6 +989,7 @@ contains
     use mp, only: proc0
     use gs2_heating, only: del_htype
     use diagnostics_fluxes, only: finish_diagnostics_fluxes
+    use diagnostics_kinetic_energy_transfer, only: finish_diagnostics_kinetic_energy_transfer
     implicit none
 
     if (write_heating) then
@@ -996,6 +1000,7 @@ contains
     end if
 
     call finish_diagnostics_fluxes()
+    call finish_diagnostics_kinetic_energy_transfer()
     if (allocated(h_hist)) deallocate (h_hist, hk_hist, hk)
     if (allocated(j_ext_hist)) deallocate (j_ext_hist)
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
@@ -1321,6 +1326,8 @@ contains
     if (write_cerr) call collision_error(cres_unit, phinew, bparnew)
 
     if (write_nl_flux_dist) call do_write_nl_flux_dist(get_netcdf_file_id(), nout)
+
+    if (write_kinetic_energy_transfer) call do_write_kinetic_energy_transfer(get_netcdf_file_id(), nout)
 
     ! In new diagnostics, these two are both called for `write_symmetry`
     if (write_symmetry) call do_write_symmetry(get_netcdf_file_id(), nout)
@@ -1847,6 +1854,16 @@ contains
     if (proc0) call nc_loop_sym (file_id, nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
+
+  subroutine do_write_kinetic_energy_transfer(file_id, nout)
+    use diagnostics_kinetic_energy_transfer, only: calculate_kinetic_energy_transfer, write_kinetic_energy_transfer
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
+    integer, intent(in) :: nout
+    call calculate_kinetic_energy_transfer
+    call write_kinetic_energy_transfer(file_id, nout)
+  end subroutine do_write_kinetic_energy_transfer
 
   !> Calculate the poloidal distributions of the fluxes of particles, parallel
   !> momentum, perpendicular momentum, and energy (see section 3.1 and appendix
