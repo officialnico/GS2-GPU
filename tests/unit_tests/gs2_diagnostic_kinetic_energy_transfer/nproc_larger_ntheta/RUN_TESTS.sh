@@ -1,1 +1,0 @@
-python run_tests.py > TEST_RESULT.txt
