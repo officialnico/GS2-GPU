@@ -20,7 +20,6 @@ module diagnostics_kinetic_energy_transfer
   private
 
   public :: init_diagnostics_kinetic_energy_transfer
-  public :: define_custom_kinetic_energy_transfer_dims
   public :: finish_diagnostics_kinetic_energy_transfer
   public :: write_kinetic_energy_transfer
   public :: calculate_kinetic_energy_transfer
@@ -89,7 +88,7 @@ contains
     endif
   end subroutine init_diagnostics_kinetic_energy_transfer
 
-  subroutine define_custom_kinetic_energy_transfer_dims(file_id)
+  subroutine define_kinetic_energy_transfer_dims(file_id)
 #ifdef NETCDF
     use neasyf, only: neasyf_dim
     use gs2_io, only: kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
@@ -106,7 +105,7 @@ contains
 #else
     UNUSED_DUMMY(file_id)
 #endif
-  end subroutine define_custom_kinetic_energy_transfer_dims
+  end subroutine define_kinetic_energy_transfer_dims
 
   subroutine finish_diagnostics_kinetic_energy_transfer
     if (allocated(T_result_theta)) deallocate(T_result_theta)
@@ -345,6 +344,7 @@ contains
 #endif
     integer, intent(in) :: file_id, nout
 #ifdef NETCDF
+    call define_kinetic_energy_transfer_dims(file_id)
     call neasyf_write(file_id, "kinetic_energy_transfer_theta", T_result_theta, &
          dim_names=[theta_dim, time_dim], start=starts(2, nout), &
          long_name="kinetic energy transfer as a function of theta", &

@@ -42,7 +42,7 @@ contains
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
-    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer, define_custom_kinetic_energy_transfer_dims
+    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer
     use collisional_heating, only: init_collisional
     use collisions, only: heating, set_heating
     use nonlinear_terms, only: nonlin
@@ -160,7 +160,6 @@ contains
 
          ! Write constants/parameters
          call define_dims(gnostics%file_id, gnostics%write_correlation_extend)
-         if (gnostics%write_kinetic_energy_transfer) call define_custom_kinetic_energy_transfer_dims(gnostics%file_id)
          call nc_norms(gnostics%file_id)
          call nc_species(gnostics%file_id)
          call nc_geo(gnostics%file_id)
