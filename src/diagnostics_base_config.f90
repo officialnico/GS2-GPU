@@ -536,6 +536,12 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_zonal_transfer = .false.
+    !> Calculates and writes the electrostatic drive of zonal flows every [[gs2_diagnostics_knobs:nwrite]] timesteps.
+    !> The output `kinetic_energy_transfer_theta` resolves this over \(\theta\) only.
+    !> `kinetic_energy_transfer_theta_kxsource`, `kinetic_energy_transfer_theta_kxtarget`, 
+    !> and `kinetic_energy_transfer_theta_kysource` give additional insights by resolving over
+    !> individual source or target scales.
+    logical :: write_kinetic_energy_transfer = .false.
   contains
     procedure, public :: read => read_diagnostics_base_config
     procedure, public :: write => write_diagnostics_base_config
@@ -612,7 +618,7 @@ contains
     logical :: write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar
     logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time
     logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
-    logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
+    logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer, write_kinetic_energy_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
 
     namelist /gs2_diagnostics_knobs/ append_old, conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, &
@@ -626,7 +632,7 @@ contains
          write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar, &
          write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, &
          write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
-         write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
+         write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer, write_kinetic_energy_transfer
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -711,6 +717,7 @@ contains
     write_upar_over_time = self%write_upar_over_time
     write_verr = self%write_verr
     write_zonal_transfer = self%write_zonal_transfer
+    write_kinetic_energy_transfer = self%write_kinetic_energy_transfer
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -796,6 +803,7 @@ contains
     self%write_upar_over_time = write_upar_over_time
     self%write_verr = write_verr
     self%write_zonal_transfer = write_zonal_transfer
+    self%write_kinetic_energy_transfer = write_kinetic_energy_transfer
 
     self%exist = exist
   end subroutine read_diagnostics_base_config
@@ -892,6 +900,7 @@ contains
     call self%write_key_val("write_upar_over_time", self%write_upar_over_time, unit_internal)
     call self%write_key_val("write_verr", self%write_verr, unit_internal)
     call self%write_key_val("write_zonal_transfer", self%write_zonal_transfer, unit_internal)
+    call self%write_key_val("write_kinetic_energy_transfer", self%write_kinetic_energy_transfer, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_diagnostics_base_config
 
@@ -990,6 +999,7 @@ contains
     call broadcast(self%write_upar_over_time)
     call broadcast(self%write_verr)
     call broadcast(self%write_zonal_transfer)
+    call broadcast(self%write_kinetic_energy_transfer)
 
     call broadcast(self%exist)
   end subroutine broadcast_diagnostics_base_config

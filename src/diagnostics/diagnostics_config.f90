@@ -155,6 +155,7 @@ module diagnostics_config
      logical :: save_glo_info_and_grids
      logical :: save_velocities
      logical :: write_zonal_transfer
+     logical :: write_kinetic_energy_transfer
      logical :: write_collisional
      logical :: write_omavg
      logical :: ob_midplane
@@ -204,6 +205,7 @@ contains
   subroutine allocate_current_results(gnostics)
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
 
@@ -374,6 +376,7 @@ contains
     gnostics%write_upar_over_time = new_gs2_diagnostics_config%write_upar_over_time
     gnostics%write_verr = new_gs2_diagnostics_config%write_verr
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
+    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
 
     exist = new_gs2_diagnostics_config%exist
 

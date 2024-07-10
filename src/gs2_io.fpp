@@ -23,6 +23,7 @@ module gs2_io
   public :: species_dim, x_dim, kx_dim, y_dim, ky_dim, theta_dim, theta_extended_dim, time_dim
   public :: time_big_dim, time_movie_dim, complex_dim, vpa_dim, lambda_dim, egrid_dim, sign_dim
   public :: nheat_dim, dim_2, dim_3, dim_4, dim_5
+  public :: kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
 
   !> Maximum length of dimension names. This is required to get around
   !> Fortran hating ragged arrays of characters
@@ -68,6 +69,12 @@ module gs2_io
   character(max_dim_name_length), parameter :: dim_4 = "4"
   !> Name of generic dimension for arrays of length 5
   character(max_dim_name_length), parameter :: dim_5 = "5"
+  !> Name of shifted kx-target dimension
+  character(max_dim_name_length), parameter :: kxt_shifted_dim = "kxt_shift"
+  !> Name of shifted kx-target dimension
+  character(max_dim_name_length), parameter :: kxs_shifted_dim = "kxs_shift"
+  !> Name of shifted extended ky-source dimension
+  character(max_dim_name_length), parameter :: kys_extended_dim = "kys_ext"
 
   !> Names of dimensions used by flux variables
   character(*), dimension(*), parameter :: flux_dims = [species_dim, time_dim]

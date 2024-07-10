@@ -42,6 +42,7 @@ contains
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
+    use diagnostics_kinetic_energy_transfer, only: init_diagnostics_kinetic_energy_transfer, define_custom_kinetic_energy_transfer_dims
     use collisional_heating, only: init_collisional
     use collisions, only: heating, set_heating
     use nonlinear_terms, only: nonlin
@@ -136,6 +137,7 @@ contains
     call init_diagnostics_transfer(gnostics)
     call init_collisional(gnostics)
 
+    if (gnostics%write_kinetic_energy_transfer) call init_diagnostics_kinetic_energy_transfer(gnostics)
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
     
@@ -158,6 +160,7 @@ contains
 
          ! Write constants/parameters
          call define_dims(gnostics%file_id, gnostics%write_correlation_extend)
+         if (gnostics%write_kinetic_energy_transfer) call define_custom_kinetic_energy_transfer_dims(gnostics)
          call nc_norms(gnostics%file_id)
          call nc_species(gnostics%file_id)
          call nc_geo(gnostics%file_id)
@@ -240,6 +243,7 @@ contains
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
     use collisional_heating, only: finish_collisional
+    use diagnostics_kinetic_energy_transfer, only: finish_diagnostics_kinetic_energy_transfer
     use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom, do_write_fyx, do_write_f
     use nonlinear_terms, only: nonlin
     use mp, only: proc0
@@ -269,6 +273,7 @@ contains
     call finish_collisional
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space()
+    if (gnostics%write_kinetic_energy_transfer) call finish_diagnostics_kinetic_energy_transfer(gnostics)
     
     if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
@@ -336,6 +341,7 @@ contains
     use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
+    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer, wrapper_calculate_kinetic_energy_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -480,6 +486,11 @@ contains
           call calculate_zonal_transfer(gnostics)
           call write_zonal_transfer(gnostics)
        end if 
+
+       if (gnostics%write_kinetic_energy_transfer) then
+          call wrapper_calculate_kinetic_energy_transfer(gnostics)
+          call write_kinetic_energy_transfer(gnostics)
+       end if
 
        if (gnostics%write_collisional) then  !< new diagnostic, calulate and write in new variable
           call calculate_collisional()
