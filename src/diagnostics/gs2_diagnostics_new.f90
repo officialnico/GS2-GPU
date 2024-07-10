@@ -137,7 +137,7 @@ contains
     call init_diagnostics_transfer(gnostics)
     call init_collisional(gnostics)
 
-    if (gnostics%write_kinetic_energy_transfer) call init_diagnostics_kinetic_energy_transfer(gnostics)
+    if (gnostics%write_kinetic_energy_transfer) call init_diagnostics_kinetic_energy_transfer
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
     
@@ -160,7 +160,7 @@ contains
 
          ! Write constants/parameters
          call define_dims(gnostics%file_id, gnostics%write_correlation_extend)
-         if (gnostics%write_kinetic_energy_transfer) call define_custom_kinetic_energy_transfer_dims(gnostics)
+         if (gnostics%write_kinetic_energy_transfer) call define_custom_kinetic_energy_transfer_dims(gnostics%file_id)
          call nc_norms(gnostics%file_id)
          call nc_species(gnostics%file_id)
          call nc_geo(gnostics%file_id)
@@ -273,7 +273,7 @@ contains
     call finish_collisional
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space()
-    if (gnostics%write_kinetic_energy_transfer) call finish_diagnostics_kinetic_energy_transfer(gnostics)
+    call finish_diagnostics_kinetic_energy_transfer
     
     if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
@@ -341,7 +341,7 @@ contains
     use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
-    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer, wrapper_calculate_kinetic_energy_transfer
+    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer, calculate_kinetic_energy_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -488,8 +488,8 @@ contains
        end if 
 
        if (gnostics%write_kinetic_energy_transfer) then
-          call wrapper_calculate_kinetic_energy_transfer(gnostics)
-          call write_kinetic_energy_transfer(gnostics)
+          call calculate_kinetic_energy_transfer
+          if (gnostics%writing) call write_kinetic_energy_transfer(gnostics%file_id, gnostics%nout)
        end if
 
        if (gnostics%write_collisional) then  !< new diagnostic, calulate and write in new variable
