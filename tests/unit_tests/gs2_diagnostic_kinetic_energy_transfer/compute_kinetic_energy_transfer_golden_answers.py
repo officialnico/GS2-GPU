@@ -22,40 +22,37 @@ along with initial.  If not, see http://www.gnu.org/licenses/.
 Modified by Tobias Schuett on 17 June 2024
 """
 
-import multiprocessing as mp
+from netCDF4 import Dataset
 import numpy as np
 import sys
-import xarray as xr
-import os
+import argparse
 
 
-def compute_transfer_along_theta():
+def compute_transfer_along_theta(ds, it):
     T_v_theta = np.zeros_like(theta)
     T_v_theta_kxs = np.zeros((ntheta, nkx))
     T_v_theta_kxt = np.zeros((ntheta, nkx))
     T_v_theta_kys = np.zeros((ntheta, nky))
 
     for i_theta in range(ntheta):
-        T_v, T_v_kxs, T_v_kxt, T_v_kys = compute_transfer_wrapper(i_theta)
+        T_v, T_v_kxs, T_v_kxt, T_v_kys = compute_transfer_wrapper(ds, i_theta, it)
         T_v_theta[i_theta] = T_v
-        T_v_theta_kxs[i_theta] = T_v_kxs
-        T_v_theta_kxt[i_theta] = T_v_kxt
-        T_v_theta_kys[i_theta] = T_v_kys
+        T_v_theta_kxs[i_theta, :] = T_v_kxs
+        T_v_theta_kxt[i_theta, :] = T_v_kxt
+        T_v_theta_kys[i_theta, :] = T_v_kys
 
     return T_v_theta, T_v_theta_kxs, T_v_theta_kxt, T_v_theta_kys
 
-def compute_transfer_wrapper(i_theta):
+def compute_transfer_wrapper(ds, i_theta, it):
     print(f"Computing net transfer for theta = {theta[i_theta]:.4f}")
     return compute_net_transfer_this_theta(
-        ds["phi_t"][:, :, :, i_theta, :], ds["bmag"].values[i_theta],
+        ds["phi_t"][it, :, :, i_theta, :], ds["bmag"][i_theta]
     )
 
 
 def compute_net_transfer_this_theta(phi, B):
     # Convert ri dimension to complex dtype
     phi = ri_to_complex(phi)
-    # Move t axis to last position for improved cache performance
-    phi = move_first_axis_to_last(phi)
     # Make full versions of arrays to simplify indexing
     phi = make_full(phi)
     # Pre-shift arrays so that indexing works correctly
@@ -92,7 +89,7 @@ def move_first_axis_to_last(array_orig):
 
 
 def make_full(array):
-    # Assumes dimension order is ky, kx, t
+    # Assumes dimension order is ky, kx{, t - single size}
     # For concatenated array:
     # - ky slice = -1:0:-1 so that we include non-zero kys in reverse order
     # - kx slice = -1::-1 so that we include all kxs in reverse order but this puts kx = 0
@@ -102,7 +99,7 @@ def make_full(array):
     #     of the positive kys
     # - np.concatenate(..., axis=0) so that we concatenate in the ky direction
     return np.concatenate(
-        (array, np.conj(np.roll(array[-1:0:-1, -1::-1, :], 1, axis=1))),
+        (array, np.conj(np.roll(array[-1:0:-1, -1::-1], 1, axis=1))),
         axis=0,
     )
 
@@ -110,7 +107,7 @@ def make_full(array):
 def compute_phi_m(phi, ikx0, iky0):
     # Pre-allocate array
     # NB: Cannot pre-allocate this variable in the global scope and re-use it here
-    phi_m = np.zeros((nky, nkx, nkx, nt), dtype=complex)
+    phi_m = np.zeros((nky, nkx, nkx), dtype=complex)
     # Loop over target and source wavenumbers
     for ikys in range(nky):
         for ikxs in range(nkx):
@@ -123,7 +120,7 @@ def compute_phi_m(phi, ikx0, iky0):
                     # Just don't set a value to avoid unnecessary cache misses
                     continue
                 # Store mediator value in mediator array
-                phi_m[ikys, ikxs, ikxt, :] = phi[ikym, ikxm, :]
+                phi_m[ikys, ikxs, ikxt] = phi[ikym, ikxm]
     # Return output array
     return phi_m
 
@@ -135,9 +132,9 @@ def compute_net_transfer(phi, phi_star, phi_m, B_factor):
                             * k_factor_for_T_v
                             * compute_time_average(
                                 (
-                                    np.reshape(phi_star, (1, 1, nkx, nt))
+                                    np.reshape(phi_star, (1, 1, nkx))
                                     * phi_m
-                                    * np.reshape(phi, (nky, nkx, 1, nt))
+                                    * np.reshape(phi, (nky, nkx, 1))
                                 ).real
                             )
                         )
@@ -152,19 +149,7 @@ def compute_net_transfer(phi, phi_star, phi_m, B_factor):
 
 def compute_time_average(field):
     "Computes the time average of an N-D field assuming time is the last axis"
-    if len(t) == 1:
-        print("len(t) == 1 -> not actually computing time average, just taking out time dimension")
-        time_average = field[..., 0]
-    else:
-        print(f"len(t) == {len(t)} so actually computing time average")
-        print("Computing time average...")
-        time_average = (
-            np.trapz(
-                field,
-                t,
-            )
-            / (t[-1] - t[0])
-        )
+    time_average = field
     return time_average
 
 def write_output():
@@ -175,55 +160,39 @@ def write_output():
 
 if __name__ == "__main__":
     # input
-    input_filename = os.path.join(os.getcwd(), "test_kinetic_energy_transfer.out.nc")
-    it_start = -2
-    it_end = -1
-    nproc = 1
+    parser = argparse.ArgumentParser(description="Check kinetic energy transfer diagnostic against golden answers.")
+
+    parser.add_argument('--file', help='Path to GS2 output .nc file (with .out.nc extension).',
+                    required = True)
+
+    parser.add_argument('--it', help='Time index to analyse', default = -2, type = int)
+    parser.add_argument('--write', help='If set writes results to file', action = 'store_true')
+
+    args = parser.parse_args()
+
+    input_filename = args.file
+    it = args.it
 
     # Open Dataset
-    if "," in input_filename:
-        input_filename_list = [f for f in input_filename.split(",")]
-        ds = xr.open_mfdataset(input_filename_list)
-    else:
-        ds = xr.open_dataset(input_filename)
-    # Remove un-used variables
-    required_vars = ["theta", "kx", "ky", "t", "phi_t", "bmag"]
-    #vars_to_delete = ["egrid", "lambda"]  # un-used coords
-    vars_to_delete = ["lambda"]  # changed for new diagnotics output
-
-    for v in ds.data_vars:
-        if v not in required_vars:
-            vars_to_delete.append(v)
-    ds = ds.drop_vars(vars_to_delete)
+    ds = Dataset(input_filename)
 
     ## NOTE: negative indexing -> positive indexing #######
-    print("it_start: ", it_start)
-    print("it_end: ", it_end)
-    if it_start < 0:
-        it_start = len(ds["t"]) + it_start
-    if it_end < 0:
-        it_end = len(ds["t"]) + it_end
     print("len(t): ", len(ds["t"]))
-    print("it_start: ", it_start)
-    print("it_end: ", it_end)
+    print("it: ", it)
     #######################################################
 
-    ds = ds.drop_sel(t=ds["t"][it_end:])
-    ds = ds.drop_sel(t=ds["t"][:it_start])
-    # Load data for performance and to avoid concurrent read problems
-    ds.load()
     # Pre-compute various quantities for performance
-    theta = ds["theta"].values # added TMS
+    theta = ds["theta"]
     ntheta = len(ds["theta"])
-    kx = np.fft.fftshift(ds["kx"].values)
+    kx = np.fft.fftshift(ds["kx"])
     nkx = len(kx)
-    ky = np.fft.fftshift(np.concatenate((ds["ky"].values, -ds["ky"].values[-1:0:-1])))
+    ky = np.fft.fftshift(np.concatenate((ds["ky"], -ds["ky"][-1:0:-1])))
     nky = len(ky)
     ikx0 = np.argmin(np.abs(kx))
     iky0 = np.argmin(np.abs(ky))
     ikyt = iky0  # i.e. target is always zonal flows
-    t = ds["t"].values
-    nt = len(t)
+    t = ds["t"][it]
+    nt = 1
     z_hat_dot_k_cross_k_prime = np.reshape(
         np.reshape(kx, (1, nkx)) * np.reshape(ky, (nky, 1)),
         (nky, 1, nkx),
@@ -234,6 +203,7 @@ if __name__ == "__main__":
     )
     # Do calculation
     #result = parallel_compute_transfer_along_theta()
-    T_v, T_v_kxs, T_v_kxt, T_v_kys = compute_transfer_along_theta()
+    T_v, T_v_kxs, T_v_kxt, T_v_kys = compute_transfer_along_theta(ds, it)
     # Write output
-    write_output()
+    if args.write:
+        write_output()

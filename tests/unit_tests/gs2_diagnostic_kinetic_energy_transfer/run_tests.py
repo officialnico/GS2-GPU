@@ -11,11 +11,13 @@ parser.add_argument('--file', help='Path to GS2 output .nc file (with .out.nc ex
                     required = True)
 parser.add_argument('--verbosity', help='Verbosity (0 none, 1 shape, 2 full data).',
                     default=0, choices = [0,1,2], type = int)
+parser.add_argument('--it', help='Time index to check',
+                    default=-2, type = int)
 args = parser.parse_args()
 
 VERBOSE_LEVEL = args.verbosity # 0: no extra prints, 1: shape prints, 2: data print
 
-test_time_step_index = -2 # must match the one used in "compute_kinetic_energy_transfer_golden_answers.py"
+test_time_step_index = args.it # must match the one used in "compute_kinetic_energy_transfer_golden_answers.py"
 data = Dataset(args.file)
 
 all_tests_passed = True
