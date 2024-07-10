@@ -1,20 +1,19 @@
+#include "unused_dummy.inc"
 !> Module which contains functions for calculating
-!! and writing out the fluxes of heat and momentum etc.
+!> and writing out the fluxes of heat and momentum etc.
 module diagnostics_fluxes
 
   implicit none
 
   private
 
-  public :: init_diagnostics_fluxes
-  public :: finish_diagnostics_fluxes
-  public :: reset_averages_and_counters
+  public :: init_diagnostics_fluxes, finish_diagnostics_fluxes, reset_averages_and_counters
   public :: calculate_fluxes, common_calculate_fluxes
+  public :: flux_vs_theta_vs_vpa, pflux_vs_theta_vs_vpa, flux_dist
 
   public :: qheat, qmheat, qbheat, pflux, vflux, vflux_par
   public :: vflux_perp, pflux_tormom, vflux0, vflux1, pmflux
-  public :: vmflux, pbflux, vbflux, esflux_vs_e, apflux_vs_e
-  public :: bpflux_vs_e, exchange, exchange1
+  public :: vmflux, pbflux, vbflux, exchange
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -24,7 +23,7 @@ module diagnostics_fluxes
   real, dimension (:,:,:), allocatable :: pbflux, vbflux
   real, dimension (:,:), allocatable :: esflux_vs_e, apflux_vs_e, bpflux_vs_e
   real, dimension (:,:,:), allocatable :: exchange
-  real, dimension (:,:,:), allocatable :: exchange1
+  real, dimension (:,:,:), allocatable :: exchange_dummy
 
 #ifdef NETCDF_PARALLEL
   logical, parameter :: moment_to_allprocs = .true.
@@ -53,8 +52,8 @@ contains
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
     allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
 
-    allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
     allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
+    allocate (exchange_dummy (ntheta0,naky,nspec)) ; exchange_dummy = 0.
 
     allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
     allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
@@ -81,7 +80,7 @@ contains
     if (.not. allocated(pflux)) return
 
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
+         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange_dummy, &
          esflux_vs_e, apflux_vs_e, bpflux_vs_e)
   end subroutine finish_diagnostics_fluxes
 
@@ -101,11 +100,12 @@ contains
   !> function writes the whole array, and also various averages of them
   subroutine calculate_fluxes(gnostics)
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
+    use nonlinear_terms, only: nonlin
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
-    use gs2_io, only: starts, egrid_dim, species_dim, time_dim
+    use build_config, only: gs2_has_lowflow
 #ifdef NETCDF
+    use gs2_io, only: starts, egrid_dim, species_dim, time_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
@@ -119,12 +119,11 @@ contains
     gnostics%current_results%species_momentum_flux = 0.0
     gnostics%current_results%species_particle_flux = 0.0
 
-    if (nonlinear_mode_switch .eq. nonlinear_mode_none) &
-         call write_diffusive_estimates(gnostics)
+    if (.not. nonlin) call write_diffusive_estimates(gnostics)
 
     call common_calculate_fluxes()
 
-      if (has_phi) then
+    if (has_phi) then
        call calculate_standard_flux_properties(gnostics, &
             'es_heat_flux',  'Turbulent flux of heat', 'Q_gB = ', qheat(:,:,:,1), gnostics%distributed)
        call calculate_standard_flux_properties(gnostics, &
@@ -152,14 +151,14 @@ contains
             dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Electrostatic flux", start=starts(3, gnostics%nout))
 #endif
-#ifdef LOWFLOW
-       call calculate_standard_flux_properties(gnostics, &
-            'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
-            vflux0, gnostics%distributed)
-       call calculate_standard_flux_properties(gnostics, &
-            'es_mom1', 'Low-flow momentum flux 1 (Ask Michael Barnes)', 'Pi_gB =  ', &
-            vflux0, gnostics%distributed)
-#endif
+       if (gs2_has_lowflow) then
+          call calculate_standard_flux_properties(gnostics, &
+               'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
+               vflux0, gnostics%distributed)
+          call calculate_standard_flux_properties(gnostics, &
+               'es_mom1', 'Low-flow momentum flux 1 (Ask Michael Barnes)', 'Pi_gB =  ', &
+               vflux0, gnostics%distributed)
+       end if
     end if
 
     if (has_apar) then
@@ -250,8 +249,10 @@ contains
     use mp, only: proc0
     use species, only: spec
     use dist_fn_arrays, only: g_adjust, gnew, to_g_gs2, from_g_gs2
+    use dist_fn_arrays, only: g
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
+    use fields_arrays, only: bpar
     use run_parameters, only: has_phi, has_apar, has_bpar
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
@@ -259,21 +260,24 @@ contains
     integer :: is
 
     call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
+    call g_adjust (g, phi, bpar, direction = from_g_gs2)
     call flux (phinew, aparnew, bparnew, &
          pflux,  qheat,  vflux, vflux_par, vflux_perp, &
          pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+    ! Only used in new diagnostics, can't turn off separately to fluxes in general
     call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
-    if (gs2_has_lowflow) then
-      ! lowflow terms only implemented in electrostatic limit at present
-      call lf_flux (phinew, vflux0, vflux1)
-    end if
+    ! lowflow terms only implemented in electrostatic limit at present
+    if (gs2_has_lowflow) call lf_flux (phinew, vflux0, vflux1)
+
+    ! Note we don't use / write exchange_dummy anywhere
+    if (has_phi) call eexchange (phinew, phi, exchange_dummy, exchange)
+
+    ! Note all procs have the main results so could also do the below such that
+    ! we have the right result on all processors.
 
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
-
-    if (has_phi) then
-      call eexchange (phinew, phi, exchange1, exchange)
-    end if
+    call g_adjust (g, phi, bpar, direction = to_g_gs2)
 
     if (.not. proc0) return
 
@@ -335,19 +339,17 @@ contains
     use theta_grid, only: grho
     use diagnostics_config, only: diagnostics_type
     use mp, only: sum_allreduce
-    use gs2_io, only: flux_dims, starts, time_dim
 #ifdef NETCDF
+    use gs2_io, only: flux_dims, starts, time_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     real, dimension(ntheta0, naky) :: diffusivity_by_k
-    !real :: diffusivity
     real :: heat_flux_max
     real, dimension(nspec) :: heat_flux_max_by_spec
     real :: particle_flux_max
     real, dimension(nspec) :: particle_flux_max_by_spec
-    !real :: grho
     real, dimension(ntheta0, naky, nspec) :: heat_flux
     real, dimension(ntheta0, naky, nspec) :: particle_flux
     real, dimension(naky, nspec) :: heat_flux_by_ky
@@ -431,14 +433,14 @@ contains
   !! flux... e.g. the flux summed over kx as a function of ky, species and time
   subroutine calculate_standard_flux_properties(gnostics, flux_name, flux_description, &
        flux_units, flux_value, distributed)
+    use diagnostics_config, only: diagnostics_type
+    use volume_averages, only: average_all, average_kx, average_ky
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
     use fields_parallelization, only: field_k_local
-    use mp, only: broadcast, sum_allreduce
-    use volume_averages, only: average_all, average_kx, average_ky
-    use diagnostics_config, only: diagnostics_type
-    use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts, kx_dim, ky_dim, time_dim
 #ifdef NETCDF
+    use mp, only: broadcast, sum_allreduce
+    use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts, kx_dim, ky_dim, time_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
@@ -499,7 +501,9 @@ contains
              long_name=flux_description//" summed over species", &
              units=flux_units, start=starts(3, gnostics%nout))
       end if
-    end if
+   end if
+#else
+   UNUSED_DUMMY(flux_units); UNUSED_DUMMY(flux_description)
 #endif
 
     if (flux_name .eq. 'es_heat_flux') gnostics%current_results%species_es_heat_flux = flux_by_species
@@ -529,6 +533,9 @@ contains
   !> Calculate various fluxes
   !>
   !> FIXME: add documentation of exactly what fluxes
+  !> @note: Requires g_adjust to be called on gnew (from_g_gs2)
+  !> before calling this routine. We _could_ move the call here
+  !> to improve safety at the expense of more calls to g_adjust.
   subroutine flux (phi, apar, bpar, &
        pflux,  qflux,  vflux, vflux_par, vflux_perp, &
        pmflux, qmflux, vmflux, &
@@ -539,15 +546,12 @@ contains
     use theta_grid, only: qval, shat, gds21, gds22
     use kt_grids, only: theta0, aky
     use le_grids, only: energy
-#ifdef LOWFLOW
-    use dist_fn, only: get_flux_tormom
-#endif
     use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
-    use geometry, only: rhoc!Should this not be value from theta_grid_params?
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
+    use build_config, only: gs2_has_lowflow
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
@@ -573,9 +577,7 @@ contains
        end do
 
        call get_flux (g_work, phi, pflux)
-#ifdef LOWFLOW
-       call get_flux_tormom (g_work, phi, pflux_tormom)
-#endif
+       if (gs2_has_lowflow) call get_flux_tormom (g_work, phi, pflux_tormom)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
@@ -881,13 +883,184 @@ contains
 
     call sum_reduce(total,0)
 
+    ! We've already weighted by 0.5 in the above, do we need a second 0.5 here?
     if (proc0) flx = 0.5*total
 
   end subroutine get_flux_vs_e
 
+  !> Identical to get_flux except don't integrate over poloidal angle ! JRB
+  !>
+  !> @todo: It would be nice if get_flux could calculate
+  !> the theta average _and_ the theta distribution in order to replace the
+  !> duplication associated with this routine.
+  subroutine get_flux_dist (g_in, fld, flx_dist)
+    use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
+    use kt_grids, only: ntheta0, aky, naky
+    use le_grids, only: integrate_moment
+    use species, only: nspec
+    use integration, only: trapezoidal_integration
+    use gs2_time, only: woutunits
+    use gs2_layouts, only: g_lo
+    implicit none
+    logical, parameter :: full_arr=moment_to_allprocs
+    !> Input weighted distribution
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
+    complex, dimension (-ntgrid:,:,:), intent (in) :: fld
+    real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
+    complex, dimension (:,:,:,:), allocatable :: total
+    real :: wgt
+    integer :: ik, it, is
+
+    allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    ! EGH added final parameter 'all'
+    ! to the call below for new parallel output
+    ! This is temporary until distributed fields
+    ! are implemented 1/2014
+    call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
+
+    !Note that jacob = 1/(bmag*gradpar*drhodpsi). This is similar to the factor
+    !we have below without the drhodpsi.
+    wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
+
+    ! Note: This doesn't include the field line jacobian (jacob) and as such
+    ! it's not clear that the above wgt is correct (as it uses 1/(bmag*gradpar)
+    ! which is jacob * drhodpsi, rather than jacob as one might expect).
+    do is = 1, nspec
+       do ik = 1, naky
+          do it = 1, ntheta0
+             flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                  *aky(ik) * wgt / woutunits(ik)
+          end do
+       end do
+    end do
+    flx_dist = flx_dist*0.5
+
+    deallocate (total)
+
+  end subroutine get_flux_dist
+
+  !> Diagnose the poloidal distribution of the particle, angular momentum,
+  !> and energy fluxes
+  !>
+  !> JRB
+  !>
+  !> @note Only considers phi related fluxes. Some degree of duplication with flux.
+  !> Ideally the flux and get_flux methods could return both the theta dependent and
+  !> theta averaged fluxes.
+  subroutine flux_dist (phi, bpar, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
+    !CMR, 15/1/08:
+    !  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew
+    !  so fields and distribution function are evaluated self-consistently in time.
+    !  This fixed unphysical oscillations in non-ambipolar particle fluxes
+    use species, only: spec
+    use theta_grid, only: ntgrid, bmag
+    use theta_grid, only: qval, shat, gds21, gds22
+    use kt_grids, only: theta0, aky
+    use le_grids, only: energy
+    use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
+    use dist_fn_arrays, only: g_adjust, from_g_gs2, to_g_gs2
+    use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
+    use run_parameters, only:has_phi
+    use constants, only: zi
+    use theta_grid, only: Rplot, Bpol, rhoc
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
+    integer :: it, ik, is, isgn, ig, iglo
+
+    call zero_array(pflux_dist) ; call zero_array(vflux_par_dist)
+    call zero_array(vflux_perp_dist) ; call zero_array(qflux_dist)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2) ! convert from g to h
+    if (has_phi) then
+       do isgn = 1, 2
+          g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
+       end do
+       call get_flux_dist (g_work, phi, pflux_dist)
+
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+       end do
+       call get_flux_dist (g_work, phi, qflux_dist)
+
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
+             g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
+          end do
+       end do
+       call get_flux_dist (g_work, phi, vflux_par_dist)
+
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             g_work(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
+                  *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
+          end do
+       end do
+       call get_flux_dist (g_work, phi, vflux_perp_dist)
+    end if
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2) ! convert back from h to g
+  end subroutine flux_dist
+
+  !> Calculate toroidal angular momentum flux due to field
+  !>
+  !> FIXME: confirm & expand
+  subroutine get_flux_tormom (g_in, fld, flx)
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+#ifdef LOWFLOW
+    use kt_grids, only: ntheta0, naky
+    use le_grids, only: integrate_moment
+    use species, only: nspec
+    use kt_grids, only: aky
+    use theta_grid, only: theta, grho, jacob, rplot
+    use lowflow, only: mach_lab
+    use integration, only: trapezoidal_integration
+#endif
+    implicit none
+    !> Input weighted distribution
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
+    !> Input field
+    complex, dimension (-ntgrid:,:,:), intent (in) :: fld
+    !> Output flux
+    real, dimension (:,:,:), intent (out) :: flx
+#ifdef LOWFLOW
+    complex, dimension (:,:,:,:), allocatable :: total
+    real :: wgt
+    integer :: ik, it, is
+    allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
+    call integrate_moment (g_in, total)
+
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
+
+    do is = 1, nspec
+       do ik = 1, naky
+          do it = 1, ntheta0
+             flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                  *Rplot(:)**2 * jacob)*aky(ik)*wgt*mach_lab(is)
+          end do
+       end do
+    end do
+    flx = flx*0.5
+
+    deallocate (total)
+#else
+    UNUSED_DUMMY(g_in); UNUSED_DUMMY(fld)
+    flx = 0.0
+#endif
+  end subroutine get_flux_tormom !JPL
+
   !> Calculate energy exchange diagnostic that numerically guarantees that the total
   !> energy exchange (summed over species) is zero
-  subroutine eexchange (phinew, phi, exchange1, exchange2)
+  !>
+  !> @note This diagnostic can be relatively expensive to calculate.
+  subroutine eexchange (phinew, phi, exchange_dummy, exchange_sym)
     use constants, only: zi
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
@@ -895,100 +1068,143 @@ contains
     use dist_fn_arrays, only: gnew, aj0, vpac, g, g_work
     use theta_grid, only: ntgrid, gradpar, delthet, field_line_average
     use kt_grids, only: ntheta0, naky
-    use le_grids, only: integrate_moment
+    use le_grids, only: integrate_moment, forbid
     use species, only: spec, nspec
     use nonlinear_terms, only: nonlin
     use hyper, only: hypervisc_filter
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, phi
-    real, dimension (:,:,:), intent (out) :: exchange1, exchange2
-
+    real, dimension (:,:,:), intent (out) :: exchange_dummy, exchange_sym
     integer :: ig, il, ie, it, ik, is, iglo, isgn
     complex :: dgdt_hypervisc
     complex, dimension (:,:,:,:), allocatable :: total, total2
 
-    allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total = 0.0
-    allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total2 = 0.0
+    allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec))
+    allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec))
+    ! Currently zero_array only distributes over the last dimension (nspec here)
+    ! so there's limited parallelisation available here.
+    call zero_array(total) ; call zero_array(total2)
 
-    exchange1 = 0.0 ; exchange2 = 0.0
+    ! Zero elements not set in main loops
+    if (nonlin) then
+       exchange_dummy(1, 1, :) = 0.0
+       exchange_sym(1, 1, :) = 0.0
+    end if
 
-    g_work = 0.
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, is, il, ie, isgn, ig, dgdt_hypervisc) &
+    !$OMP SHARED(g_lo, nonlin, g_work, ntgrid, forbid, aj0, code_dt, &
+    !$OMP gnew, spec, hypervisc_filter, vpac, gradpar, delthet) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-      it = it_idx(g_lo,iglo)
-      ik = ik_idx(g_lo,iglo)
-      if (nonlin .and. it==1 .and. ik==1) cycle
-      is = is_idx(g_lo,iglo)
-      il = il_idx(g_lo,iglo)
-      ie = ie_idx(g_lo,iglo)
-      do isgn = 1, 2
-        ! get v_magnetic piece of g_work at grid points instead of cell centers
-        do ig = -ntgrid, ntgrid
-          g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig, iglo)/code_dt &
-               * gnew(ig,isgn,iglo)*spec(is)%tz)
-        end do
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       if (nonlin .and. it==1 .and. ik==1) then
+          g_work(:, :, iglo) = 0.0
+          cycle
+       end if
+       is = is_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       do isgn = 1, 2
+          ! get v_magnetic piece of g_work at grid points instead of cell centers
+          do ig = -ntgrid, ntgrid
+             if (forbid(ig, il)) then
+                g_work(ig, isgn, iglo) = 0.0
+             else
+                ! It would be nice to cache the aj0*zi*wdrift_func*spec%tz
+                ! constant here as wdrift_func can be relatively expensive
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig, iglo)/code_dt &
+                     * gnew(ig,isgn,iglo)*spec(is)%tz)
+             end if
+          end do
 
-        ! add contribution to g_work from hyperviscosity at grid points
-        ! this is -(dg/dt)_hypervisc, equivalent to collisions term in eqn. 5 of PRL 109, 185003
-        do ig = -ntgrid, ntgrid
-          if (abs(hypervisc_filter(ig,it,ik)-1.0) > epsilon(0.0)) then
-            dgdt_hypervisc = (1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo)/code_dt
-            ! should gnew be (gnew+gold)/2?
-            g_work(ig,isgn,iglo) = g_work(ig,isgn,iglo) - dgdt_hypervisc
-          end if
-        end do
+          ! add contribution to g_work from hyperviscosity at grid points
+          ! this is -(dg/dt)_hypervisc, equivalent to collisions term in eqn. 5 of PRL 109, 185003
+          do ig = -ntgrid, ntgrid
+             if (abs(hypervisc_filter(ig,it,ik)-1.0) > epsilon(0.0)) then
+                dgdt_hypervisc = (1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo)/code_dt
+                ! should gnew be (gnew+gold)/2?
+                g_work(ig,isgn,iglo) = g_work(ig,isgn,iglo) - dgdt_hypervisc
+             end if
+          end do
 
-        ! get v_magnetic piece of g_work at cell centers and add in vpar piece at cell centers
-        do ig = -ntgrid, ntgrid-1
-          g_work(ig,isgn,iglo) = 0.5*(g_work(ig,isgn,iglo)+g_work(ig+1,isgn,iglo)) &
-               + 0.5*vpac(ig,isgn,iglo)*(gradpar(ig)+gradpar(ig+1))/delthet(ig) &
-               * (gnew(ig+1,isgn,iglo)-gnew(ig,isgn,iglo))*spec(is)%stm
-        end do
+          ! get v_magnetic piece of g_work at cell centers and add in vpar piece at cell centers
+          do ig = -ntgrid, ntgrid-1
+             g_work(ig,isgn,iglo) = 0.5*(g_work(ig,isgn,iglo)+g_work(ig+1,isgn,iglo)) &
+                  + 0.5*vpac(ig,isgn,iglo)*(gradpar(ig)+gradpar(ig+1))/delthet(ig) &
+                  * (gnew(ig+1,isgn,iglo)-gnew(ig,isgn,iglo))*spec(is)%stm
+          end do
 
-      end do
+       end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (g_work, total)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(is, ik, it) &
+    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange_dummy, total, phinew) &
+    !$OMP COLLAPSE(3) &
+    !$OMP SCHEDULE(static)
     do is = 1, nspec
-      do ik = 1, naky
-        do it = 1, ntheta0
-          if (nonlin .and. it==1 .and. ik==1) cycle
-          exchange1(it,ik,is) = field_line_average( &
-               real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
-        end do
-      end do
+       do ik = 1, naky
+          do it = 1, ntheta0
+             if (nonlin .and. it==1 .and. ik==1) cycle
+             exchange_dummy(it,ik,is) = field_line_average( &
+                  real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
+          end do
+       end do
     end do
+    !$OMP END PARALLEL DO
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, g_work, aj0, gnew, g) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-      do isgn = 1, 2
-        g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
-      end do
+       do isgn = 1, 2
+          g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
+       end do
     end do
+    !$OMP END PARALLEL DO
     call integrate_moment (g_work, total)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, g_work, aj0, gnew, g) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-      do isgn = 1, 2
-        g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
-      end do
+       do isgn = 1, 2
+          g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
+       end do
     end do
+    !$OMP END PARALLEL DO
     call integrate_moment (g_work, total2)
 
-    ! exchange2 is a symmetrized form of energy exchange,
+    ! exchange_sym is a symmetrized form of energy exchange,
     ! which guarantees species-summed energy exchange is zero
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(is, ik, it) &
+    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange_sym, total, &
+    !$OMP phinew, total2, phi, code_dt) &
+    !$OMP COLLAPSE(3) &
+    !$OMP SCHEDULE(static)
     do is = 1, nspec
-      do ik = 1, naky
-        do it = 1, ntheta0
-          if (nonlin .and. it==1 .and. ik==1) cycle
-          exchange2(it,ik,is) = field_line_average( &
-               real(total(:,it,ik,is) &
-               *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
-               - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
-               )/code_dt
-        end do
-      end do
+       do ik = 1, naky
+          do it = 1, ntheta0
+             if (nonlin .and. it==1 .and. ik==1) cycle
+             exchange_sym(it,ik,is) = field_line_average( &
+                  real(total(:,it,ik,is) &
+                  *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
+                  - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
+                  )/code_dt
+          end do
+       end do
     end do
+    !$OMP END PARALLEL DO
 
     deallocate (total, total2)
 
@@ -1081,7 +1297,7 @@ contains
              do it = 1, ntheta0
                 flx(it,ik,is) = trapezoidal_integration(theta, &
                      aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     /(bmag*gradpar))*wgt
+                     /(bmag*gradpar))*wgt !No ky factor?
              end do
           end do
        end do
@@ -1094,6 +1310,108 @@ contains
 
   end subroutine get_lfflux
 
+  !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
+  subroutine flux_vs_theta_vs_vpa (phinew,vflx)
+    use constants, only: zi
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac, g_work
+    use gs2_layouts, only: g_lo
+    use gs2_layouts, only: it_idx, ik_idx, is_idx
+    use theta_grid, only: ntgrid, bmag, gds21, gds22, qval, shat
+    use theta_grid, only: Rplot, Bpol, rhoc
+    use kt_grids, only: aky, theta0
+    use le_grids, only: integrate_volume, nlambda, negrid
+    use le_grids, only: get_flux_vs_theta_vs_vpa
+    use species, only: spec, nspec
 
+    implicit none
+    complex, dimension(-ntgrid:,:,:), intent(in) :: phinew
+    real, dimension (-ntgrid:,:,:), intent (out) :: vflx
+
+    integer :: all = 1
+    integer :: iglo, isgn, ig, it, ik, is
+
+    real, dimension (:,:,:), allocatable :: g0r
+    real, dimension (:,:,:,:,:), allocatable :: gavg
+
+    allocate (g0r(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (gavg(-ntgrid:ntgrid,nlambda,negrid,2,nspec))
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
+             g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)*vpac(ig,isgn,iglo) &
+                  *Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2) &
+                  -zi*aky(ik)*gnew(ig,isgn,iglo)*aj1(ig,iglo) &
+                  *rhoc*(gds21(ig)+theta0(it,ik)*gds22(ig))*vperp2(ig,iglo)*spec(is)%smz/(qval*shat*bmag(ig)**2)
+             g0r(ig,isgn,iglo) = aimag(g_work(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)
+          end do
+       end do
+    end do
+
+    call integrate_volume (g0r, gavg, all)
+    call get_flux_vs_theta_vs_vpa (gavg, vflx)
+
+    deallocate (gavg)
+    deallocate (g0r)
+
+  end subroutine flux_vs_theta_vs_vpa
+
+  !> Diagnose particle flux contribution to toroidal momentum flux
+  !> in the lab frame in terms of vpar and theta.
+  subroutine pflux_vs_theta_vs_vpa (vflx)
+#ifdef LOWFLOW
+    use dist_fn_arrays, only: gnew, aj0, g_work
+    use gs2_layouts, only: g_lo
+    use gs2_layouts, only: it_idx, ik_idx, is_idx
+    use theta_grid, only: Rplot !JPL
+    use fields_arrays, only: phinew
+    use kt_grids, only: aky
+    use le_grids, only: integrate_volume, nlambda, negrid
+    use le_grids, only: get_flux_vs_theta_vs_vpa
+    use species, only:  nspec
+    use lowflow, only: mach_lab
+#endif
+    use theta_grid, only: ntgrid
+    implicit none
+
+    real, dimension (-ntgrid:,:,:), intent (out) :: vflx
+#ifdef LOWFLOW
+    integer :: all = 1
+    integer :: iglo, isgn, ig, it, ik, is
+
+    real, dimension (:,:,:), allocatable :: g0r
+    real, dimension (:,:,:,:,:), allocatable :: gavg
+    allocate (g0r(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (gavg(-ntgrid:ntgrid,nlambda,negrid,2,nspec))
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)
+
+             g0r(ig,isgn,iglo) = aimag(g_work(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)*Rplot(ig)**2*mach_lab(is)
+
+          end do
+       end do
+    end do
+
+    call integrate_volume (g0r, gavg, all)
+    call get_flux_vs_theta_vs_vpa (gavg, vflx)
+
+    deallocate (gavg)
+    deallocate (g0r)
+#else
+    vflx=0.
+#endif
+  end subroutine pflux_vs_theta_vs_vpa
 
 end module diagnostics_fluxes

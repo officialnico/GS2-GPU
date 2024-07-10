@@ -45,7 +45,9 @@ contains
     use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     use mp, only: proc0
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     use gs2_io, only: starts, kx_dim, ky_dim, time_dim
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
@@ -61,10 +63,11 @@ contains
     call calc_jext(gnostics,j_ext)
 
     !Write to netcdf
+#ifdef NETCDF
     if (proc0) call neasyf_write(gnostics%file_id, "antenna_j_ext", j_ext, &
          dim_names=[kx_dim, ky_dim, time_dim], start=starts(3, gnostics%nout), &
          long_name="Time averaged external current in the antenna, real(kperp^2 A_antenna)", units="radians")
-
+#endif
     !Write to ascii
     if (proc0 .and. gnostics%ascii_files%write_to_jext .and. (.not. gnostics%create)) then
        t = gnostics%user_time
@@ -85,7 +88,6 @@ contains
   subroutine write_lorentzian(gnostics)
     use antenna, only: antenna_w
     use diagnostics_config, only: diagnostics_type
-    use neasyf, only: neasyf_write
     use gs2_io, only: starts, netcdf_write_complex, complex_dim, time_dim
     use mp, only: proc0
     implicit none

@@ -410,8 +410,8 @@ contains
        do ig = -ntgrid, ntgrid
           if(forbid(ig, il)) cycle
           sin_squared_pitch_angle = al(il)*bmag(ig)
-          gnew(ig,1,iglo) = sqrt(1 - sin_squared_pitch_angle)
-          gnew(ig,2,iglo) = sqrt(1 - sin_squared_pitch_angle)
+          gnew(ig,1,iglo) = sqrt(max(1 - sin_squared_pitch_angle, 0.0))
+          gnew(ig,2,iglo) = sqrt(max(1 - sin_squared_pitch_angle, 0.0))
        end do
     end do
     agrees = integrate_and_test(name, expected_value)

@@ -45,11 +45,6 @@ module gs2_init
 
   public :: write_init_times, report_init_times, reset_init_times
 
-  public :: in_memory
-  public :: init_config_type
-  public :: set_gs2_init_config
-  public :: get_gs2_init_config
-
   !> A type for storing the current initialization
   !> status, as well as all the overrides.
   type init_type
@@ -140,38 +135,12 @@ module gs2_init
 
   type(init_level_list_type), parameter :: init_level_list = init_level_list_type()
 
-  logical :: in_memory = .false.
   logical :: initialized = .false.
 
   interface init
      module procedure :: init_pass_type
      module procedure :: init_pass_int
   end interface init
-
-  !> Used to represent the input configuration of init
-  type, extends(abstract_config_type) :: init_config_type
-     ! namelist : init_knobs
-     ! indexed : false
-     !> If `true` then when changing the timestep attempt to keep a
-     !> copy of the current fields and distribution function in memory
-     !> rather than dumping to disk. This should fall back to a disk
-     !> based method if there is insufficient memory. Currently both
-     !> this value and the value of `in_memory` in [[reinit_knobs]]
-     !> must be set to `true` in order to enable this feature.
-     !>
-     !> @todo Consider if this can be removed and just the
-     !> [[reinit_knobs]] version controls the feature.
-     logical :: in_memory = .false.
-   contains
-     procedure, public :: read => read_init_config
-     procedure, public :: write => write_init_config
-     procedure, public :: reset => reset_init_config
-     procedure, public :: broadcast => broadcast_init_config
-     procedure, public, nopass :: get_default_name => get_default_name_init_config
-     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_init_config
-  end type init_config_type
-
-  type(init_config_type) :: init_config
 
 contains
 
@@ -304,22 +273,10 @@ contains
   !> Initialise this module. As we pass in the initialisation state
   !> object (current), we could/should consider making this set the
   !> level to basic, e.g. current%level = init_level_list%basic
-  subroutine init_gs2_init(init_config_in)
+  subroutine init_gs2_init
     implicit none
-    type(init_config_type), intent(in), optional :: init_config_in
-
-    logical :: exist
     if (initialized) return
     initialized = .true.
-
-    if (present(init_config_in)) init_config = init_config_in
-
-    call init_config%init(name = 'init_knobs', requires_index = .false.)
-
-    ! Copy out internal values into module level parameters
-    in_memory = init_config%in_memory
-
-    exist = init_config%exist
 #include "gs2_init_level_array.inc"
   end subroutine init_gs2_init
 
@@ -328,7 +285,6 @@ contains
     use run_parameters, only: save_init_times
     implicit none
     if (save_init_times) call write_init_times
-    call init_config%reset()
     initialized = .false.
     if (allocated(init_levels)) deallocate(init_levels)
   end subroutine finish_gs2_init
@@ -342,12 +298,12 @@ contains
     use init_g, only: ginit, init_vnmult
     use init_g, only: ginitopt_restart_many, initial_condition_is_nonadiabatic_dfn
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use collisions, only: vnmult
+    use collisions, only: set_vnmult
     use array_utils, only: copy, zero_array
     implicit none
     type (init_type), intent(in) :: current
     logical :: restarted
-
+    real, dimension(2) :: new_vnmult
     if (.not. current%initval_ov%override) then
        ! This is the usual initial setup
        call ginit (restarted)
@@ -365,11 +321,12 @@ contains
        if (current%initval_ov%in_memory) then
           call copy(current%initval_ov%g, g)
           call copy(g, gnew)
-          vnmult = current%initval_ov%vnmult
+          new_vnmult = current%initval_ov%vnmult
        else
           call ginit(restarted, ginitopt_restart_many)
-          call init_vnmult(vnmult)
+          call init_vnmult(new_vnmult)
        end if
+       call set_vnmult(new_vnmult)
     end if
 
     if (current%initval_ov%in_memory) then
@@ -416,112 +373,4 @@ contains
        end if
     end if
   end subroutine set_initial_field_and_dist_fn_values
-
-  !> Set the module level config type
-  !> Will abort if the module has already been initialised to avoid
-  !> inconsistencies.
-  subroutine set_gs2_init_config(gs2_init_config_in)
-    use mp, only: mp_abort
-    type(init_config_type), intent(in), optional :: gs2_init_config_in
-    if (initialized) then
-       call mp_abort("Trying to set gs2_init_config when already initialized.", to_screen = .true.)
-    end if
-    if (present(gs2_init_config_in)) then
-       init_config = gs2_init_config_in
-    end if
-  end subroutine set_gs2_init_config
-
-  !> Get the module level config instance
-  function get_gs2_init_config()
-    type(init_config_type) :: get_gs2_init_config
-    get_gs2_init_config = init_config
-  end function get_gs2_init_config
-
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-
-  !> Reads in the init_knobs namelist and populates the member variables
-  subroutine read_init_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(init_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    logical :: in_memory
-
-    namelist /init_knobs/ in_memory
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    in_memory = self%in_memory
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = init_knobs)
-
-    ! Now copy from local variables into type members
-    self%in_memory = in_memory
-
-    self%exist = exist
-  end subroutine read_init_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_init_config(self, unit)
-    implicit none
-    class(init_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("in_memory", self%in_memory, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_init_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_init_config(self)
-    class(init_config_type), intent(in out) :: self
-    type(init_config_type) :: empty
-    select type (self)
-    type is (init_config_type)
-       self = empty
-    end select
-  end subroutine reset_init_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_init_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(init_config_type), intent(in out) :: self
-    call broadcast(self%in_memory)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_init_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_init_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_init_config
-    get_default_name_init_config = "init_knobs"
-  end function get_default_name_init_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_init_config()
-    implicit none
-    logical :: get_default_requires_index_init_config
-    get_default_requires_index_init_config = .false.
-  end function get_default_requires_index_init_config
 end module gs2_init

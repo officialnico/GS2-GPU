@@ -1,4 +1,3 @@
-export
 SHELL := bash
 
 #Record the top level path. Note we don't just use $(PWD) as this
@@ -25,27 +24,18 @@ TEST_LEVEL ?= MY_TEST_LEVEL
 .PHONY: all clean_individual_test
 
 .f90.o:
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(call compile_and_preprocess)
 
-.c.o:
-	$(call messageOp,"Compiling C","\\t:",$<)
-	$(QUIETSYM)$(CC) $(CFLAGS) $(CPPFLAGS) -I$(GK_HEAD_DIR) -c $< 
-
-ifdef ONE_STEP_PP
 .fpp.o:
-	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
-else
-.fpp.f90:
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) -I$(GK_HEAD_DIR) $< $@ 
-endif
+	$(call compile_and_preprocess)
+
+.F90.o:
+	$(call compile_and_preprocess)
 
 # This prevents error messages like m2c: Command not found
 %.o : %.mod
 
-CLEAN_TEST_FILES=*.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist *.exit_reason OUTPUT *.used_inputs.in *.vspace_integration_error *.timing_stats
+CLEAN_TEST_FILES=*.o *.error *.out *.out.nc *.gridgen.200 *.lpc *.vres *.fields *.g *.fort.?? *.mod .*.scratch *.moments *.cdf *.jext *.parity *.heat *.heat2 *.vres2 *.amoments *.eigenfunc *.nc* *.mom2 *.epar .*.in results_of_test.txt *.stop *.fftw_wisdom *.phase *.kpar *.interp *.dist *.exit_reason OUTPUT *.used_inputs.in *.vspace_integration_error *.timing_stats *.bishop *.progress
 
 ifdef CLEAN_TEXTFILES
 	CLEAN_TEST_FILES+= *~ *.orig
@@ -60,10 +50,6 @@ clean_individual_test: TEST_NAME ?= $(notdir $(PWD))
 clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
 	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES} ${LOCAL_TEST_FILES}
-
-upload:
-	$(UPLOADCOMMAND)
-
 
 # This target allows us to run `make local_test` in a given individual
 # test directory in order to build and run just that test
@@ -124,5 +110,3 @@ endef
 BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(3)
 
 BENCHMARKCOMMAND= $(call BENCHMARKEXEC,$(1),$(2),$(3)); if test "$$?" != 0; then  echo "FAILED: `basename $$PWD` ($(call BENCHMARKEXEC,$(1),$(2),$(3)))" >> results_of_test.txt; else echo "passed: `basename $$PWD` ($(call BENCHMARKEXEC,$(1),$(2),$(3)))" >> results_of_test.txt;  fi
-
-UPLOAD_BENCHMARKS= ls $(1) | xargs -n 1 -I {} scp {} $(USER),gyrokinetics@web.sourceforge.net:htdocs/wikifiles/benchmark_data/.

@@ -1,4 +1,5 @@
 #ifdef FIELDS_EIG
+#include "unused_dummy.inc"
 module fields_eigval
   use petscvec
   use petscmat
@@ -43,7 +44,6 @@ module fields_eigval
 
 contains
 
-
   !> Returns true if GS2 was compiled with WITH_EIG defined
   function eigval_functional()
     logical :: eigval_functional
@@ -52,7 +52,7 @@ contains
 
   !> Initialise eigenvalue problem
   subroutine init_eigval!(eigval_config_in)
-    use mp, only: mp_comm, proc0
+    use mp, only: mp_comm
     implicit none
     !type(eigval_config_type), intent(in), optional :: eigval_config_in
     PetscErrorCode :: ierr
@@ -160,6 +160,8 @@ contains
     PetscErrorCode, intent(inout) :: ierr
     integer, parameter :: istep=2
     integer :: is, iglo
+    UNUSED_DUMMY(MatOperator); UNUSED_DUMMY(ierr)
+
     !First unpack input vector into gnew
     call VecToFields(VecIn)
 !    call zero_array(gnew)
@@ -334,16 +336,14 @@ contains
   subroutine ReportResults(my_solver,my_operator)
     use mp, only: proc0
     use constants, only: zi
-    use gs2_time, only: user_time, code_dt
-    use collisions, only: vnmult
+    use gs2_time, only: code_dt
     use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
     use fields_arrays, only: phi, phinew, apar, aparnew, bpar, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
     use gs2_save, only: add_eigenpair_to_file, finish_gs2_save
     use file_utils, only: run_name
-    use gs2_diagnostics, only: save_distfn, save_glo_info_and_grids, save_restart_dist_fn
-    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities, navg
+    use gs2_diagnostics, only: loop_diagnostics, nwrite, navg
     use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: run_diagnostics, gnostics
@@ -356,11 +356,10 @@ contains
     Vec :: eig_vec_r, eig_vec_i
     PetscScalar :: eig_val_r, eig_val_i
     complex :: EigVal, previous_field_factor
-    logical :: all_found, diagnostics_exit
+    logical :: diagnostics_exit
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
-    character(len=20) :: restart_unique_string
-    integer :: istatus, original_navg
+    integer :: original_navg
 
     !Find out how many iterations were performed
     call EPSGetIterationNumber(my_solver,iteration_count,ierr)
@@ -381,8 +380,7 @@ contains
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
-       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", &
-            has_phi, has_apar, has_bpar, io_ids)
+       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", io_ids)
 
        !Now loop over converged values
        do ieig=0,n_converged-1

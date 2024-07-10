@@ -33,9 +33,11 @@ contains
     implicit none
     complex, dimension(:,:,:), intent(in) :: an
     complex, dimension(:,:,:), intent(out) :: an2
+    complex, dimension(:,:,:), allocatable :: tmp
     real :: scale
-
-    call kz_spectrum (an, an2)
+    ! Copy the input data as the ffts can potentially modify input
+    allocate(tmp, source = an)
+    call kz_spectrum (tmp, an2)
     scale = 1./real(4*ntgrid**2)
     an2 = an2*scale
   end subroutine par_spectrum
@@ -303,7 +305,7 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
     use species, only: nspec, spec
-    use dist_fn, only: getmoms
+    use diagnostics_moments, only: getmoms
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew

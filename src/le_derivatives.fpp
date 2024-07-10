@@ -179,16 +179,14 @@ contains
   subroutine get_and_set_gvpa(gle)
     use gs2_layouts, only: le_lo, ig_idx, is_idx
     use theta_grid, only: gradpar, ntgrid
-    use le_grids, only: ixi_to_il, forbid, jend, negrid, nxi
-    use le_grids, only: xi, speed => speed_maxw, energy => energy_maxw
+    use le_grids, only: ixi_to_il, forbid, negrid, nxi
     use species, only: spec
     use lowflow, only: dphidth
     use gs2_time, only: code_dt
     implicit none
     complex, dimension(:, :, le_lo%llim_proc:), intent(in out) :: gle
     integer :: ile, ig, ie, ixi, il, is
-    integer, dimension (2) :: i
-    real :: dvp, vp0
+    real :: dvp
     complex, dimension (:,:), allocatable :: gtmp
 
     allocate (gtmp(nxi+1,negrid+1))
@@ -207,7 +205,7 @@ contains
        dvp = spec(is)%zstm*dphidth(ig+ntgrid+1)*gradpar(ig)*0.5*code_dt
        do ie = 1, negrid
           do ixi = 1, nxi
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              if (.not. forbid(ig,il)) &
                   call get_gvpa (gtmp, dvp, ig, il, ixi, ie, gle(ixi,ie,ile))
           end do
@@ -242,7 +240,7 @@ contains
     else
 
        ! vp0 is the parallel speed at current time level
-       vp0 = xi(ig0,ixi0)*speed(ie0)
+       vp0 = xi(ixi0, ig0)*speed(ie0)
        ! vp is the parallel speed at previous time level
        vp = vp0 + dv
 
@@ -371,11 +369,11 @@ contains
     real :: d1, d2, d3, d4, dtot, xpt
     real, dimension (:), allocatable :: var
 
-    allocate (var(size(xi,2)))
-    var = xi(ig0,:) ; xpt = x0
+    allocate (var(size(xi,1)))
+    var = xi(:, ig0) ; xpt = x0
     !      var = al ; xpt = lam0
     !      var(1:nlambda) = al ; var(2*nlambda:nlambda+1:-1) = al ; xpt = lam0
-    !      var = acos(xi(ig0,:)) ; xpt = p0
+    !      var = acos(xi(:, ig0)) ; xpt = p0
 
     ! check for special cases
 

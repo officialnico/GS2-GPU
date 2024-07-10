@@ -9,11 +9,12 @@ module config_collection
   use dist_fn, only: dist_fn_config_type
   use dist_fn, only: dist_fn_species_config_type
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
   use eigval, only: eigval_config_type
+#endif
 #endif
   use fields, only: fields_config_type
   use gs2_diagnostics, only: gs2_diagnostics_config_type
-  use gs2_init, only: init_config_type
   use gs2_layouts, only: layouts_config_type
   use hyper, only: hyper_config_type
   use ingen_mod, only: ingen_config_type
@@ -32,7 +33,6 @@ module config_collection
   use normalisations, only: normalisations_config_type
   use optimisation_config, only: optimisation_config_type
   use run_parameters, only: knobs_config_type
-  use run_parameters, only: parameters_config_type
   use parameter_scan, only: parameter_scan_config_type
   use gs2_reinit, only: reinit_config_type
   use dist_fn, only: source_config_type
@@ -58,13 +58,14 @@ module config_collection
      type(dist_fn_species_config_type), dimension(:), allocatable :: dist_fn_species_config
      type(driver_config_type) :: driver_config
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
      type(eigval_config_type) :: eigval_config
+#endif
 #endif
      type(fields_config_type) :: fields_config
      type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
      type(hyper_config_type) :: hyper_config
      type(ingen_config_type) :: ingen_config
-     type(init_config_type) :: init_config
      type(init_g_config_type) :: init_g_config
      type(knobs_config_type) :: knobs_config
      type(kt_grids_config_type) :: kt_grids_config
@@ -81,7 +82,6 @@ module config_collection
      type(nonlinear_terms_config_type) :: nonlinear_terms_config
      type(normalisations_config_type) :: normalisations_config
      type(optimisation_config_type) :: optimisation_config
-     type(parameters_config_type) :: parameters_config
      type(parameter_scan_config_type) :: parameter_scan_config
      type(reinit_config_type) :: reinit_config
      type(source_config_type) :: source_config
@@ -142,7 +142,9 @@ contains
 
     call self%driver_config%write(local_output_unit)
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
     call self%eigval_config%write(local_output_unit)
+#endif
 #endif
     call self%fields_config%write(local_output_unit)
 #ifdef NEW_DIAG
@@ -156,7 +158,6 @@ contains
 #endif
     call self%hyper_config%write(local_output_unit)
     call self%ingen_config%write(local_output_unit)
-    call self%init_config%write(local_output_unit)
     call self%init_g_config%write(local_output_unit)
     call self%knobs_config%write(local_output_unit)
     call self%kt_grids_config%write(local_output_unit)
@@ -182,7 +183,6 @@ contains
     call self%nonlinear_terms_config%write(local_output_unit)
     call self%normalisations_config%write(local_output_unit)
     call self%optimisation_config%write(local_output_unit)
-    call self%parameters_config%write(local_output_unit)
     call self%parameter_scan_config%write(local_output_unit)
     call self%reinit_config%write(local_output_unit)
     call self%source_config%write(local_output_unit)
@@ -233,11 +233,12 @@ contains
     use collisions, only: get_collisions_config
     use dist_fn, only: get_dist_fn_config, get_dist_fn_species_config, get_source_config
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
     use eigval, only: get_eigval_config
+#endif
 #endif
     use fields, only: get_fields_config
     use gs2_diagnostics, only: get_gs2_diagnostics_config
-    use gs2_init, only: get_gs2_init_config
     use gs2_layouts, only: get_gs2_layouts_config
     use hyper, only: get_hyper_config
     use ingen_mod, only: get_ingen_mod_config
@@ -254,7 +255,7 @@ contains
     use nonlinear_terms, only: get_nonlinear_terms_config
     use normalisations, only: get_normalisations_config
     use optimisation_config, only: get_optimisation_config_config
-    use run_parameters, only: get_knobs_config, get_parameters_config
+    use run_parameters, only: get_knobs_config
     use parameter_scan, only: get_parameter_scan_config
     use gs2_reinit, only: get_gs2_reinit_config
     use species, only: get_species_config, get_species_element_config
@@ -276,11 +277,12 @@ contains
     self%dist_fn_config = get_dist_fn_config()
     self%dist_fn_species_config = get_dist_fn_species_config()
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
     self%eigval_config = get_eigval_config()
+#endif
 #endif
     self%fields_config = get_fields_config()
     self%gs2_diagnostics_config = get_gs2_diagnostics_config()
-    self%init_config = get_gs2_init_config()
     self%layouts_config = get_gs2_layouts_config()
     self%hyper_config = get_hyper_config()
     self%ingen_config = get_ingen_mod_config()
@@ -299,7 +301,6 @@ contains
     self%normalisations_config = get_normalisations_config()
     self%optimisation_config = get_optimisation_config_config()
     self%knobs_config = get_knobs_config()
-    self%parameters_config = get_parameters_config()
     self%parameter_scan_config = get_parameter_scan_config()
     self%reinit_config = get_gs2_reinit_config()
     self%source_config = get_source_config()

@@ -23,6 +23,12 @@ $(call messageOp,"Running ","\\t:",$(1))
 @./compare.py $(2) $(3) > OUTPUT_TEST ; if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
 endef
 
+# Used to check the response values agree
+define TEST_FIELDS_RESPONSE_MATCH_TEST
+$(call messageOp,"Running ","\\t:",$(1))
+@./compare_response.py $(2) $(3) > OUTPUT_CHECK ; if test "$$?" != 0; then $(FAILCOMMAND) ; else $(PASSCOMMAND) ;  fi
+endef
+
 # Used to check that there were no complaints about not being able to read the file.
 define TEST_FIELDS_RESPONSE_CHECK_READ
 $(call messageOp,"Checking ","\\t:",$(1))
@@ -42,6 +48,8 @@ all: build_test_exe
 # Run with the local field solver
 	@${TESTCOMMAND}gs2 ${TEST_BASE_NAME}_local_dump.in >> OUTPUT
 	$(call TEST_FIELDS_RESPONSE_DUMPING_TEST,${TEST_BASE_NAME},${TEST_BASE_NAME}_implicit_dump.out.nc,${TEST_BASE_NAME}_local_dump.out.nc)
+	$(call TEST_FIELDS_RESPONSE_MATCH_TEST,${TEST_BASE_NAME},implicit,local)
+
 # Implicit read
 	@${TESTCOMMAND}gs2 ${TEST_BASE_NAME}_implicit_read.in >> OUTPUT
 	$(call TEST_FIELDS_RESPONSE_DUMPING_TEST,${TEST_BASE_NAME},${TEST_BASE_NAME}_implicit_dump.out.nc,${TEST_BASE_NAME}_implicit_read.out.nc)

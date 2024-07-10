@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> FIXME : Add documentation
 module lowflow
 
@@ -57,16 +58,14 @@ contains
        driftknob, tpdriftknob)
     use constants, only: zi
     use species, only: spec, nspec
-    use geometry, only: rhoc!Should this not be value from theta_grid_params?
-    use theta_grid, only: theta, ntgrid, delthet, gradpar, bmag
-    use theta_grid, only: gds23, gds24, gds24_noq, cvdrift_th, gbdrift_th
-    use theta_grid, only: drhodpsi, qval, shat
+    use theta_grid, only: theta, ntgrid, delthet, gradpar, bmag, shat
+    use theta_grid, only: gds23, gds24, gds24_noq
     use le_grids, only: energy, al, negrid, nlambda, forbid, init_map
     use le_grids, only: get_flux_vs_theta_vs_vpa
     use kt_grids, only: theta0, ntheta0, naky, aky, akx
     use gs2_time, only: tunits, wunits, code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx, it_idx
-    use run_parameters, only:rhostar, neo_test
+    use run_parameters, only: neo_test
     use file_utils, only: open_output_file, close_output_file
     use collisions, only: use_le_layout
     use mp, only: proc0, mp_abort
@@ -82,6 +81,9 @@ contains
     real, dimension (:,:,:,:,:), allocatable :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6
     real, dimension (:,:,:), allocatable :: vpadhdec, dhdec, dhdxic, cdfac, hneovpth
     real, dimension (:), allocatable :: tmp7, tmp8, tmp9
+    ! Add deprecation notice as LOWFLOW not being actively maintained/tested due to
+    ! use of old verision of neo files.
+    if (proc0) write(*, '("Warning: Lowflow deprecated in v8.2 and will be removed.")')
 
     ! Initialise the curvature drift
     call init_wcurv(driftknob, tpdriftknob)
@@ -290,9 +292,10 @@ contains
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       wdfac(:,1,iglo) = wdfac(:,1,iglo)*wdrift(:,1,iglo) &
+       ! On entry the imaginary part of wdrift is zero
+       wdfac(:,1,iglo) = wdfac(:,1,iglo)*real(wdrift(:,1,iglo)) &
             + cdfac(:,1,iglo)*wcurv(:,iglo)
-       wdfac(:,2,iglo) = wdfac(:,2,iglo)*wdrift(:,2,iglo) &
+       wdfac(:,2,iglo) = wdfac(:,2,iglo)*real(wdrift(:,2,iglo)) &
             + cdfac(:,2,iglo)*wcurv(:,iglo)
        wdttpfac(:,it,ik,ie,is,1) = wdfac(:,1,iglo)*wdriftttp(:, 1, iglo) &
             + cdfac(:,1,iglo)*wcurv(:,iglo)
@@ -331,9 +334,9 @@ contains
     use array_utils, only: zero_array
     implicit none
     real, intent(in) :: driftknob, tpdriftknob
-    integer :: ig, ik, it, il, ie, is, iglo
+    integer :: ig, ik, it, il, is, iglo
     real :: scaling_knob
-    logical,parameter :: debug = .false.
+    logical, parameter :: debug = .false.
 
     if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(wcurv)
@@ -402,7 +405,7 @@ contains
     use le_grids, only: w, wl
     use theta_grid, only: delthet, jacob, ntgrid, Rplot
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
-    use geometry, only: rmaj
+    use geometry, only: surf
     use species, only: spec
     use integration, only: trapezoidal_integration
     implicit none
@@ -414,7 +417,7 @@ contains
     real, dimension (:), intent (out) :: dphidthc, dphidrc, phi_neo
     logical, intent (in) :: lf_default, lf_decompose
 
-    real :: rgeo2, drlt, drln
+    real :: rgeo2, drlt, drln, rmaj
 
     real, dimension (:,:,:,:,:), allocatable :: hneo
     real, dimension (:,:,:,:), allocatable :: dHdxi, dHdE, vpadHdE, dHdr, dHdth
@@ -440,11 +443,12 @@ contains
     nlambda = size(al)
     nenergy = size(energy)
     nxi = 2*nlambda-1
-
+    rmaj = surf%rmaj
     if (.not. allocated(xi)) allocate (xi(ntheta,nxi))
     if (.not. allocated(forbid)) allocate(forbid(ntheta,nxi))
     forbid = .false. ; xi = 0.0
-
+    !Note, xi is not the same order as le_grids version. Should we just use le_grids
+    ! one? If so would need to reorder indexing elsewhere in this module
     ! get xi=vpar/v from lambda=(mu/E)*Bnorm
     do il = 1, nlambda-1
        do ig = 1, ntheta
@@ -875,19 +879,15 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_H (gjk, legdre, chebyshv, h, phi, ig, is)
-
     use species, only: spec
-
     implicit none
-
     real, dimension (0:,0:), intent (in) :: gjk
     real, dimension (:,0:), intent (in) :: legdre, chebyshv
     real, intent (in) :: phi
     real, dimension (:,:), intent (out) :: h
     integer, intent (in) :: ig, is
-
     integer :: ix, ij, ik
-
+    UNUSED_DUMMY(ig)
     h = 0.0
 
     do ix = 1, size(h,1)
@@ -935,35 +935,29 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_dHdE (gjk, legdre, chebyshv1, chebyshv2, x, xmax, dH)
-
     implicit none
-
     real, dimension (0:,0:), intent (in) :: gjk
     real, dimension (:,0:), intent (in) :: legdre
     real, dimension (:), intent (in) :: x
     real, intent (in) :: xmax
     real, dimension (:,0:), intent (in) :: chebyshv1, chebyshv2
     real, dimension (:,:), intent (out) :: dH
-
     integer :: ij, ik, ix
     real :: cfac
-
+    UNUSED_DUMMY(chebyshv1)
     dH = 0.0
 
     ! dH/dE at fixed xi is sum_{j,k} c_{j,k}*P_j(xi)*d(T_{n}(z))/dz / sqrt(E*EMAX)
     ! z=2*sqrt(E/EMAX)-1
     ! note that d(T_{k})/dz = k*U_{k-1}, where U_k is the Chebyshev polynomial of the 2nd kind
     do ix = 1, size(x)
-       do ik = 0, size(gjk,2)-1
-          if (ik==0) then
-             ! cfac nonzero here if hneo = F_1 instead of F_1/F_0
-             !             cfac = -chebyshv1(ix,ik)
-             cfac = 0.0
-          else
-             ! extra chebyshv1 term not needed since hneo = F_1/F_0 instead of F_1
-             !             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)-chebyshv1(ix,ik)
-             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)
-          end if
+       ! cfac nonzero here if hneo = F_1 instead of F_1/F_0
+       !             cfac = -chebyshv1(ix,ik)
+       cfac = 0.0
+       do ik = 1, size(gjk,2)-1
+          ! extra chebyshv1 term not needed since hneo = F_1/F_0 instead of F_1
+          !             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)-chebyshv1(ix,ik)
+          cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)
           do ij = 0, size(gjk,1)-1
              dH(:,ix) = dH(:,ix) + (legdre(:,ij)*cfac*gjk(ij,ik))
           end do
@@ -1040,7 +1034,7 @@ contains
   subroutine read_neocoefs (theta, nspec_neo, nenergy_neo, nxi_neo, nrad_neo, ir_neo)
 
     use mp, only: proc0, broadcast
-    use splines, only: lf_spline
+    use splines, only: inter_cspl
     use file_utils, only: get_unused_unit
     use constants, only: pi,twopi
 
@@ -1054,7 +1048,7 @@ contains
     integer :: ngrid_per_rad
     integer, save :: neo_unit, neof_unit, neophi_unit
 
-    real, dimension (:), allocatable :: tmp, neo_coefs, dum, neo_phi, dneo_phi
+    real, dimension (:), allocatable :: tmp, neo_coefs, neo_phi, dneo_phi
     real, dimension (:), allocatable :: theta_neo_ext,neo_coefs_ext, neo_phi_ext, dneo_phi_ext !JPL
     ntheta = size(theta)
 
@@ -1107,7 +1101,6 @@ contains
 
     if (.not. allocated(tmp)) allocate (tmp(ngrid_per_rad*nrad_neo))
     if (.not. allocated(neo_coefs)) allocate (neo_coefs(ntheta_neo), neo_phi(ntheta_neo), dneo_phi(ntheta_neo))
-    if (.not. allocated(dum)) allocate (dum(ntheta))
     if (.not. allocated(coefs)) allocate (coefs(nrad_neo,ntheta,0:nxi_neo,0:nenergy_neo-1,nspec_neo))
     if (.not. allocated(phineo)) allocate (phineo(nrad_neo,ntheta))
     if (.not. allocated(dphidth)) allocate (dphidth(ntheta))
@@ -1151,10 +1144,10 @@ contains
                          theta_neo_ext(ip)=theta_neo(mod((ip-1),ntheta_neo)+1)+twopi*(int((ip-1)/ntheta_neo)-(ptheta_neo-1))
                          neo_coefs_ext(ip)=neo_coefs(mod((ip-1),ntheta_neo)+1)
                       end do
-                      call lf_spline (theta_neo_ext, neo_coefs_ext, theta, coefs(ir,:,ij,ik,is), dum)  !JPL
+                      call inter_cspl (theta_neo_ext, neo_coefs_ext, theta, coefs(ir,:,ij,ik,is))  !JPL
                    else
                       ! need to interpolate coefficients from neo's theta grid to gs2's
-                      call lf_spline (theta_neo, neo_coefs, theta, coefs(ir,:,ij,ik,is), dum)
+                      call inter_cspl (theta_neo, neo_coefs, theta, coefs(ir,:,ij,ik,is))
                    end if
                 end do
              end do
@@ -1192,9 +1185,9 @@ contains
              do ip = 1, ntheta_neo*(2*ptheta_neo-1)
                 neo_phi_ext(ip)=neo_phi(mod((ip-1),ntheta_neo)+1)
              end do
-             call lf_spline (theta_neo_ext, neo_phi_ext, theta, phineo(ir,:), dum)  !JPL
+             call inter_cspl (theta_neo_ext, neo_phi_ext, theta, phineo(ir,:))  !JPL
           else
-             call lf_spline (theta_neo, neo_phi, theta, phineo(ir,:), dum)
+             call inter_cspl (theta_neo, neo_phi, theta, phineo(ir,:))
           end if
 
           ! at central radius, calculate dphi/dth and interpolate onto gs2 grid
@@ -1204,10 +1197,10 @@ contains
                    dneo_phi_ext(ip)=dneo_phi(mod((ip-1),ntheta_neo)+1)
                 end do
                 call get_thgrad (neo_phi_ext, theta_neo_ext, dneo_phi_ext)
-                call lf_spline (theta_neo_ext, dneo_phi_ext, theta, dphidth, dum)
+                call inter_cspl (theta_neo_ext, dneo_phi_ext, theta, dphidth)
              else
                 call get_thgrad (neo_phi, theta_neo, dneo_phi)
-                call lf_spline (theta_neo, dneo_phi, theta, dphidth, dum)
+                call inter_cspl (theta_neo, dneo_phi, theta, dphidth)
              end if
           end if
        end do
@@ -1230,7 +1223,7 @@ contains
        end do
     end do
 
-    deallocate (tmp, neo_coefs, theta_neo, neo_phi, dneo_phi, dum)
+    deallocate (tmp, neo_coefs, theta_neo, neo_phi, dneo_phi)
     if (proc0 .and. (ptheta_neo .gt. 1)) then
        deallocate (neo_coefs_ext, theta_neo_ext, neo_phi_ext, dneo_phi_ext)
     endif

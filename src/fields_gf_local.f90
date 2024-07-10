@@ -269,7 +269,6 @@ module fields_gf_local
   logical :: read_response=.false. !< Do we read the response matrix from dump?
   logical :: field_local_allreduce_sub = .false. !< If true and field_local_allreduce true then do two sub comm all reduces rather than 1
   integer :: nfield !< How many fields
-  integer :: nfq !< How many field equations (always equal to nfield)
   type(pc_type),save :: pc !< This is the parallel control object
   type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
 
@@ -503,7 +502,7 @@ contains
 
     !Now store at cell level
     self%tmp_sum=0
-    do ifq=1,nfq
+    do ifq = 1, nfield
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
             -self%rb(ifq)%tmp_sum
