@@ -1857,12 +1857,13 @@ contains
 
   subroutine do_write_kinetic_energy_transfer(file_id, nout)
     use diagnostics_kinetic_energy_transfer, only: calculate_kinetic_energy_transfer, write_kinetic_energy_transfer
+    use mp, only: proc0
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
     !> Current timestep
     integer, intent(in) :: nout
     call calculate_kinetic_energy_transfer
-    call write_kinetic_energy_transfer(file_id, nout)
+    if (proc0) call write_kinetic_energy_transfer(file_id, nout)
   end subroutine do_write_kinetic_energy_transfer
 
   !> Calculate the poloidal distributions of the fluxes of particles, parallel
