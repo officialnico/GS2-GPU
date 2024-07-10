@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> A module which writes out the electrostatic drive of zonal flows.
 !> The code is based on a Python3 post-processing tool from Stephen Biggs-Fox
 !> which can be found at [gitlab.com/stephen-biggs-fox/zonal-transfer-functions]
@@ -94,17 +95,23 @@ contains
 
     subroutine define_custom_kinetic_energy_transfer_dims(gnostics)
         use diagnostics_config, only: diagnostics_type
+#ifdef NETCDF
         use neasyf, only: neasyf_dim
         use gs2_io, only: kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
+#endif
 
         type(diagnostics_type), intent(inout) :: gnostics
 
+#ifdef NETCDF
         call neasyf_dim(gnostics%file_id, trim(kxs_shifted_dim), values=kxnew_array, &
             long_name="Values of kx-source (shifted), used for kinetic energy transfer diagnostic", units="1/rho_r")
         call neasyf_dim(gnostics%file_id, trim(kxt_shifted_dim), values=kxnew_array, &
             long_name="Values of kx-target (shifted), used for entropy transfer", units="1/rho_r")
         call neasyf_dim(gnostics%file_id, trim(kys_extended_dim), values=kynew_array, &
             long_name="Values of ky-source extended (shifted), used for kinetic energy transfer diagnostic", units="1/rho_r")
+#else
+    UNUSED_DUMMY(gnostics)
+#endif
 
     end subroutine define_custom_kinetic_energy_transfer_dims
 
@@ -374,13 +381,16 @@ contains
 
     subroutine write_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
+#ifdef NETCDF
         use gs2_io, only: starts, time_dim, theta_dim, kxt_shifted_dim, kxs_shifted_dim, kys_extended_dim
         use neasyf, only: neasyf_write
+#endif
         
         type(diagnostics_type), intent(inout) :: gnostics
 
         if (.not. gnostics%writing) return
 
+#ifdef NETCDF
         call neasyf_write(gnostics%file_id, "kinetic_energy_transfer_theta", T_result_theta, &
         dim_names=[theta_dim, time_dim], start=starts(2, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta", &
@@ -400,6 +410,7 @@ contains
         dim_names=[kys_extended_dim, theta_dim, time_dim], start=starts(3, gnostics%nout), &
         long_name="kinetic energy transfer as a function of theta and ky-source", &
         units="GS2 units (to be specified)")
+#endif
 
     end subroutine write_kinetic_energy_transfer
 
