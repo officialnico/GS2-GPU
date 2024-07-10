@@ -205,7 +205,6 @@ contains
   subroutine allocate_current_results(gnostics)
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
-    use theta_grid, only: ntgrid
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
 

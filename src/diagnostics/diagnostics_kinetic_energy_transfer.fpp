@@ -47,12 +47,12 @@ module diagnostics_kinetic_energy_transfer
 
 contains
   subroutine init_diagnostics_kinetic_energy_transfer
-    use mp, only: iproc, nproc
+    use mp, only: iproc
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, akx
 
     ! check if this proc every does any work for this diagnostic
-    any_responsibility = is_responsible_for_any_theta_grid_point(iproc, nproc, ntgrid)
+    any_responsibility = is_responsible_for_any_theta_grid_point(iproc, ntgrid)
 
     ! allocate regardless of whether this proc does any work because sum_reduce needs
     ! this array to exist on all procs and a selected sum_reduce function does not seem to exist
@@ -125,8 +125,8 @@ contains
     if (allocated(T_result_theta_kysource_temp)) deallocate(T_result_theta_kysource_temp)
   end subroutine finish_diagnostics_kinetic_energy_transfer
 
-  elemental logical function is_responsible_for_any_theta_grid_point(iproc, nproc, ntgrid) result(any_responsible)
-    integer, intent(in) :: iproc, nproc, ntgrid
+  elemental logical function is_responsible_for_any_theta_grid_point(iproc, ntgrid) result(any_responsible)
+    integer, intent(in) :: iproc, ntgrid
     integer :: ntheta
 
     ntheta = 2 * ntgrid + 1 ! itheta is in [-ntgrid,...,0,...,ntgrid]
@@ -268,9 +268,8 @@ contains
   !> pair of target wavevector and source wavevector
   subroutine get_mediator_helpers(valid_mediator_lookup)
     use kt_grids, only: ntheta0
-
     logical, dimension(:,:,:), intent(out) :: valid_mediator_lookup ! shape (nky,nkx,nkx)
-    integer :: ikys, ikyt, ikxs, ikxt, ikxm, ikym
+    integer :: ikys, ikyt, ikxs, ikxt
 
     ikyt = iky0
 
