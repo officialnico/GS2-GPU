@@ -38,10 +38,6 @@ module fields_eigval
 
   logical :: initialized = .false.
 
-  !Number of GS2 advance steps per SLEPc call to advance_eigen
-  !May be useful when looking at marginal modes etc.
-  integer :: nadv = 500
-
 contains
 
   !> Returns true if GS2 was compiled with WITH_EIG defined
@@ -150,35 +146,55 @@ contains
   !> Call back routine to represent linear advance operator
   subroutine advance_eigen(MatOperator, VecIn, Res, ierr)
     use fields, only: set_init_fields, advance
-    use dist_fn_arrays, only: gnew, g
-    use fields_arrays, only: phinew
-    use array_utils, only: zero_array, copy
+    use dist_fn_arrays, only: gnew
+    use dist_fn, only: get_fields_direct_from_dfn
+    use fields_arrays, only: phinew, aparnew, bparnew
+    use array_utils, only: zero_array
     use gs2_layouts, only: g_lo
+    use run_parameters, only: nstep
+    use mp, only: proc0
+    use theta_grid, only: ntgrid
+    use kt_grids, only: naky, ntheta0
     implicit none
     Mat, intent(in) :: MatOperator
     Vec, intent(in out) :: VecIn, Res
     PetscErrorCode, intent(inout) :: ierr
-    integer, parameter :: istep=2
+    integer, parameter :: istep = 2, max_precond = 50
+    real, parameter :: precond_tol = 1.0e-4, precond_accel = 1.5
+    logical, parameter :: debug = .false.
+    complex, dimension(-ntgrid:ntgrid, ntheta0, naky) :: phi_cur, apar_cur, bpar_cur
     integer :: is, iglo
+    real :: maxdiff
+
     UNUSED_DUMMY(MatOperator); UNUSED_DUMMY(ierr)
 
     !First unpack input vector into gnew
     call VecToFields(VecIn)
-!    call zero_array(gnew)
-!    call zero_array(g)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       gnew(:, 1, iglo) = phinew(:, 1, 1)
-       gnew(:, 2, iglo) = phinew(:, 1, 1)
+    call zero_array(gnew)
+
+    ! Perform a few iterations to try to push gnew towards that which would give
+    ! the input phinew. Note we ignore apar and bpar here, which is not ideal
+    do is = 1, max_precond
+       call get_fields_direct_from_dfn(gnew, phi_cur, apar_cur, bpar_cur)
+       maxdiff = maxval(abs(phi_cur - phinew))
+       if (debug .and. proc0) print*, "Step", is, "maxdiff(phi, apar, bpar)", &
+            maxdiff, maxval(abs(apar_cur-aparnew)), maxval(abs(bpar_cur-bparnew))
+       if (maxdiff < precond_tol) exit
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          gnew(:, 1, iglo) = gnew(:, 1, iglo) + precond_accel &
+               * (phi_cur(:, 1, 1) - phinew(:, 1, 1))
+          gnew(:, 2, iglo) = gnew(:, 2, iglo) + precond_accel * &
+               (phi_cur(:, 1, 1) - phinew(:, 1, 1))
+       end do
     end do
-    call copy(gnew, g)
 
     !Now do a number of time steps
-    do is=1,nadv
+    do is=1, nstep
        !Note by using a fixed istep we
        !force the explicit terms to be excluded
        !except for the very first call.
        call advance(istep)
-    enddo
+    end do
 
     !Now pack fields into output
     call FieldsToVec(Res)
@@ -437,9 +453,10 @@ contains
   elemental complex function Eig_SlepcToGs2(eig)
     use gs2_time, only: code_dt
     use constants, only: zi
+    use run_parameters, only: nstep
     implicit none
     complex, intent(in) :: eig
-    Eig_SlepcToGs2=log(eig)*zi/(code_dt*nadv)
+    Eig_SlepcToGs2=log(eig)*zi/(code_dt * nstep)
   end function Eig_SlepcToGs2
 
 end module fields_eigval
