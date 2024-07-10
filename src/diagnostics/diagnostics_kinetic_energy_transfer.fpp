@@ -23,7 +23,7 @@ module diagnostics_kinetic_energy_transfer
     public :: define_custom_kinetic_energy_transfer_dims
     public :: finish_diagnostics_kinetic_energy_transfer
     public :: write_kinetic_energy_transfer
-    public :: calculate_kinetic_energy_transfer
+    public :: wrapper_calculate_kinetic_energy_transfer
 
     real, dimension(:), allocatable :: kxnew_array, kynew_array 
     logical, dimension(:,:,:), allocatable :: valid_mediator_lookup
@@ -351,7 +351,7 @@ contains
     end subroutine get_mediator
 
     !> compute the three-wave couplings
-    subroutine compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_hat_factor, B_factor, result_array)
+    subroutine calculate_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_hat_factor, B_factor, result_array)
         use kt_grids, only: ntheta0
 
         complex, dimension(:,:), intent(in) :: phi_source ! shape (nky,nkx)
@@ -377,7 +377,7 @@ contains
             end do
         end do
 
-    end subroutine compute_kinetic_energy_transfer
+    end subroutine calculate_kinetic_energy_transfer
 
     subroutine write_kinetic_energy_transfer(gnostics)
         use diagnostics_config, only: diagnostics_type
@@ -414,7 +414,7 @@ contains
 
     end subroutine write_kinetic_energy_transfer
 
-    subroutine calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
+    subroutine wrapper_calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
         use fields_arrays, only: phinew
         use kt_grids, only: ntheta0, naky
         use theta_grid, only: ntgrid, bmag
@@ -432,16 +432,16 @@ contains
         call fftshift2D_complex(phi_source)
         call get_mediator(phi_source, phi_mediator, valid_mediator_lookup)
         phi_target = CONJG(phi_source(iky0,:))
-        call compute_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, T_result_3D)
+        call calculate_kinetic_energy_transfer(phi_source, phi_target, phi_mediator, z_factor, B_factor, T_result_3D)
 
         T_result_theta_temp = SUM(SUM(SUM(T_result_3D, DIM=1), DIM=1), DIM=1) ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> ()
         T_result_theta_kxsource_temp = SUM(SUM(T_result_3D, DIM=1), DIM=2) ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
         T_result_theta_kxtarget_temp = SUM(SUM(T_result_3D, DIM=1), DIM=1) ! sum over (kxs, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxt)
         T_result_theta_kysource_temp = SUM(SUM(T_result_3D, DIM=2), DIM=2) ! sum over (kxs, kxt) for kyt = 0. shape (kys, kxs, kxt) -> (kys)
 
-    end subroutine calculate_kinetic_energy_transfer_this_theta
+    end subroutine wrapper_calculate_kinetic_energy_transfer_this_theta
 
-    subroutine calculate_kinetic_energy_transfer(gnostics)
+    subroutine wrapper_calculate_kinetic_energy_transfer(gnostics)
 
         use diagnostics_config, only: diagnostics_type
         use theta_grid, only: ntgrid
@@ -463,7 +463,7 @@ contains
             do theta_index = -ntgrid, ntgrid
                 responsible = is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid)
                 if (responsible) then
-                    call calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
+                    call wrapper_calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_theta_temp, T_result_theta_kxsource_temp, T_result_theta_kxtarget_temp, T_result_theta_kysource_temp)
                     T_result_theta(theta_index) = T_result_theta_temp
                     T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
                     T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
@@ -478,6 +478,6 @@ contains
         call sum_reduce (T_result_theta_kxtarget, 0)
         call sum_reduce (T_result_theta_kysource, 0)
 
-    end subroutine calculate_kinetic_energy_transfer
+    end subroutine wrapper_calculate_kinetic_energy_transfer
 
 end module diagnostics_kinetic_energy_transfer

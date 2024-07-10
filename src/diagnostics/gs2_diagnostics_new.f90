@@ -341,7 +341,7 @@ contains
     use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
-    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer, calculate_kinetic_energy_transfer
+    use diagnostics_kinetic_energy_transfer, only: write_kinetic_energy_transfer, wrapper_calculate_kinetic_energy_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -488,7 +488,7 @@ contains
        end if 
 
        if (gnostics%write_kinetic_energy_transfer) then
-          call calculate_kinetic_energy_transfer(gnostics)
+          call wrapper_calculate_kinetic_energy_transfer(gnostics)
           call write_kinetic_energy_transfer(gnostics)
        end if
 
