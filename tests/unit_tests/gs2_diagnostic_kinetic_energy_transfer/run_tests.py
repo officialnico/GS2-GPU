@@ -39,11 +39,11 @@ A = transfer[test_time_step_index,:] # select timestep where we test
 B = np.loadtxt("kinetic_energy_transfer_theta_golden_answer.txt")
 
 if VERBOSE_LEVEL > 0:
-    print("     A.shape: ", A.shape)
-    print("     B.shape: ", B.shape)
+    print("     GS2.shape: ", A.shape)
+    print("     Golden.shape: ", B.shape)
 if VERBOSE_LEVEL > 1:
-    print("         A: ", A)
-    print("         B: ", B)
+    print("         GS2: ", A)
+    print("         Golden: ", B)
 
 resultsAgree = np.allclose(A,B)
 
@@ -82,11 +82,11 @@ A = transfer[test_time_step_index,:] # select timestep where we test
 B = np.loadtxt("kinetic_energy_transfer_theta_kxsource_golden_answer.txt")
 
 if VERBOSE_LEVEL > 0:
-    print("     A.shape: ", A.shape)
-    print("     B.shape: ", B.shape)
+    print("      GS2.shape: ", A.shape)
+    print("     Golden.shape: ", B.shape)
 if VERBOSE_LEVEL > 1:
-    print("         A: ", A)
-    print("         B: ", B)
+    print("          GS2: ", A)
+    print("         Golden: ", B)
 
 resultsAgree = np.allclose(A,B)
 
@@ -124,11 +124,11 @@ A = transfer[test_time_step_index,:] # select timestep where we test
 B = np.loadtxt("kinetic_energy_transfer_theta_kxtarget_golden_answer.txt")
 
 if VERBOSE_LEVEL > 0:
-    print("     A.shape: ", A.shape)
-    print("     B.shape: ", B.shape)
+    print("     GS2.shape: ", A.shape)
+    print("     Golden.shape: ", B.shape)
 if VERBOSE_LEVEL > 1:
-    print("         A: ", A)
-    print("         B: ", B)
+    print("         GS2: ", A)
+    print("         Golden: ", B)
 
 resultsAgree = np.allclose(A,B)
 
@@ -166,11 +166,11 @@ A = transfer[-2,:] # select second to last timestep of gs2 output
 B = np.loadtxt("kinetic_energy_transfer_theta_kysource_golden_answer.txt")
 
 if VERBOSE_LEVEL > 0:
-    print("     A.shape: ", A.shape)
-    print("     B.shape: ", B.shape)
+    print("     GS2.shape: ", A.shape)
+    print("     Golden.shape: ", B.shape)
 if VERBOSE_LEVEL > 1:
-    print("         A: ", A)
-    print("         B: ", B)
+    print("         GS2: ", A)
+    print("         Golden: ", B)
 
 resultsAgree = np.allclose(A,B)
 
