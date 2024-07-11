@@ -102,6 +102,8 @@ formattting_tests:
   variables:
     CASENAME: "formatting"
     GS2_PACKAGES: ""
+    MPI_PACKAGES: ""
+    BASIC_PACKAGES: "which findutils"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
   script:
