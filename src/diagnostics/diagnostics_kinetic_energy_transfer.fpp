@@ -39,6 +39,11 @@ module diagnostics_kinetic_energy_transfer
      module procedure fftshift2D_complex
   end interface fftshift
 
+  !> If true then distribute theta grid points over processors. This requires
+  !> some additional global communication so at scale (and with small ntheta)
+  !> it might be more efficient to do all the calculation on proc0 and avoid
+  !> the associated communcations.
+  logical, parameter :: distribute_work = .true.
 contains
 
   subroutine init_diagnostics_kinetic_energy_transfer
@@ -107,13 +112,23 @@ contains
   elemental logical function is_responsible_for_any_theta_grid_point(iproc, ntgrid) result(any_responsible)
     integer, intent(in) :: iproc, ntgrid
     integer :: ntheta
-    ntheta = 2 * ntgrid + 1
-    any_responsible = iproc < ntheta
+    if (distribute_work) then
+       ntheta = 2 * ntgrid + 1
+       any_responsible = iproc < ntheta
+    else
+       any_responsible = iproc == 0
+    end if
   end function is_responsible_for_any_theta_grid_point
 
   elemental logical function is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid) result(responsible)
     integer, intent(in) :: iproc, theta_index, nproc, ntgrid
     integer :: ntheta, theta_index_shifted
+
+    ! If not distributing work then only iproc = 0 is responsible
+    if (.not. distribute_work) then
+       responsible = iproc == 0
+       return
+    end if
 
     ntheta = 2 * ntgrid + 1
     ! theta_index is in [-ntgrid,...,0,...,ntgrid]
@@ -429,9 +444,12 @@ contains
     end do
 
     ! only proc0 needs to know the result
-    call sum_reduce (T_result_theta, 0)
-    call sum_reduce (T_result_theta_kxsource, 0)
-    call sum_reduce (T_result_theta_kxtarget, 0)
-    call sum_reduce (T_result_theta_kysource, 0)
+    if (distribute_work) then
+       call sum_reduce (T_result_theta, 0)
+       call sum_reduce (T_result_theta_kxsource, 0)
+       call sum_reduce (T_result_theta_kxtarget, 0)
+       call sum_reduce (T_result_theta_kysource, 0)
+    end if
+
   end subroutine calculate_kinetic_energy_transfer
 end module diagnostics_kinetic_energy_transfer
