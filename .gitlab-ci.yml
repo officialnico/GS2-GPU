@@ -103,11 +103,13 @@ formattting_tests:
     CASENAME: "formatting"
     GS2_PACKAGES: ""
     MPI_PACKAGES: ""
-    BASIC_PACKAGES: "which findutils"
+    BASIC_PACKAGES: "which findutils git make util-linux"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
   script:
     - scripts/test_maximum_line_length $(scripts/get_all_matching_files.py --path=src --path=externals/utils --pattern="*.[Ff]??") || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
+    - make config_auto_gen || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1)
+    - git diff --quiet || (echo "failed" > ${JOB_STATUS_FILE} ; exit 1) #This returns 1 if there are diffs
     - *report_pass
   cache: {}
 
