@@ -356,6 +356,7 @@ contains
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
     gnostics%write_jext = new_gs2_diagnostics_config%write_jext
+    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian
@@ -375,7 +376,6 @@ contains
     gnostics%write_upar_over_time = new_gs2_diagnostics_config%write_upar_over_time
     gnostics%write_verr = new_gs2_diagnostics_config%write_verr
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
-    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
 
     exist = new_gs2_diagnostics_config%exist
 
