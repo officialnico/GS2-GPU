@@ -3,23 +3,19 @@
  cfl = 0.5
 /
 
-&hyper_knobs
-  hyper_option = 'both'
-  d_hyper = 1e-2
-/
-
 &kt_grids_knobs
  grid_option = "box"
 /
 
 &kt_grids_box_parameters
- ny = 16
- nx = 18
+ ny = 8
+ nx = 8
  y0 = 5.0
+ jtwist = 4
 /
 
 &theta_grid_parameters
- ntheta = 12
+ ntheta = 8
  nperiod = 1
  eps = 0.18
  epsl = 2.0
@@ -32,44 +28,25 @@
  equilibrium_option = "s-alpha"
 /
 
-&theta_grid_salpha_knobs
- model_option = "default"
-/
-
 &le_grids_knobs
  npassing = 3
- nesuper = 3
+ nesuper = 1
  nesub = 3
 /
 
 &dist_fn_knobs
- gridfac = 1.0
- omprimfac = 1.0
  boundary_option = "linked"
  adiabatic_option = "iphi00=2"
- g_exb = 0.0
- nonad_zero = .true.
-/
-
-&fields_knobs
- field_option = "implicit"
 /
 
 &knobs
  beta = 0.0
  zeff = 1.0
- wstar_units = .false.
  fphi = 1.0
  fapar = 0.0
- delt = 0.05
- nstep = 60
+ delt = 0.1
+ nstep = 10
  seed = 42
- use_old_diagnostics = .false.
-/
-
-&reinit_knobs
- delt_adj = 2.0
- delt_minimum = 1.0e-06
 /
 
 &layouts_knobs
@@ -103,14 +80,14 @@
 
 &init_g_knobs
  chop_side = .false.
- phiinit = 0.1
+ phiinit = 1.0
  ginit_option = "default"
 /
 
 &gs2_diagnostics_knobs
   write_ascii = .false.
   write_phi_over_time = .true.
-  write_moments = .true.
+  write_moments = .false.
   ob_midplane = .false.
   omegatinst = 500
   omegatol = -0.001 ! necessary to force nstep is actually run
@@ -119,6 +96,5 @@
   print_line = .false. !added
   save_distfn = .false.
   nwrite = 10
-
   write_kinetic_energy_transfer = .true.
 /
