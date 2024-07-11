@@ -20,8 +20,8 @@ subroutine read_diagnostics_base_config(self)
   logical :: save_for_restart, save_glo_info_and_grids, save_many, save_velocities, serial_netcdf4, use_nonlin_convergence, write_any, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time
   logical :: write_cerr, write_collisional, write_correlation, write_correlation_extend, write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
   logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext
-  logical :: write_kpar, write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom
-  logical :: write_phi_over_time, write_ql_metric, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
+  logical :: write_kinetic_energy_transfer, write_kpar, write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega, write_parity
+  logical :: write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
   real :: conv_test_multiplier, omegatinst, omegatol
 
   namelist /gs2_diagnostics_knobs/ append_old, conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, enable_parallel, exit_when_converged, &
@@ -29,8 +29,8 @@ subroutine read_diagnostics_base_config(self)
     save_for_restart, save_glo_info_and_grids, save_many, save_velocities, serial_netcdf4, use_nonlin_convergence, write_any, write_apar_over_time, write_ascii, write_avg_moments, &
     write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend, write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, &
     write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, write_full_moments_notgc, write_g, write_gs, write_gyx, &
-    write_heating, write_jext, write_kpar, write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, write_omavg, write_omega, write_parity, &
-    write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
+    write_heating, write_jext, write_kinetic_energy_transfer, write_kpar, write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, write_omavg, &
+    write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_symmetry, write_tperp_over_time, write_upar_over_time, write_verr, write_zonal_transfer
 
   ! Only proc0 reads from file
   if (.not. proc0) return
@@ -96,6 +96,7 @@ subroutine read_diagnostics_base_config(self)
   write_gyx = self%write_gyx
   write_heating = self%write_heating
   write_jext = self%write_jext
+  write_kinetic_energy_transfer = self%write_kinetic_energy_transfer
   write_kpar = self%write_kpar
   write_line = self%write_line
   write_lorentzian = self%write_lorentzian
@@ -181,6 +182,7 @@ subroutine read_diagnostics_base_config(self)
   self%write_gyx = write_gyx
   self%write_heating = write_heating
   self%write_jext = write_jext
+  self%write_kinetic_energy_transfer = write_kinetic_energy_transfer
   self%write_kpar = write_kpar
   self%write_line = write_line
   self%write_lorentzian = write_lorentzian
@@ -277,6 +279,7 @@ subroutine write_diagnostics_base_config(self, unit)
   call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
   call self%write_key_val("write_heating", self%write_heating, unit_internal)
   call self%write_key_val("write_jext", self%write_jext, unit_internal)
+  call self%write_key_val("write_kinetic_energy_transfer", self%write_kinetic_energy_transfer, unit_internal)
   call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
   call self%write_key_val("write_line", self%write_line, unit_internal)
   call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
@@ -375,6 +378,7 @@ subroutine broadcast_diagnostics_base_config(self)
   call broadcast(self%write_gyx)
   call broadcast(self%write_heating)
   call broadcast(self%write_jext)
+  call broadcast(self%write_kinetic_energy_transfer)
   call broadcast(self%write_kpar)
   call broadcast(self%write_line)
   call broadcast(self%write_lorentzian)
