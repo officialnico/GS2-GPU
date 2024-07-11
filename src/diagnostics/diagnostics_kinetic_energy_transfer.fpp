@@ -157,9 +157,9 @@ contains
   end subroutine extend_ky
 
   !> calculate:
-  !> -(b_hat x k_t . k_s)(b_hat x k_t) . (b_hat x k_s) =
-  !> -(k^x_t * k^y_s - k^y_t * k^x_s) * (k^x_t * k^x_s + k^y_t * k^y_s)
-  !> where the second term, (b_hat x k_t) . (b_hat x k_s),
+  !> \( -(\hat{b} \times k_t \cdot k_s) (\hat{b} \times k_t) \cdot (\hat{b} \times k_s) =
+  !> -(k^{x_t} * k^{y_s} - k^{y_t} * k^{x_s}) * (k^{x_t} * k^{x_s} + k^{y_t} * k^{y_s})\)
+  !> where the second term, \((\hat{b} \times k_t) \cdot (\hat{b} \times k_s)\),
   !> is unique for kinetic energy transfer and does not appear for
   !> internal energy transfer or entropy transfer
   subroutine get_z_factor(kx_array, ky_array, result_array)
