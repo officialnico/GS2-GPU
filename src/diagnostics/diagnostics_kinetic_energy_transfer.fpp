@@ -27,9 +27,7 @@ module diagnostics_kinetic_energy_transfer
   real, dimension(:), allocatable :: kxnew_array, kynew_array
   logical, dimension(:,:,:), allocatable :: valid_mediator_lookup
   real, dimension(:,:,:), allocatable :: z_factor
-  real, dimension(:,:,:), allocatable :: T_result_3D
   integer :: ikx0, iky0, nkynew
-  logical :: any_responsibility = .false.
 
   real, dimension(:), allocatable :: T_result_theta
   real, dimension(:,:), allocatable :: T_result_theta_kxsource
@@ -48,28 +46,26 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, akx
 
-    ! check if this proc every does any work for this diagnostic
-    any_responsibility = is_responsible_for_any_theta_grid_point(iproc, ntgrid)
+    nkynew = 2 * naky - 1
+    ikx0 = (ntheta0 + 1) / 2
+    iky0 = (nkynew + 1) / 2
 
-    ! allocate regardless of whether this proc does any work because sum_reduce needs
-    ! this array to exist on all procs and a selected sum_reduce function does not seem to exist
-    allocate (T_result_theta(-ntgrid:ntgrid)) ; T_result_theta = 0.
-    allocate (T_result_theta_kxsource(ntheta0,-ntgrid:ntgrid)) ; T_result_theta_kxsource = 0.
-    allocate (T_result_theta_kxtarget(ntheta0,-ntgrid:ntgrid)) ; T_result_theta_kxtarget = 0.
-    allocate (T_result_theta_kysource(2*naky-1,-ntgrid:ntgrid)) ; T_result_theta_kysource = 0.
+    ! allocate regardless of whether this proc does any work because
+    ! sum_reduce needs this array to exist on all procs and a selected
+    ! sum_reduce function does not seem to exist
+    allocate (T_result_theta(-ntgrid:ntgrid))
+    allocate (T_result_theta_kxsource(ntheta0, -ntgrid:ntgrid))
+    allocate (T_result_theta_kxtarget(ntheta0, -ntgrid:ntgrid))
+    allocate (T_result_theta_kysource(nkynew, -ntgrid:ntgrid))
 
-    if (any_responsibility) then
-       nkynew = 2 * naky - 1
-       ikx0 = (ntheta0 + 1) / 2
-       iky0 = (nkynew + 1) / 2
+    ! Some allocations only needed on procs with work
+    if (is_responsible_for_any_theta_grid_point(iproc, ntgrid)) then
 
        ! allocate variables needed on each proc involved in calculation
        allocate (kxnew_array(ntheta0)) ; kxnew_array = akx
        allocate (kynew_array(nkynew)) ; kynew_array = 0.
        allocate (valid_mediator_lookup(nkynew, ntheta0, ntheta0)) ; valid_mediator_lookup = .false.
        allocate (z_factor(nkynew, ntheta0, ntheta0)) ; z_factor = 0.
-
-       allocate (T_result_3D(nkynew, ntheta0, ntheta0)) ; T_result_3D = 0.
 
        call fftshift(kxnew_array)
        call extend_ky(kynew_array)
@@ -106,7 +102,6 @@ contains
     if (allocated(kxnew_array)) deallocate(kxnew_array)
     if (allocated(valid_mediator_lookup)) deallocate(valid_mediator_lookup)
     if (allocated(z_factor)) deallocate(z_factor)
-    if (allocated(T_result_3D)) deallocate(T_result_3D)
   end subroutine finish_diagnostics_kinetic_energy_transfer
 
   elemental logical function is_responsible_for_any_theta_grid_point(iproc, ntgrid) result(any_responsible)
@@ -406,19 +401,14 @@ contains
     use kt_grids, only: ntheta0, naky
     use mp, only: iproc, nproc, sum_reduce
     integer :: theta_index
-    real :: T_result_theta_temp
-    real, dimension(:), allocatable :: T_result_theta_kxsource_temp
-    real, dimension(:), allocatable :: T_result_theta_kxtarget_temp
-    real, dimension(:), allocatable :: T_result_theta_kysource_temp
+    real, dimension(:, :, :), allocatable :: T_result_3D
+
+    allocate (T_result_3D(nkynew, ntheta0, ntheta0))
 
     T_result_theta = 0.
     T_result_theta_kxsource = 0.
     T_result_theta_kxtarget = 0.
     T_result_theta_kysource = 0.
-
-    allocate(T_result_theta_kxsource_temp(ntheta0))
-    allocate(T_result_theta_kxtarget_temp(ntheta0))
-    allocate(T_result_theta_kysource_temp(2*naky-1))
 
     do theta_index = -ntgrid, ntgrid
        if (.not. is_responsible_for_this_theta_grid_index(&
@@ -426,19 +416,16 @@ contains
        call calculate_kinetic_energy_transfer_this_theta(theta_index, T_result_3D)
 
        ! Should these sums really use volume average or similar?
-       ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> scalar
-       T_result_theta_temp = sum(T_result_3D)
-       ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
-       T_result_theta_kxsource_temp = sum(sum(T_result_3D, dim=1), dim=2)
-       ! sum over (kxs, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxt)
-       T_result_theta_kxtarget_temp = sum(sum(T_result_3D, dim=1), dim=1)
-       ! sum over (kxs, kxt) for kyt = 0. shape (kys, kxs, kxt) -> (kys)
-       T_result_theta_kysource_temp = sum(sum(T_result_3D, dim=2), dim=2)
+       ! Should we just write T_result_3D for each theta? Might get large!
 
-       T_result_theta(theta_index) = T_result_theta_temp
-       T_result_theta_kxsource(:,theta_index) = T_result_theta_kxsource_temp
-       T_result_theta_kxtarget(:,theta_index) = T_result_theta_kxtarget_temp
-       T_result_theta_kysource(:,theta_index) = T_result_theta_kysource_temp
+       ! sum over (kxs, kys, kxt). shape (kys, kxs, kxt) -> scalar
+       T_result_theta(theta_index) = sum(T_result_3D)
+       ! sum over (kxt, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxs)
+       T_result_theta_kxsource(:,theta_index) = sum(sum(T_result_3D, dim=1), dim=2)
+       ! sum over (kxs, kys) for kyt = 0. shape (kys, kxs, kxt) -> (kxt)
+       T_result_theta_kxtarget(:,theta_index) = sum(sum(T_result_3D, dim=1), dim=1)
+       ! sum over (kxs, kxt) for kyt = 0. shape (kys, kxs, kxt) -> (kys)
+       T_result_theta_kysource(:,theta_index) = sum(sum(T_result_3D, dim=2), dim=2)
     end do
 
     ! only proc0 needs to know the result
@@ -446,7 +433,5 @@ contains
     call sum_reduce (T_result_theta_kxsource, 0)
     call sum_reduce (T_result_theta_kxtarget, 0)
     call sum_reduce (T_result_theta_kysource, 0)
-
   end subroutine calculate_kinetic_energy_transfer
-
 end module diagnostics_kinetic_energy_transfer
