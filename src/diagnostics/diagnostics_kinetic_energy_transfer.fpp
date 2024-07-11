@@ -46,6 +46,7 @@ module diagnostics_kinetic_energy_transfer
   real, dimension(:,:), allocatable :: T_result_theta_kysource
 
 contains
+
   subroutine init_diagnostics_kinetic_energy_transfer
     use mp, only: iproc
     use theta_grid, only: ntgrid
@@ -85,7 +86,7 @@ contains
        call extend_ky(kynew_array)
        call get_z_factor(kxnew_array, kynew_array, z_factor)
        call get_mediator_helpers(valid_mediator_lookup)
-    endif
+    end if
   end subroutine init_diagnostics_kinetic_energy_transfer
 
   subroutine define_kinetic_energy_transfer_dims(file_id)
@@ -128,31 +129,26 @@ contains
   elemental logical function is_responsible_for_any_theta_grid_point(iproc, ntgrid) result(any_responsible)
     integer, intent(in) :: iproc, ntgrid
     integer :: ntheta
-
-    ntheta = 2 * ntgrid + 1 ! itheta is in [-ntgrid,...,0,...,ntgrid]
-    any_responsible = .true.
-
-    ! these procs can relax. iproc is in [0, 1, ... , nproc-1]
-    if (iproc >= ntheta) any_responsible = .false.
+    ntheta = 2 * ntgrid + 1
+    any_responsible = iproc < ntheta
   end function is_responsible_for_any_theta_grid_point
 
   elemental logical function is_responsible_for_this_theta_grid_index(iproc, theta_index, nproc, ntgrid) result(responsible)
     integer, intent(in) :: iproc, theta_index, nproc, ntgrid
-    integer :: ntheta, theta_index_shifted, theta_index_modulo
+    integer :: ntheta, theta_index_shifted
 
     ntheta = 2 * ntgrid + 1
-    responsible = .false.
-
-    theta_index_shifted = theta_index + ntgrid ! obtains min of 0 and max of 2*ntgrid
-
     ! theta_index is in [-ntgrid,...,0,...,ntgrid]
+    ! theta_index_shifted is in [0, 2*ntgrid]
     ! iproc is in [0, 1, ... , nproc-1]
-    if (nproc >= ntheta) then ! each proc deals with one or no theta points
-       if (iproc == theta_index_shifted) responsible = .true.
-    else ! each proc deals with at least one theta index
-       theta_index_modulo = mod(theta_index_shifted, nproc) ! theta_index_shifted = [0, nproc, 2*nproc, ...] are dealt with by proc0. [1, nproc+1, 2*nproc+1, ...] by proc1 and so on.
-       if (iproc == theta_index_modulo) responsible = .true.
-    endif
+    theta_index_shifted = theta_index + ntgrid
+
+    ! theta_index_shifted = [0, nproc, 2*nproc, ...] are dealt with by
+    ! proc0. [1, nproc+1, 2*nproc+1, ...] by proc1 and so on so have
+    ! to take mod when nproc < ntheta
+    ! In opposite case the first ntheta procs get one point each.
+    if (nproc < ntheta) theta_index_shifted = mod(theta_index_shifted, nproc)
+    responsible = iproc == theta_index_shifted
   end function is_responsible_for_this_theta_grid_index
 
   !> extend ky to negative values and return in "shifted" format.
