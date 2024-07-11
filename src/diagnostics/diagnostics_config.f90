@@ -155,6 +155,7 @@ module diagnostics_config
      logical :: save_glo_info_and_grids
      logical :: save_velocities
      logical :: write_zonal_transfer
+     logical :: write_kinetic_energy_transfer
      logical :: write_collisional
      logical :: write_omavg
      logical :: ob_midplane
@@ -355,6 +356,7 @@ contains
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
     gnostics%write_jext = new_gs2_diagnostics_config%write_jext
+    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian

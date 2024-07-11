@@ -387,6 +387,14 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_jext = .false.
+    !> Calculates and writes the electrostatic drive of zonal flows
+    !> every [[gs2_diagnostics_knobs:nwrite]] timesteps.  The output
+    !> `kinetic_energy_transfer_theta` resolves this over \(\theta\)
+    !> only.  `kinetic_energy_transfer_theta_kxsource`,
+    !> `kinetic_energy_transfer_theta_kxtarget`, and
+    !> `kinetic_energy_transfer_theta_kysource` give additional
+    !> insights by resolving over individual source or target scales.
+    logical :: write_kinetic_energy_transfer = .false.
     !> Write the parallel spectrum of \(\phi, A_\parallel,
     !> B_\parallel\) at final timestep. File suffix is `.kpar`
     !>
@@ -609,8 +617,8 @@ contains
     logical :: write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend
     logical :: write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
-    logical :: write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar
-    logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time
+    logical :: write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kinetic_energy_transfer
+    logical :: write_kpar, write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time
     logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
     logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
@@ -623,8 +631,8 @@ contains
          write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend, &
          write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, &
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
-         write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar, &
-         write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, &
+         write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kinetic_energy_transfer, &
+         write_kpar, write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, &
          write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
          write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
 
@@ -692,6 +700,7 @@ contains
     write_gyx = self%write_gyx
     write_heating = self%write_heating
     write_jext = self%write_jext
+    write_kinetic_energy_transfer = self%write_kinetic_energy_transfer
     write_kpar = self%write_kpar
     write_line = self%write_line
     write_lorentzian = self%write_lorentzian
@@ -777,6 +786,7 @@ contains
     self%write_gyx = write_gyx
     self%write_heating = write_heating
     self%write_jext = write_jext
+    self%write_kinetic_energy_transfer = write_kinetic_energy_transfer
     self%write_kpar = write_kpar
     self%write_line = write_line
     self%write_lorentzian = write_lorentzian
@@ -873,6 +883,7 @@ contains
     call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
     call self%write_key_val("write_heating", self%write_heating, unit_internal)
     call self%write_key_val("write_jext", self%write_jext, unit_internal)
+    call self%write_key_val("write_kinetic_energy_transfer", self%write_kinetic_energy_transfer, unit_internal)
     call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
     call self%write_key_val("write_line", self%write_line, unit_internal)
     call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
@@ -971,6 +982,7 @@ contains
     call broadcast(self%write_gyx)
     call broadcast(self%write_heating)
     call broadcast(self%write_jext)
+    call broadcast(self%write_kinetic_energy_transfer)
     call broadcast(self%write_kpar)
     call broadcast(self%write_line)
     call broadcast(self%write_lorentzian)
