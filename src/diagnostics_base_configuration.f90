@@ -387,6 +387,14 @@ module diagnostics_base_configuration
     !>
     !> @warning Only in new diagnostics
     logical :: write_jext = .false.
+    !> Calculates and writes the electrostatic drive of zonal flows
+    !> every [[gs2_diagnostics_knobs:nwrite]] timesteps.  The output
+    !> `kinetic_energy_transfer_theta` resolves this over \(\theta\)
+    !> only.  `kinetic_energy_transfer_theta_kxsource`,
+    !> `kinetic_energy_transfer_theta_kxtarget`, and
+    !> `kinetic_energy_transfer_theta_kysource` give additional
+    !> insights by resolving over individual source or target scales.
+    logical :: write_kinetic_energy_transfer = .false.
     !> Write the parallel spectrum of \(\phi, A_\parallel,
     !> B_\parallel\) at final timestep. File suffix is `.kpar`
     !>

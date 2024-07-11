@@ -29,4 +29,4 @@ TEST_TARGET_TYPE ?= all
 
 $(TESTS_ACTUAL):
 	$(call messageOp,"Making $(TEST_TYPE) test case","\\t:",$@)
-	$(QUIETSYM)$(MAKE) $(TEST_TARGET_TYPE) -C $@ TEST_FOLD=$@
+	$(QUIETSYM)$(MAKE) $(TEST_TARGET_TYPE) -C $@ TEST_FOLD=$@ MODDIR=./
