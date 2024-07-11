@@ -95,6 +95,6 @@
   file_safety_check = .true.
   print_line = .false. !added
   save_distfn = .false.
-  nwrite = 10
+  nwrite = 1
   write_kinetic_energy_transfer = .true.
 /
