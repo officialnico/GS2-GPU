@@ -1,15 +1,5 @@
-!> A test program to test the hybrid electron model.  We expect hybrid
-!> electrons to agree with kinetic electrons when in the collisionless
-!> limit and with adibatic electrons in the collisional limit.
-program test_hybrid_electrons
-  use functional_tests, only: test_gs2
-  use mp, only: init_mp, proc0, finish_mp
+module check_mod
   implicit none
-
-  call init_mp
-  call test_gs2('hybrid electron cases', checks)
-  call finish_mp
-  
 contains
   logical function checks()
     use file_utils, only: input_unit_exist
@@ -29,6 +19,18 @@ contains
     checks = check_growth_rate([gamma_expected], tolerance)
     checks = checks .and. check_frequency([omega_expected], tolerance)
   end function checks
-  
-end program test_hybrid_electrons
+end module check_mod
 
+!> A test program to test the hybrid electron model.  We expect hybrid
+!> electrons to agree with kinetic electrons when in the collisionless
+!> limit and with adibatic electrons in the collisional limit.
+program test_hybrid_electrons
+  use functional_tests, only: test_gs2
+  use mp, only: init_mp, finish_mp
+  use check_mod, only: checks
+  implicit none
+
+  call init_mp
+  call test_gs2('hybrid electron cases', checks)
+  call finish_mp
+end program test_hybrid_electrons

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+ulimit -s unlimited
 
 header() {
     echo ""
@@ -12,14 +13,14 @@ header() {
 
 add_to_local_makefile() {
     header "Adding to Makefile.local"
-    echo ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
+    echo -e ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
     cat Makefile.local
 }
 
 build_gs2() {
-    header "Build GS2"
+    header "Build ${GK_BUILD_TARGET}"
     make test_make ${EXTRA_MAKE_FLAGS}
-    make -j gs2 ${EXTRA_MAKE_FLAGS}
+    make -j ${GK_BUILD_TARGET} ${EXTRA_MAKE_FLAGS}
     ./bin/gs2 --version
     ./bin/gs2 --build-config
 }
@@ -33,7 +34,7 @@ make_and_run_pfunit_tests() {
     else
         make -j pfunit_coverage ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
     fi
-
+    pipeline_test_scripts/didPfunitTestsFail.sh ${PWD}/ pfunit.error
 }
 
 make_and_run_integrated_tests() {

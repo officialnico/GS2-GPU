@@ -25,19 +25,16 @@ contains
   end subroutine  init_nonlinear_convergence
 
   !> FIXME : Add documentation  
-  subroutine finish_nonlinear_convergence(gnostics)
+  subroutine finish_nonlinear_convergence()
     use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
     deallocate(conv_heat)
   end subroutine  finish_nonlinear_convergence
 
   !> FIXME : Add documentation  
-  subroutine reset_averages_and_counters(gnostics)
-    use diagnostics_config, only: diagnostics_type
+  subroutine reset_averages_and_counters()
     use mp, only: proc0
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
     if (proc0) then
        conv_isteps_converged = 0
        heat_sum_av = 0.0
@@ -49,9 +46,8 @@ contains
   !> Trinity convergence condition - simple and experimental
   !! look for the averaged differential of the summed averaged heat flux to drop below a threshold
   subroutine check_nonlin_convergence(gnostics)
-    use job_manage, only: trin_job
     use gs2_time, only: user_time
-    use mp, only: proc0, broadcast
+    use mp, only: proc0, broadcast, job
     use diagnostics_config, only: diagnostics_type
     implicit none
     type (diagnostics_type), intent(inout) :: gnostics
@@ -80,15 +76,15 @@ contains
        place = mod(trin_istep,gnostics%conv_nstep_av)/gnostics%nwrite
        conv_heat(place) = heat_flux
        
-       if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',trin_job, &
+       if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',job, &
             ' time = ',user_time, ' step = ',trin_istep
-       if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
+       if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',job, &
             ' heat = ',heat_flux, ' heatsumav = ',heat_av
        
        if (trin_istep .ge. gnostics%conv_nstep_av) then
           heat_av_new = sum(conv_heat) / nwrite_av
           heat_av_diff = heat_av_new - heat_av
-          if(debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
+          if(debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',job, &
                ' heat_sum_av_diff = ',heat_sum_av
           heat_av = heat_av_new
           ! Convergence test - needs to be met conv_nsteps_converged/nwrite times in succession
@@ -101,13 +97,13 @@ contains
           
           if ((conv_isteps_converged .ge. gnostics%conv_nsteps_converged/nwrite) .and. &
                (trin_istep .ge. gnostics%conv_min_step)) then
-             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',trin_job, &  
+             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',job, &
                   ' Reached convergence condition after step ',trin_istep
              exit = .true. .and. gnostics%exit_when_converged
           endif
           
           if(trin_istep .gt. gnostics%conv_max_step) then
-             write(6,'(A,I5,A,I7)') '*** Warning. Job ',trin_job, &
+             write(6,'(A,I5,A,I7)') '*** Warning. Job ',job, &
                   ' did not meet the convergence condition after ',trin_istep
              exit = .true. .and. gnostics%exit_when_converged
           endif

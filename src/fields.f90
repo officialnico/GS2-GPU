@@ -23,19 +23,11 @@ module fields
   !> Made public for unit tests
   public :: fields_pre_init
   public :: remove_zonal_flows_switch
-  !> Made public for replay
-  public :: allocate_arrays
 
   public :: fields_config_type
   public :: set_fields_config
   public :: get_fields_config
   
-  !> FIXME : Add documentation
-  interface fieldlineavgphi
-     module procedure fieldlineavgphi_loc
-     module procedure fieldlineavgphi_tot
-  end interface
-
   ! knobs
   integer :: fieldopt_switch
   logical :: remove_zonal_flows_switch
@@ -548,6 +540,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew, apar_ext
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
     use unit_tests, only: debug_message
+    use array_utils, only: zero_array
     implicit none
     integer, parameter :: verb=3
 
@@ -575,17 +568,17 @@ contains
        end if
     endif
     !AJ This shouldn't be necessary as it is done in the fields code....
-    phi = 0.; phinew = 0.
-    apar = 0.; aparnew = 0.
-    bpar = 0.; bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     if(fieldopt_switch .eq. fieldopt_gf_local) then
-       gf_phi = 0.; gf_phinew = 0.
-       gf_apar = 0.; gf_aparnew = 0.
-       gf_bpar = 0.; gf_bparnew = 0.
+       call zero_array(gf_phi) ; call zero_array(gf_phinew)
+       call zero_array(gf_apar) ; call zero_array(gf_aparnew)
+       call zero_array(gf_bpar) ; call zero_array(gf_bparnew)
     end if
     if(.not.allocated(apar_ext).and.(.not.no_driver))then
        allocate (apar_ext (-ntgrid:ntgrid,ntheta0,naky))
-       apar_ext = 0.
+       call zero_array(apar_ext)
     endif
   end subroutine allocate_arrays
 
@@ -611,100 +604,6 @@ contains
     end select
   end subroutine advance
 
-  !> FIXME : Add documentation
-  !!
-  !! @note This routine has a potentially misleading name and isn't used anywhere
-  subroutine kperp (ntgrid_output, akperp)
-    use theta_grid, only: delthet
-    use kt_grids, only: naky, aky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar
-    use fields_arrays, only: phinew, aparnew, bparnew
-    implicit none
-    integer, intent (in) :: ntgrid_output
-    real, dimension (:,:), intent (out) :: akperp
-    real :: anorm
-    integer :: ik, it
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          anorm = sum(abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
-                         + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
-                         + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
-                      *delthet(-ntgrid_output:ntgrid_output))
-          if (anorm < 2.0*epsilon(0.0) .or. aky(ik) == 0.0) then
-             akperp(it,ik) = 0.0
-          else
-             akperp(it,ik) &
-                  = sqrt(sum(kperp2(-ntgrid_output:ntgrid_output,it,ik) &
-                     *abs(phinew(-ntgrid_output:ntgrid_output,it,ik)*fphi &
-                          + aparnew(-ntgrid_output:ntgrid_output,it,ik)*fapar &
-                          + bparnew(-ntgrid_output:ntgrid_output,it,ik)*fbpar)**2 &
-                     *delthet(-ntgrid_output:ntgrid_output))/anorm)
-          end if
-       end do
-    end do
-  end subroutine kperp
-
-  !> FIXME : Add documentation  
-  !!
-  !! @note This routine isn't used anywhere
-  subroutine fieldlineavgphi_loc (ntgrid_output, it, ik, phiavg)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
-    use fields_arrays, only: phi
-    implicit none
-    integer, intent (in) :: ntgrid_output, ik, it
-    complex, intent (out) :: phiavg
-    real, dimension (-ntgrid:ntgrid) :: jac
-
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
-    phiavg = sum(phi(-ntgrid_output:ntgrid_output,it,ik) &
-                 *jac(-ntgrid_output:ntgrid_output) &
-                 *delthet(-ntgrid_output:ntgrid_output)) &
-            /sum(delthet(-ntgrid_output:ntgrid_output) &
-                 *jac(-ntgrid_output:ntgrid_output))
-  end subroutine fieldlineavgphi_loc
-
-  !> FIXME : Add documentation
-  !!
-  !! @note This doesn't look like a useful routine and isn't used anywhere
-  subroutine fieldlineavgphi_tot (phiavg)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag
-!    use theta_grid, only: delthet
-    implicit none
-    complex, dimension (:,:), intent (out) :: phiavg
-    real, dimension (-ntgrid:ntgrid) :: jac
-!    integer :: ntg
-
-!    ntg = ntgrid
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
-!    phiavg = sum(phi(-ntg:ntg,:,:)*jac(-ntg:ntg)*delthet(-ntg:ntg)) &
-!         /sum(delthet(-ntg:ntg)*jac(-ntg:ntg))
-    phiavg = 0.
-    write(*,*) 'error in fields'
-  end subroutine fieldlineavgphi_tot
-
-
-  !!> This generates a flux surface average of phi. 
-
-  !subroutine flux_surface_average_phi (phi_in, phi_average)
-    !use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
-    !use kt_grids, only: ntheta0, naky
-
-    !implicit none
-    !complex, intent (in) :: phi_in
-    !complex, intent (out) :: phi_average
-    !complex, dimension(-ntgrid:ntgrid,1:ntheta0,1:naky) :: phi_fieldline_avg
-    !integer it, ig
-
-    !call fieldline_average_phi(phi_in, phi_fieldline_avg)
-    !do it = 1,ntheta0
-      !do ig = -ntgrid,ntgrid
-        !phi_average(ig, it, :) = sum(phi_fieldline_avg(ig, it, :))/real(naky)
-      !end do
-    !end do
-
-  !end subroutine fieldline_average_phi
-
   !> FIXME : Add documentation  
   subroutine reset_init
     use fields_implicit, only: fi_reset => reset_init
@@ -713,21 +612,16 @@ contains
     use fields_gf_local, only: flgf_reset => reset_fields_gf_local
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
+    use array_utils, only: zero_array
     implicit none
     initialized  = .false.
-    phi = 0.
-    phinew = 0.
-    apar = 0.
-    aparnew = 0.
-    bpar = .0
-    bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     if(fieldopt_switch .eq. fieldopt_gf_local) then
-       gf_phi = 0.
-       gf_apar = 0.
-       gf_bpar = 0.
-       gf_phinew = 0.
-       gf_aparnew = 0.
-       gf_bparnew = 0.
+       call zero_array(gf_phi) ; call zero_array(gf_phinew)
+       call zero_array(gf_apar) ; call zero_array(gf_aparnew)
+       call zero_array(gf_bpar) ; call zero_array(gf_bparnew)
     end if
     !What about apar_ext?
     select case (fieldopt_switch)
@@ -744,7 +638,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_fields
-
     use fields_implicit, only: implicit_reset => reset_init
     use fields_test, only: test_reset => reset_init
     use fields_local, only: finish_fields_local
@@ -753,19 +646,15 @@ contains
     use fields_arrays, only: apar_ext, gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: apar_ext, gf_phinew, gf_aparnew, gf_bparnew
     use unit_tests, only: debug_message
-
+    use array_utils, only: zero_array
     implicit none
     integer, parameter :: verbosity = 3
 
-
     initialized  = .false.
 !AJ Does these need zero'd if they are to be deallocated below?
-    phi = 0.
-    phinew = 0.
-    apar = 0.
-    aparnew = 0.
-    bpar = .0
-    bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     call debug_message(verbosity, &
       'fields::finish_fields zeroed fields')
     
@@ -812,154 +701,5 @@ contains
     end if
   end subroutine set_fields_config
 
-  !> Get the module level config instance
-  function get_fields_config()
-    type(fields_config_type) :: get_fields_config
-    get_fields_config = fields_config
-  end function get_fields_config
-
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-  
-  !> Reads in the fields_knobs namelist and populates the member variables
-  subroutine read_fields_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(fields_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: field_option
-    character(len = 256) :: response_dir, response_file
-    integer :: minnrow
-    logical :: do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_subgath, force_maxwell_reinit, read_response
-    logical :: remove_zonal_flows_switch
-
-    namelist /fields_knobs/ do_smart_update, dump_response, field_local_allreduce, field_local_allreduce_sub, field_local_nonblocking_collectives, field_local_tuneminnrow, field_option, field_subgath, force_maxwell_reinit, &
-         minnrow, read_response, remove_zonal_flows_switch, response_dir, response_file
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    do_smart_update = self%do_smart_update
-    dump_response = self%dump_response
-    field_local_allreduce = self%field_local_allreduce
-    field_local_allreduce_sub = self%field_local_allreduce_sub
-    field_local_nonblocking_collectives = self%field_local_nonblocking_collectives
-    field_local_tuneminnrow = self%field_local_tuneminnrow
-    field_option = self%field_option
-    field_subgath = self%field_subgath
-    force_maxwell_reinit = self%force_maxwell_reinit
-    minnrow = self%minnrow
-    read_response = self%read_response
-    remove_zonal_flows_switch = self%remove_zonal_flows_switch
-    response_dir = self%response_dir
-    response_file = self%response_file
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = fields_knobs)
-
-    ! Now copy from local variables into type members
-    self%do_smart_update = do_smart_update
-    self%dump_response = dump_response
-    self%field_local_allreduce = field_local_allreduce
-    self%field_local_allreduce_sub = field_local_allreduce_sub
-    self%field_local_nonblocking_collectives = field_local_nonblocking_collectives
-    self%field_local_tuneminnrow = field_local_tuneminnrow
-    self%field_option = field_option
-    self%field_subgath = field_subgath
-    self%force_maxwell_reinit = force_maxwell_reinit
-    self%minnrow = minnrow
-    self%read_response = read_response
-    self%remove_zonal_flows_switch = remove_zonal_flows_switch
-    self%response_dir = response_dir
-    self%response_file = response_file
-
-    self%exist = exist
-  end subroutine read_fields_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_fields_config(self, unit)
-    implicit none
-    class(fields_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("do_smart_update", self%do_smart_update, unit_internal)
-    call self%write_key_val("dump_response", self%dump_response, unit_internal)
-    call self%write_key_val("field_local_allreduce", self%field_local_allreduce, unit_internal)
-    call self%write_key_val("field_local_allreduce_sub", self%field_local_allreduce_sub, unit_internal)
-    call self%write_key_val("field_local_nonblocking_collectives", self%field_local_nonblocking_collectives, unit_internal)
-    call self%write_key_val("field_local_tuneminnrow", self%field_local_tuneminnrow, unit_internal)
-    call self%write_key_val("field_option", self%field_option, unit_internal)
-    call self%write_key_val("field_subgath", self%field_subgath, unit_internal)
-    call self%write_key_val("force_maxwell_reinit", self%force_maxwell_reinit, unit_internal)
-    call self%write_key_val("minnrow", self%minnrow, unit_internal)
-    call self%write_key_val("read_response", self%read_response, unit_internal)
-    call self%write_key_val("remove_zonal_flows_switch", self%remove_zonal_flows_switch, unit_internal)
-    call self%write_key_val("response_dir", self%response_dir, unit_internal)
-    call self%write_key_val("response_file", self%response_file, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_fields_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_fields_config(self)
-    class(fields_config_type), intent(in out) :: self
-    type(fields_config_type) :: empty
-    select type (self)
-    type is (fields_config_type)
-       self = empty
-    end select
-  end subroutine reset_fields_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_fields_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(fields_config_type), intent(in out) :: self
-    call broadcast(self%do_smart_update)
-    call broadcast(self%dump_response)
-    call broadcast(self%field_local_allreduce)
-    call broadcast(self%field_local_allreduce_sub)
-    call broadcast(self%field_local_nonblocking_collectives)
-    call broadcast(self%field_local_tuneminnrow)
-    call broadcast(self%field_option)
-    call broadcast(self%field_subgath)
-    call broadcast(self%force_maxwell_reinit)
-    call broadcast(self%minnrow)
-    call broadcast(self%read_response)
-    call broadcast(self%remove_zonal_flows_switch)
-    call broadcast(self%response_dir)
-    call broadcast(self%response_file)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_fields_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_fields_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_fields_config
-    get_default_name_fields_config = "fields_knobs"
-  end function get_default_name_fields_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_fields_config()
-    implicit none
-    logical :: get_default_requires_index_fields_config
-    get_default_requires_index_fields_config = .false.
-  end function get_default_requires_index_fields_config
+#include "fields_auto_gen.inc"  
 end module fields

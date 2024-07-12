@@ -2,10 +2,8 @@
 !! module via the namelist diagnostics_config.
 module diagnostics_config
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  use simpledataio, only: sdf=>sdatio_file
   use diagnostics_ascii, only: diagnostics_ascii_type
-  use diagnostics_dimensions, only: diagnostics_dimension_list_type
-  use diagnostics_base_config, only: diagnostics_base_config_type
+  use diagnostics_base_configuration, only: diagnostics_base_config_type
   implicit none
 
   private
@@ -35,30 +33,30 @@ module diagnostics_config
      real :: diffusivity = initial_value
 
      ! Individual heat fluxes
-     real, dimension(:), pointer :: species_es_heat_flux
-     real, dimension(:), pointer :: species_apar_heat_flux
-     real, dimension(:), pointer :: species_bpar_heat_flux
+     real, dimension(:), allocatable :: species_es_heat_flux
+     real, dimension(:), allocatable :: species_apar_heat_flux
+     real, dimension(:), allocatable :: species_bpar_heat_flux
 
      ! Total fluxes
-     real, dimension(:), pointer :: species_heat_flux
-     real, dimension(:), pointer :: species_momentum_flux
-     real, dimension(:), pointer :: species_particle_flux
-     real, dimension(:), pointer :: species_energy_exchange
+     real, dimension(:), allocatable :: species_heat_flux
+     real, dimension(:), allocatable :: species_momentum_flux
+     real, dimension(:), allocatable :: species_particle_flux
+     real, dimension(:), allocatable :: species_energy_exchange
 
      ! Average total fluxes
-     real, dimension(:), pointer :: species_heat_flux_avg
-     real, dimension(:), pointer :: species_momentum_flux_avg
-     real, dimension(:), pointer :: species_particle_flux_avg
+     real, dimension(:), allocatable :: species_heat_flux_avg
+     real, dimension(:), allocatable :: species_momentum_flux_avg
+     real, dimension(:), allocatable :: species_particle_flux_avg
 
      ! Heating
-     real, dimension(:), pointer :: species_heating
-     real, dimension(:), pointer :: species_heating_avg
+     real, dimension(:), allocatable :: species_heating
+     real, dimension(:), allocatable :: species_heating_avg
 
      ! Growth rates
-     complex, dimension(:,:), pointer :: omega_average
+     complex, dimension(:,:), allocatable :: omega_average
 
      ! free energy transfer due to nonlinearity
-     complex, dimension(:,:), pointer :: zonal_transfer
+     complex, dimension(:,:), allocatable :: zonal_transfer
 
   end type results_summary_type
 
@@ -66,32 +64,26 @@ module diagnostics_config
   !! a reference to the output file, and current 
   !! results of the simulation
   type diagnostics_type
-     type(sdf) :: sfile
      type(diagnostics_ascii_type) :: ascii_files
      type(results_summary_type) :: current_results
-     type(diagnostics_dimension_list_type) :: dims
-     !> Integer below gives the sdatio type 
-     !! which corresponds to a gs2 real
-     integer :: rtype
-     integer :: itype
-     integer :: ctype
+     !> NetCDF file ID
+     integer :: file_id
+     !> Current timestep
+     integer :: nout = 1
      integer :: istep
      integer :: verbosity = 3
      logical :: create
-     logical :: wryte
-     logical :: reed
-     logical :: replay
+     logical :: writing
      logical :: distributed
      logical :: parallel
      logical :: exit
      logical :: vary_vnew_only
      logical :: calculate_fluxes
-     logical :: is_trinity_run
      logical :: appending
      real :: user_time
      real :: user_time_old
      real :: start_time
-     real, dimension(:), pointer :: fluxfac
+     real, dimension(:), allocatable :: fluxfac
      integer :: nwrite
      integer :: nwrite_mult
      logical :: write_any
@@ -123,6 +115,7 @@ module diagnostics_config
      logical :: write_pflux_sym !Not implemented?
      logical :: write_pflux_tormom !Not implemented?
      logical :: write_omega
+     logical :: write_ql_metric
      integer :: navg
      real :: omegatinst
      real :: omegatol
@@ -135,7 +128,6 @@ module diagnostics_config
      logical :: write_ascii
      logical :: write_gyx
      logical :: write_g
-     logical :: write_lpoly
      integer :: conv_nstep_av
      real :: conv_test_multiplier
      integer :: conv_min_step
@@ -163,15 +155,15 @@ module diagnostics_config
      logical :: save_glo_info_and_grids
      logical :: save_velocities
      logical :: write_zonal_transfer
+     logical :: write_kinetic_energy_transfer
      logical :: write_collisional
      logical :: write_omavg
-     logical :: write_gg
      logical :: ob_midplane
-     logical :: write_nl_flux
      logical :: write_avg_moments
      logical :: dump_check1
      logical :: dump_check2
      integer :: nmovie
+     integer :: nc_sync_freq
   end type diagnostics_type
 
   !> Used for testing... causes screen printout to be 
@@ -269,17 +261,13 @@ contains
     new_gs2_diagnostics_config_in%omegatinst = 1.0e6
     new_gs2_diagnostics_config_in%print_line = .false.
     new_gs2_diagnostics_config_in%write_correlation = .true.
-    new_gs2_diagnostics_config_in%write_fields = .true.
     new_gs2_diagnostics_config_in%write_moments = .true.
   end subroutine apply_new_defaults
 
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
-    use diagnostics_base_config, only: warn_about_nonfunctional_selection
-    use file_utils, only: input_unit, error_unit, input_unit_exist
-    use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, nproc, iproc
+    use diagnostics_base_configuration, only: warn_about_nonfunctional_selection
     use nonlinear_terms, only: nonlin
-    use unit_tests, only: debug_message
+    use collisions, only: use_le_layout
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
@@ -302,9 +290,7 @@ contains
     ! values and are not available in this diagnostics module
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
-    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%nc_sync_freq /= 10, "nc_sync_freq")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
-    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_nl_flux, "write_nl_flux")
     call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%write_omavg, "write_omavg")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_sym, "write_pflux_sym")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_tormom, "write_pflux_tormom")
@@ -326,6 +312,7 @@ contains
     gnostics%make_movie = new_gs2_diagnostics_config%make_movie
     gnostics%navg = new_gs2_diagnostics_config%navg
     gnostics%ncheck = new_gs2_diagnostics_config%ncheck
+    gnostics%nc_sync_freq = new_gs2_diagnostics_config%nc_sync_freq
     gnostics%nmovie = new_gs2_diagnostics_config%nmovie
     gnostics%nsave = new_gs2_diagnostics_config%nsave
     gnostics%nwrite = new_gs2_diagnostics_config%nwrite
@@ -365,22 +352,21 @@ contains
     gnostics%write_fluxes_by_mode = new_gs2_diagnostics_config%write_fluxes_by_mode
     gnostics%write_full_moments_notgc = new_gs2_diagnostics_config%write_full_moments_notgc
     gnostics%write_g = new_gs2_diagnostics_config%write_g
-    gnostics%write_gg = new_gs2_diagnostics_config%write_gg
     gnostics%write_gs = new_gs2_diagnostics_config%write_gs
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
     gnostics%write_jext = new_gs2_diagnostics_config%write_jext
+    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian
-    gnostics%write_lpoly = new_gs2_diagnostics_config%write_lpoly
     gnostics%write_max_verr = new_gs2_diagnostics_config%write_max_verr
     gnostics%write_moments = new_gs2_diagnostics_config%write_moments
-    gnostics%write_nl_flux = new_gs2_diagnostics_config%write_nl_flux
     gnostics%write_nl_flux_dist = new_gs2_diagnostics_config%write_nl_flux_dist
     gnostics%write_ntot_over_time = new_gs2_diagnostics_config%write_ntot_over_time
     gnostics%write_omavg = new_gs2_diagnostics_config%write_omavg
     gnostics%write_omega = new_gs2_diagnostics_config%write_omega
+    gnostics%write_ql_metric = new_gs2_diagnostics_config%write_ql_metric
     gnostics%write_parity = new_gs2_diagnostics_config%write_parity
     gnostics%write_pflux_sym = new_gs2_diagnostics_config%write_pflux_sym
     gnostics%write_pflux_tormom = new_gs2_diagnostics_config%write_pflux_tormom
@@ -392,6 +378,11 @@ contains
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
 
     exist = new_gs2_diagnostics_config%exist
+
+    !Override flags
+
+    ! The collision_error method assumes we have setup the lz layout.
+    if (use_le_layout) gnostics%write_cerr = .false.
 
     if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
        gnostics%nsave = -1

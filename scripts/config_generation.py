@@ -6,6 +6,7 @@
 #with the boiler plate routines and canonical form of the type.
 
 from collections import OrderedDict
+import os
 
 # The maximum line length allowed by the Cray compiler is 256
 # Set the allowed limit a bit below this to allow for indentation, variable type,
@@ -77,7 +78,7 @@ writeSubString = """
 subroutine write_{module}_config(self, unit)
   implicit none
   class({module}_config_type), intent(in) :: self
-  integer, intent(in) , optional:: unit
+  integer, intent(in), optional:: unit
   integer :: unit_internal
 
   unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -223,9 +224,9 @@ class config():
 !---------------------------------------
 ! Following is for the config_type
 !---------------------------------------
-"""
+""".rstrip()
     
-    def __init__(self, varList = [], moduleName = None, namelistName = None, requires_index = False, comment = "FIXME: Add documentation"):
+    def __init__(self, varList = [], moduleName = None, namelistName = None, requires_index = False, file_name = None, comment = "FIXME: Add documentation"):
         self.varList = set(varList)
         self.moduleName = moduleName.lower()
         self.namelistName = namelistName.lower()
@@ -234,7 +235,7 @@ class config():
             comment = "\n".join(comment)
         
         self.comment = comment.split("\n")
-
+        self.file_name = file_name
         #Now sort vars
         self.sortVars()
         
@@ -398,9 +399,19 @@ class config():
 
     def printAll(self,**kwargs):
         st = []
+        st.append(self.printCopyPasteCode(**kwargs))
+        st.append(self.printIncludeOnly(**kwargs))
+        return "\n".join(st)
+
+    def printCopyPasteCode(self,**kwargs):
+        st = []
         st.append(self.decl(**kwargs))
         st.append("\n"+self.instance(**kwargs))
-        st.append(self.readParams())        
+        st.append(self.readParams())
+        return "\n".join(st)
+
+    def printIncludeOnly(self,**kwargs):
+        st = []
         st.append(self.subComment)
         st.append(self.readConfig())
         st.append(self.writeConfig())
@@ -411,12 +422,22 @@ class config():
         st.append(self.getModuleConfig())
         return "\n".join(st)
 
-    def dumpToFile(self,fileOut=None):
+    def dumpToFile(self, fileOut = None, IncludeOnly = False, TargetDir = None):
         if fileOut is None:
-            fileOut = self.moduleName+"_placeholders.f90"
+            if IncludeOnly:
+                location = TargetDir if TargetDir else os.path.dirname(self.file_name)
+                fileOut = os.path.join(
+                    location, self.moduleName+"_auto_gen.inc")
+            else:
+                fileOut = self.moduleName+"_placeholders.f90"
+
+        if IncludeOnly:
+            lines = self.printIncludeOnly()
+        else:
+            lines = self.printAll()
 
         with open(fileOut, 'w') as f:
-            f.writelines(self.printAll())
+            f.writelines(lines)
 
     def toHTMLTable(self):
         st = []
@@ -428,7 +449,6 @@ class config():
         st.append("")
 
         # Table header
-        st.append("<html>")
         st.append('<table class="divNamelistTable" markdown="1">')
         st.append("<thead><tr>")
         header_cell = "<th> {val} </th>"
@@ -457,7 +477,6 @@ class config():
         st.append("</tbody>")
 
         st.append("</table>")
-        st.append("</html>")
         st.append("")
         return st
 
@@ -477,7 +496,7 @@ class config():
         st.append("")
         return st
     
-def constructFromFile(fileIn=None, verbose=False):
+def constructFromFile(fileIn=None, verbose=False, quiet=False):
     # Currently not able to get value of requires_index automatically.
 
     if fileIn is None:
@@ -537,7 +556,8 @@ def constructFromFile(fileIn=None, verbose=False):
     theConfigs = OrderedDict()
     
     with open(fileIn, 'r') as f:
-        print("Processing file '{f}'".format(f=fileIn))
+        if not quiet:
+            print("Processing file '{f}'".format(f=fileIn))
         found = False
         currName = 'ERROR'
         otherLines = []
@@ -573,7 +593,12 @@ def constructFromFile(fileIn=None, verbose=False):
                 if name != currName:
                     raise ValueError("Mismatched type names {a} and {b}".format(a=name, b=currName))
 
-                theConfigs[currName] = config(varList = theVars[currName], moduleName = currName, namelistName = namelistName, comment = theComments, requires_index = requires_index)
+                theConfigs[currName] = config(varList = theVars[currName],
+                                              moduleName = currName,
+                                              namelistName = namelistName,
+                                              comment = theComments,
+                                              requires_index = requires_index,
+                                              file_name = fileIn)
                 
                 found = False
                 currName = 'ERROR'
@@ -617,19 +642,40 @@ def constructFromFile(fileIn=None, verbose=False):
     return result
 
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    # Handle case where no files passed as arguments    
-    if len(sys.argv) < 2:
+    parser = argparse.ArgumentParser(
+        description = 'Identify any config types from passed (or found) source files and produce generated code.'
+        )
+
+    parser.add_argument("--files", nargs = "*", action = "store", help =
+                        "Files to parse, if not set search for all source files.")
+
+    parser.add_argument("--include-only", action = "store_true", help =
+                        "If set only generate the boiler plate which can be included directly.")
+
+    parser.add_argument("--verbose", action = "count", default = 0, help =
+                        "If set prints more information about what is happening.")
+
+    parser.add_argument("--target-dir", action = "store", help =
+                        "If set controls the directory the generated files are written to.")
+
+
+    args = parser.parse_args()
+
+    # Handle case where no files passed as arguments
+    if args.files is None:
         from get_all_matching_files import get_all_matching_files
         probablyFiles = get_all_matching_files(paths=["src/","externals/utils/"],
                                                patterns=["*.[fF]??"])
     else:
-        probablyFiles = sys.argv[1:]
-        
+        probablyFiles = args.files
+
     for fil in probablyFiles:
-        tmp = constructFromFile(fileIn=fil)
+        tmp = constructFromFile(fileIn=fil, quiet = args.verbose <= 1)
         if tmp is None: continue
         for k, v in tmp.items():
-            print("Config '{k}' in file '{f}'".format(k=k,f=fil))
-            v.dumpToFile()
+            if args.verbose > 0: print("Config '{k}' in file '{f}'".format(k=k,f=fil))
+            v.dumpToFile(IncludeOnly = args.include_only, TargetDir = args.target_dir)
+
+

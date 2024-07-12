@@ -23,14 +23,13 @@ contains
     use kt_grids, only: akx, aky, naky, ikx, nx, ny, ntheta0, box, theta0
     use le_grids, only: negrid, nlambda
     use le_grids, only: integrate_moment
-    use mp, only: iproc, nproc, proc0, barrier
-    use mpi
+    use mp, only: iproc, nproc, proc0, barrier, max_allreduce
     implicit none
     integer, intent(in):: jx,jy
     logical, optional, intent(in):: debug
     !  ik,is,ie,il,it are indices for ky, species, energy, lambda and kx respectively
     integer:: ik,is,ie,il,it,ia
-    integer:: isgn, ig, iglo, index, mpierr
+    integer:: isgn, ig, iglo, index, mpierr, result_flag
     logical:: accelerated, printlots, fail, anyfail
     logical,save:: first=.true. 
 
@@ -53,7 +52,7 @@ contains
 
     !CMR, 5-D FFTs
     g=0
-    if (printlots) write(6,fmt='("nx=",i6,": ny=",i6,": ntheta0=",i6,": naky=",i6)') ,nx,ny,ntheta0,naky
+    if (printlots) write(6,fmt='("nx=",i6,": ny=",i6,": ntheta0=",i6,": naky=",i6)') nx,ny,ntheta0,naky
     if (jy .ge. naky) then 
        write(6,*) "ffttest: quit as jy>=naky --- jy, naky=",jy,naky
        return
@@ -176,8 +175,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
     if (proc0) then
        if (anyfail) then
           write(6,fmt='(2a8,5i8,a8,l8,a12)') "3-D","c2r",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -196,8 +197,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
     if (proc0) then
        if (anyfail) then
           write(6,fmt='(2a8,5i8,a8,l8,a12)') "3-D","r2c",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -219,7 +222,7 @@ contains
 
     nnx=2*nx; nny=2*ny
     allocate (rdens(nnx,nny,-ntgrid:ntgrid))
-    call transform2(density,rdens,nny,nnx)
+    call transform2(density(:,:,:,1),rdens,nny,nnx)
     rdens=2.0*rdens
 
     ! CHECK results at theta=0 for 1st species
@@ -234,8 +237,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
     if (proc0) then
        if (anyfail) then
           write(6,fmt='(2a8,5i8,a8,l8,a12)') "4-D","c2r",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -253,7 +258,7 @@ contains
 
     fail=.false.
     if (accelerated) then
-       call transform2 (g, gra, ia)
+       call transform2 (g, gra)
        gra=2.0*gra
     else
        call transform2 (g, gr)
@@ -294,8 +299,10 @@ contains
           enddo
        enddo
     end if
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
 
     if (proc0) then
        if (anyfail) then
@@ -309,7 +316,7 @@ contains
 
     if (accelerated) then
        gra=0.5*gra
-       call inverse2 (gra, g, ia)
+       call inverse2 (gra, g)
     else
        gr=0.5*gr
        call inverse2 (gr, g)
@@ -335,8 +342,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
 
     if (proc0) then
        if (anyfail) then
@@ -358,15 +367,17 @@ program ffttester
 !        initialise gs2 with user input file, but with NSTEP=0 to avoid advance
 !        initialise g with cos(jx x)*cos(jy y) 
 !
-  use gs2_main, only: run_gs2, finish_gs2
-  use gs2_diagnostics, only: finish_gs2_diagnostics
-  use mp, only: finish_mp
+  use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
+  use mp, only: init_mp, mp_comm, finish_mp
   use kt_grids, only: naky, nx, ny, ntheta0, box, theta0
   use ffttest_helper, only: ffttest
   implicit none
   integer:: ix, iy
+  type(gs2_program_state_type) :: state
 
-  call run_gs2(nofinish=.true.)
+  call init_mp
+  state%mp_comm = mp_comm
+  call run_gs2(finalize=.false., state=state)
   if ( .not. box ) then
      write(6,*) 'Quitting as this is not a BOX run'
      stop
@@ -376,7 +387,8 @@ program ffttester
         call ffttest(ix,iy)
      enddo
   enddo
-  call finish_gs2_diagnostics(0)
-  call finish_gs2
+
+  call finish_gs2(state, quiet=.true.)
   call finish_mp
+
 end program ffttester

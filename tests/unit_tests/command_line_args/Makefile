@@ -1,5 +1,6 @@
 sinclude ../Makefile.tests_common
-
+clean_individual_test: LOCAL_TEST_FILES:= __pycache__/*
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
 all:
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)

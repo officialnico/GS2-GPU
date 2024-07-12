@@ -5,9 +5,10 @@ program ideal_ball
   use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, run_name
   use theta_grid, only: finish_theta_grid
+  use constants, only: run_name_size
   implicit none
   logical :: list
-  character(len=2000), target :: cbuff
+  character(len = run_name_size), target :: cbuff
 
   !Setup mpi
   call init_mp
@@ -20,7 +21,7 @@ program ideal_ball
   !Set run name
   if(proc0) cbuff = trim(run_name)
   call broadcast(cbuff)
-  if(.not.proc0) run_name => cbuff
+  if(.not.proc0) run_name = cbuff
 
   !Initialise
   call init_ballstab

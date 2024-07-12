@@ -1,4 +1,5 @@
-!> FIXME : Add documentation
+!> For the given input file initialises the main grids
+!> and geometry and writes these to file (netcdf or binary).
 program dump_grids
   use job_manage, only: job_fork, time_message
   use mp, only: init_mp, proc0, nproc, broadcast
@@ -7,12 +8,9 @@ program dump_grids
   use theta_grid, only: init_theta_grid
   use le_grids, only: init_le_grids
   use species, only: init_species
-
   implicit none
   logical :: list
-  logical :: accel_x, accel_y
   logical, parameter :: quiet=.false.
-  character (500), target :: cbuff
   character (len=500) :: filename
   real :: time_measure(2)
 
@@ -83,7 +81,7 @@ program dump_grids
      write(*,'("Init le_grids   ")',advance='no')
   endif
   call time_message(.false.,time_measure,'init-le')
-  call init_le_grids(accel_x,accel_y)
+  call init_le_grids
   call time_message(.false.,time_measure,'init-le')
   if(proc0.and.(.not.quiet)) then
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
@@ -110,140 +108,67 @@ contains
 
   !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
-    use netcdf, only: NF90_CLOBBER, NF90_NETCDF4
-    use netcdf, only: nf90_create, nf90_close
-    use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
-    use netcdf, only: nf90_put_var
-
-    use netcdf_utils, only: get_netcdf_code_precision
-    use netcdf_utils, only: netcdf_real
-
+    use neasyf, only: neasyf_open, neasyf_default_compression, neasyf_dim, neasyf_write, neasyf_close
     use kt_grids, only: aky, akx, theta0
     use theta_grid, only: theta
-    use theta_grid, only: bmag, bpol, gradpar, grho
-    use theta_grid, only: cdrift, cvdrift, gbdrift
-    use theta_grid, only: cdrift0, cvdrift0, gbdrift0
-    use theta_grid, only: cvdrift_th, gbdrift_th
-    use theta_grid, only: gds2, gds21, gds22, gds23, gds24, gds24_noq
-    use theta_grid, only: rplot, zplot, aplot
-    use theta_grid, only: rprime, zprime, aprime
-    use le_grids, only: al, energy, negrid, wl, w
+    use le_grids, only: al, energy, wl, w, negrid
     use species, only: nspec
     use gs2_metadata, only: create_metadata
-
+    use gs2_io, only: nc_geo, nc_species
+    use gs2_io, only: kx_dim, ky_dim, theta_dim, lambda_dim, species_dim, egrid_dim
     implicit none
     character(len=*), intent(in) :: fname
-    integer :: ncid, ierr
-    integer :: ky_dimid, kx_dimid, theta_dimid, al_dimid, energy_dimid, species_dimid
-    integer :: ky_varid, kx_varid, theta_varid, al_varid, energy_varid, theta0_varid
-    integer :: bmag_varid, bpol_varid, gradpar_varid, grho_varid
-    integer :: cdrift_varid, cvdrift_varid, gbdrift_varid
-    integer :: cdrift0_varid, cvdrift0_varid, gbdrift0_varid
-    integer :: cvdrift_th_varid, gbdrift_th_varid
-    integer :: gds2_varid, gds21_varid, gds22_varid, gds23_varid, gds24_varid, gds24_noq_varid
-    integer :: rplot_varid, zplot_varid, aplot_varid, rprime_varid, zprime_varid, aprime_varid
-    integer :: wl_varid, w_varid
+    integer :: ncid
+    !> Level of compression if enabled via
+    !> `GK_NETCDF_DEFAULT_COMPRESSION_ON` macro. Must be a value between
+    !> 1 (faster, less compression) and 9 (slower, more compression), or
+    !> 0 (off)
+    integer, parameter :: default_compression_level = 1, compression_off = 0
+
+#ifdef GK_NETCDF_DEFAULT_COMPRESSION_ON
+    neasyf_default_compression = default_compression_level
+#else
+    neasyf_default_compression = compression_off
+#endif
 
     !First create a file
-    ierr=nf90_create(trim(adjustl(fname))//".grids.nc", ior(NF90_CLOBBER, NF90_NETCDF4), ncid)
+    ncid = neasyf_open(trim(adjustl(fname))//".grids.nc", "w")
     call create_metadata(ncid, "GS2 grids")
 
-    !Define dimensions
-    ierr=nf90_def_dim(ncid,'aky',size(aky),ky_dimid)
-    ierr=nf90_def_dim(ncid,'akx',size(akx),kx_dimid)
-    ierr=nf90_def_dim(ncid,'theta',size(theta),theta_dimid)
-    ierr=nf90_def_dim(ncid,'lambda',size(al),al_dimid)
-    ierr=nf90_def_dim(ncid,'energy',negrid,energy_dimid)
-    ierr=nf90_def_dim(ncid,'species',nspec,species_dimid)
+    call neasyf_dim(ncid, trim(kx_dim), values = akx, &
+         long_name = "Wavenumber perpendicular to flux surface", units = "1/rho_r")
+    call neasyf_dim(ncid, trim(ky_dim), values = aky, &
+         long_name = "Wavenumber in direction of grad alpha", units = "1/rho_r")
+    call neasyf_dim(ncid, trim(theta_dim), values = theta, long_name = "Poloidal angle", &
+         units = "rad")
+    call neasyf_dim(ncid, trim(lambda_dim), values = al, &
+         long_name = "Energy/magnetic moment", units = "1/(2 B_a)")
+    call neasyf_dim(ncid, trim(species_dim), dim_size = nspec)
+    call neasyf_dim(ncid, trim(egrid_dim), dim_size = negrid, &
+         long_name="See 'energy' for energy grid values")
 
-    !Define basic variables
-    ierr=nf90_def_var(ncid,'ky',netcdf_real,[ky_dimid],ky_varid)
-    ierr=nf90_def_var(ncid,'kx',netcdf_real,[kx_dimid],kx_varid)
-    ierr=nf90_def_var(ncid,'theta0',netcdf_real,[kx_dimid,ky_dimid],theta0_varid)
-    ierr=nf90_def_var(ncid,'theta',netcdf_real,[theta_dimid],theta_varid)
-    ierr=nf90_def_var(ncid,'lambda',netcdf_real,[al_dimid],al_varid)
-    ierr=nf90_def_var(ncid,'energy',netcdf_real,[energy_dimid, species_dimid],energy_varid)
-
-    !Define associated variables
-    ierr=nf90_def_var(ncid,'bmag',netcdf_real,[theta_dimid], bmag_varid)
-    ierr=nf90_def_var(ncid,'bpol',netcdf_real,[theta_dimid], bpol_varid)
-    ierr=nf90_def_var(ncid,'gradpar',netcdf_real,[theta_dimid], gradpar_varid)
-    ierr=nf90_def_var(ncid,'grho',netcdf_real,[theta_dimid], grho_varid)
-    ierr=nf90_def_var(ncid,'cdrift',netcdf_real,[theta_dimid], cdrift_varid)
-    ierr=nf90_def_var(ncid,'cvdrift',netcdf_real,[theta_dimid], cvdrift_varid)
-    ierr=nf90_def_var(ncid,'gbdrift',netcdf_real,[theta_dimid], gbdrift_varid)
-    ierr=nf90_def_var(ncid,'cdrift0',netcdf_real,[theta_dimid], cdrift0_varid)
-    ierr=nf90_def_var(ncid,'cvdrift0',netcdf_real,[theta_dimid], cvdrift0_varid)
-    ierr=nf90_def_var(ncid,'gbdrift0',netcdf_real,[theta_dimid], gbdrift0_varid)
-    ierr=nf90_def_var(ncid,'cvdrift_th',netcdf_real,[theta_dimid], cvdrift_th_varid)
-    ierr=nf90_def_var(ncid,'gbdrift_th',netcdf_real,[theta_dimid], gbdrift_th_varid)
-    ierr=nf90_def_var(ncid,'gds2',netcdf_real,[theta_dimid], gds2_varid)
-    ierr=nf90_def_var(ncid,'gds21',netcdf_real,[theta_dimid], gds21_varid)
-    ierr=nf90_def_var(ncid,'gds22',netcdf_real,[theta_dimid], gds22_varid)
-    ierr=nf90_def_var(ncid,'gds23',netcdf_real,[theta_dimid], gds23_varid)
-    ierr=nf90_def_var(ncid,'gds24',netcdf_real,[theta_dimid], gds24_varid)
-    ierr=nf90_def_var(ncid,'gds24_noq',netcdf_real,[theta_dimid], gds24_noq_varid)
-    ierr=nf90_def_var(ncid,'rplot',netcdf_real,[theta_dimid], rplot_varid)
-    ierr=nf90_def_var(ncid,'zplot',netcdf_real,[theta_dimid], zplot_varid)
-    ierr=nf90_def_var(ncid,'aplot',netcdf_real,[theta_dimid], aplot_varid)
-    ierr=nf90_def_var(ncid,'rprime',netcdf_real,[theta_dimid], rprime_varid)
-    ierr=nf90_def_var(ncid,'zprime',netcdf_real,[theta_dimid], zprime_varid)
-    ierr=nf90_def_var(ncid,'aprime',netcdf_real,[theta_dimid], aprime_varid)
-    ierr=nf90_def_var(ncid,'wl',netcdf_real,[theta_dimid, al_dimid], wl_varid)
-    ierr=nf90_def_var(ncid,'w',netcdf_real,[energy_dimid, species_dimid], w_varid)
-
-    !End definitions
-    ierr=nf90_enddef(ncid)
-
-    !Now fill in variable data
-    ierr=nf90_put_var(ncid,ky_varid,aky)
-    ierr=nf90_put_var(ncid,kx_varid,akx)
-    ierr=nf90_put_var(ncid,theta0_varid,theta0)
-    ierr=nf90_put_var(ncid,theta_varid,theta)
-    ierr=nf90_put_var(ncid,al_varid,al)
-    ierr=nf90_put_var(ncid,energy_varid,energy)
-
-    ierr=nf90_put_var(ncid, bmag_varid, bmag)
-    ierr=nf90_put_var(ncid, bpol_varid, bpol)
-    ierr=nf90_put_var(ncid, gradpar_varid, gradpar)
-    ierr=nf90_put_var(ncid, grho_varid, grho)
-    ierr=nf90_put_var(ncid, cdrift_varid, cdrift)
-    ierr=nf90_put_var(ncid, cvdrift_varid, cvdrift)
-    ierr=nf90_put_var(ncid, gbdrift_varid, gbdrift)
-    ierr=nf90_put_var(ncid, cdrift0_varid, cdrift0)
-    ierr=nf90_put_var(ncid, cvdrift0_varid, cvdrift0)
-    ierr=nf90_put_var(ncid, gbdrift0_varid, gbdrift0)
-    ierr=nf90_put_var(ncid, cvdrift_th_varid, cvdrift_th)
-    ierr=nf90_put_var(ncid, gbdrift_th_varid, gbdrift_th)
-    ierr=nf90_put_var(ncid, gds2_varid, gds2)
-    ierr=nf90_put_var(ncid, gds21_varid, gds21)
-    ierr=nf90_put_var(ncid, gds22_varid, gds22)
-    ierr=nf90_put_var(ncid, gds23_varid, gds23)
-    ierr=nf90_put_var(ncid, gds24_varid, gds24)
-    ierr=nf90_put_var(ncid, gds24_noq_varid, gds24_noq)
-    ierr=nf90_put_var(ncid, rplot_varid, rplot)
-    ierr=nf90_put_var(ncid, zplot_varid, zplot)
-    ierr=nf90_put_var(ncid, aplot_varid, aplot)
-    ierr=nf90_put_var(ncid, rprime_varid, rprime)
-    ierr=nf90_put_var(ncid, zprime_varid, zprime)
-    ierr=nf90_put_var(ncid, aprime_varid, aprime)
-    ierr=nf90_put_var(ncid, wl_varid, wl)
-    ierr=nf90_put_var(ncid, w_varid, w)
-
-    !Now close file
-    ierr=nf90_close(ncid)
+    call neasyf_write(ncid, 'theta0', theta0, dim_names = [kx_dim,ky_dim], &
+         long_name = 'theta0')
+    call neasyf_write(ncid, "energy", energy, dim_names = [egrid_dim, species_dim], &
+         long_name="Energy grid values")
+    call nc_geo(ncid)
+    call nc_species(ncid)
+    call neasyf_write(ncid, 'wl', wl, dim_names = [theta_dim, lambda_dim], &
+         long_name = "Pitch angle integration weights")
+    call neasyf_write(ncid, 'w', w, dim_names = [egrid_dim, species_dim], &
+         long_name = "Energy grid integration weights")
+    call neasyf_close(ncid)
   end subroutine write_grids_to_file
 #else
   !Fall back to binary output when netcdf unavailable
 
   !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
-    use kt_grids, only: aky, akx, theta0
+    use kt_grids, only: aky, akx, theta0, kperp2
     use theta_grid, only: theta
     use theta_grid, only: bmag, bpol, gradpar, grho
     use theta_grid, only: cdrift, cvdrift, gbdrift
     use theta_grid, only: cdrift0, cvdrift0, gbdrift0
-    use theta_grid, only: cvdrift_th, gbdrift_th
     use theta_grid, only: gds2, gds21, gds22, gds23, gds24, gds24_noq
     use theta_grid, only: rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime
@@ -320,14 +245,6 @@ contains
     write(unit) gbdrift0
     close(unit)
 
-    open(unit=unit,file=trim(adjustl(fname))//".cvdrift_th",form="unformatted")
-    write(unit) cvdrift_th
-    close(unit)
-
-    open(unit=unit,file=trim(adjustl(fname))//".gbdrift_th",form="unformatted")
-    write(unit) gbdrift_th
-    close(unit)
-
     open(unit=unit,file=trim(adjustl(fname))//".gds2",form="unformatted")
     write(unit) gds2
     close(unit)
@@ -374,6 +291,10 @@ contains
 
     open(unit=unit,file=trim(adjustl(fname))//".aprime",form="unformatted")
     write(unit) aprime
+    close(unit)
+
+    open(unit=unit,file=trim(adjustl(fname))//".kperp2",form="unformatted")
+    write(unit) kperp2
     close(unit)
 
     open(unit=unit,file=trim(adjustl(fname))//".wl",form="unformatted")

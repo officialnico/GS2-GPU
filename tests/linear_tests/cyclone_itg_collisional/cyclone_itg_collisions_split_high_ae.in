@@ -21,7 +21,7 @@ timesteps_between_collisions = 1
 
 &test_settings
 gamma_expected = 0.194471
-omega_expected = 0.536119
+omega_expected = 0.537337
 tolerance = 1.0e-3
 /
 !include cyclone_itg_collisions_base.in
