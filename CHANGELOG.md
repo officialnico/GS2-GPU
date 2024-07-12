@@ -1,14 +1,56 @@
-## 8.2 (2023)
+## 8.2 (2024-07-11)
+
+### New features
+
+* Much more extensive support for pure OpenMP or hybrid
+  parallelisation. Pass `USE_OPENMP=on` to make in order to enable
+  OpenMP.
+
+* New operator splitting approach for nonlinear simulations. Still
+  experimental but see
+  [split_nonlinear_terms](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#nonlinear_terms_knobs-split_nonlinear) for more details.
+
+* A (very) experimental [exponential decay boundary
+  condition](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#dist_fn_knobs-exponential_boundary) and experimental option to put the boundary condition off of the grid.
+
+* Ideal ballooning stability calculation now supports `theta0 /= 0`.
+
+* Added a quasi-linear metric diagnostic output.
+
+* Ability to display a progress message.
+
+* More timer statistics output.
+
+* Ability to limit the number of processors used in different data
+  decompositions.
+
+* Option to split both of the trapped and passing regions into
+  sub-domains to help improve integration errors in some cases.
+
+* Ability to turn off potentials in the nonlinear term only.
+
+* NetCDF theta grid file input.
+
+* MXH geometry option.
+
+* Added a kinetic energy transfer diagnostic.
+
+* Added a very experimental fields based eigensolver. Set
+  `FIELDS_EIG=on` in addition to `USE_EIG=on` when running make.
+
+* Around 22k lines removed from the repository without losing used
+  features and being almost warning clean.
 
 ### Breaking Changes
 
 * The entry points to GS2 when using it as a library have been
   refactored, with some deprecated routines having been removed. The
-  main entry point is still `run_gs2`, but this now takes only two
-  arguments: the program `state`, and an option to delay finalising
-  the simulation until `finish_gs2` is called. The user is expected to
-  take care of initialising and finalising MPI, and passing the MPI
-  communicator through `state%mp_comm`.
+  main entry point is still `run_gs2`, but this now takes only three
+  arguments: the program `state`, an option to delay finalising the
+  simulation until `finish_gs2` is called and a flag to control
+  verbosity of some output. The user is expected to take care of
+  initialising and finalising MPI, and passing the MPI communicator
+  through `state%mp_comm`.
 
 * The change to the GS2 entry points means that some interfaces to
   external codes, such as Trinity, have also been removed. The caller
@@ -17,6 +59,405 @@
 * The "replay" feature to recalculate some diagnostics on a previous
   run has been removed. This feature only interacted with the "new"
   diagnostics module, and only a certain subset of diagnostics.
+
+* Removed the parameters namelist (all relevant inputs now in
+  knobs). Removed the `init_knobs` namelist.
+
+* Remove `le_nxilim_fix`, `densfac_lin`, `kfilter`, `opt_init_bc`,
+  `phifac_lin`, `qparfac_lin`, `qprpfac_lin`, `test`, `tparfac_lin`,
+  `tprpfac_lin`, `uparfac_lin`, `wfb_cmr`, `bd_exp`, `fexpi`,
+  `write_gg`, `write_lpoly`, `write_nl_flux`, `eqzip`, `faperp`,
+  `harris`, `margin`, `secondary`, `tertiary`, `teti`,
+  `trinity_linear_fluxes`, `trinity_ql_fluxes`, `gryfx`, `nkpolar`,
+  `nterp`, `densfac`, `qparfac`, `qprpfac`, `tparfac`, `tprpfac`,
+  `uparfac`, `nu`, `nustar`, `rmax`, `rmin`, `asym` and `asympri`
+  inputs.
+
+* `write_flux_line` defaults to false rather than true.
+
+* Moved `wfbbc_option` from `dist_fn` to `le_grids`.
+
+* Removed support for FFTW2 entirely.
+
+### Known issues
+
+No new known issues.
+
+### Merged Pull Requests
+
+* [Experimental] Field based eigval [PR #779 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/779)
+* Feature/auto generate config for includes [PR #996 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/996)
+* Strang splitting option in NL split operator [PR #665 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/665)
+* Try to improve the consistency of the field solve in split_collisions [PR #614 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/614)
+* Experimental/config auto gen ci test [PR #1004 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1004)
+* Kinetic energy transfer diagnostic [PR #1003 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1003)
+* Shaping paper transfer diagnostic parallel on updated master from gs2next 20240705 [PR #999 | Tobias Schuett](https://bitbucket.org/gyrokinetics/gs2/pull-requests/999)
+* When building tests force MODDIR to be the directory containing the test source file [PR #1002 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1002)
+* Minor/add some comments to get weights le grids [PR #1001 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1001)
+* Bugfix/expand response matrix test [PR #374 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/374)
+* Minor/tidyup makefile for 8p2 prep [PR #995 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/995)
+* Fix most warnings in LOWFLOW build [PR #993 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/993)
+* Minor/remove warnings and errors in genquad [PR #992 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/992)
+* Take different approach to split long message [PR #998 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/998)
+* Feature/use protected rather than public (not actually using protected here) [PR #973 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/973)
+* Bugfix/energy exchange diagnostics [PR #997 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/997)
+* Minor/fix two warnings in init g [PR #990 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/990)
+* Minor/reduce visibility of layout type data [PR #983 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/983)
+* Minor/reduce warnings for no netcdf build [PR #991 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/991)
+* Feature/update to fftw3 modern interface [PR #987 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/987)
+* Tweaks to allow LOWFLOW=on to build [PR #986 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/986)
+* Bugfix/fixup more warnings in advance of 8p2 [PR #985 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/985)
+* Move some velocity space / collision error related routines from dist_fn to diagnostics_velocity_space and related changes [PR #981 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/981)
+* Minor/deprecate lowflow [PR #984 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/984)
+* Add a parameter for noise initialization [PR #994 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/994)
+* Minor/tweak make depend [PR #989 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/989)
+* Minor/tidyup le grids use statements etc [PR #974 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/974)
+* Bugfix/scale apar m by fapar [PR #979 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/979)
+* Feature/progress status messages [PR #971 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/971)
+* Minor/allow mult imp in linear and disable in nonlinear [PR #980 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/980)
+* Always use nxi_lim instead of nxi+1 in collisions [PR #978 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/978)
+* Remove fexpi and make fexp real [PR #976 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/976)
+* Minor/refactor functional test for old diagnostics slightly [PR #972 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/972)
+* Minor/update mpich ci build to f40 [PR #975 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/975)
+* Minor/split multi module files [PR #982 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/982)
+* Minor/fixup some more warnings [PR #977 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/977)
+* Remove `ONE_STEP_PP` build option [PR #876 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/876)
+* Minor/interim handling for cray with onestep [PR #969 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/969)
+* Add Miller Extended Harmonic local equilibrium [PR #954 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/954)
+* Minor/update dump grids to reuse gs2 io [PR #970 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/970)
+* Minor/remove some unused makefile settings [PR #967 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/967)
+* Bump Makefiles to get compiler flag variables [PR #962 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/962)
+* Guard against points where we have marked them as zero iset [PR #963 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/963)
+* Minor/small tweaks to preprocess fortdep make [PR #964 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/964)
+* All restarting test to "build" if no netcdf [PR #965 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/965)
+* Make sure we use run_name_size rather than hard-coding 2000 [PR #966 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/966)
+* Remove duplicate comment from rungridgen [PR #968 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/968)
+* Experimental/exponential decay boundaries [PR #961 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/961)
+* Force std=f2008 in mpich CI job as we enable more features/code in this build [PR #959 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/959)
+* Import tVec at outer level as well [PR #960 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/960)
+* Try to work around slightly odd typedef [PR #958 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/958)
+* [Experimental] Abort if the parameters namelist is present [PR #957 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/957)
+* Cleanup/rearrange some trinity inputs [PR #953 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/953)
+* Bugfix/make sure pfunit failure fails ci [PR #956 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/956)
+* Minor/add some comments and tweaks around sdanalytic [PR #955 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/955)
+* Minor/tidy up some more warnings [PR #952 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/952)
+* Cleanup/remove gryfx references [PR #951 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/951)
+* Feature/avoid duplicate points early in gridgen [PR #944 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/944)
+* Micro/optimisations in opt source routines guided by intel advisor [PR #940 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/940)
+* Minor/tidy up gridgen slightly [PR #943 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/943)
+* Remove out of date bitbucket-pipelines.yml and related scripts [PR #949 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/949)
+* Make sure we request a unit when opening (to delete) nc grid file [PR #950 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/950)
+* Minor/remove unused code from gridgen smoothing [PR #942 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/942)
+* Switch from intel to ifx COMPILER flag in CI [PR #948 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/948)
+* Minor/update next for spline changes [PR #941 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/941)
+* Silence more warnings [PR #947 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/947)
+* Minor/gs2 save neasyf [PR #946 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/946)
+* add B_T, aminor, grhoavg, and surfarea to the netcdf output of eiktest. this is useful for the geqdsk capabilities of T3D. [PR #945 | Noah Mandell](https://bitbucket.org/gyrokinetics/gs2/pull-requests/945)
+* Bugfix/update unit test makefiles for more cleaning [PR #939 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/939)
+* Minor/update utils and fix gs2 for removal of trin flags [PR #937 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/937)
+* Experimental/avoid treating wfb as passing in conservative lorentz vpdiff [PR #931 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/931)
+* Reorder dimensions in pitch_weights to better match access order [PR #936 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/936)
+* Make vpar_zero_mean only apply to wfb rather than all trapped particles [PR #934 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/934)
+* Remove le_nxilim_fix input [PR #933 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/933)
+* Minor/tidyup some collisions code removing commented out parts and improving consistency [PR #932 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/932)
+* Feature/try to optimise collision conservation terms in le lo [PR #930 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/930)
+* Feature/add multigs2 runner as cleaner implementation of gs2 queue [PR #935 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/935)
+* Minor/remove unused le grids public [PR #929 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/929)
+* Minor/remove some unused integration implementations [PR #928 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/928)
+* Minor/use xi compatible weights layout [PR #926 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/926)
+* Minor/small tweaks to conserve collision terms [PR #927 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/927)
+* Minor/swap dimension order in ixi to il and related to improve memory access pattern [PR #925 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/925)
+* Minor/slight optimisation to lorentz conservation calculation for no drag [PR #922 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/922)
+* Add missing vnmult(2) factor in one term of le_lo diffuse conserve [PR #921 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/921)
+* Feature/use real type for coefficients in collisions setup [PR #920 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/920)
+* Minor/dont pass hee out of init vnew [PR #924 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/924)
+* Handle heating false when asking for heating diagnostics [PR #923 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/923)
+* Minor/remove uses of erf ext in favour of language standard [PR #919 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/919)
+* Minor/avoid duplication in collisions from select case [PR #915 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/915)
+* Avoid scaling vnew* arrays by tunits(ik)/tunits(1) [PR #916 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/916)
+* Avoid allocating vnewh if it will only store zero [PR #917 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/917)
+* Reduce scope of glec [PR #918 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/918)
+* Minor/avoid allocating c rate when not collisional [PR #914 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/914)
+* Remove deprecated teti [PR #905 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/905)
+* Minor/slight collisions tweaks to cache some results etc [PR #913 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/913)
+* Broadcast species arrays directly rather than copying out into a temporary array first [PR #910 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/910)
+* Remove determine_species_order and related variables [PR #912 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/912)
+* Minor/update output of species parameters to capture changes [PR #911 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/911)
+* Remove init_knobs namelist [PR #909 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/909)
+* Minor/remove parameters namelist in favour of knobs [PR #908 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/908)
+* Remove deprecated faperp input [PR #907 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/907)
+* Remove deprecated margin input [PR #906 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/906)
+* Add user input `ncheck_stop` to control the frequency at which we check for the presence of the <runname>.stop file [PR #904 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/904)
+* Feature/add standards check to intel ci build [PR #898 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/898)
+* Bugfix/ensure we use workaround for gfortran polymorphic argument issue with neasyf [PR #903 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/903)
+* Fix type of nmesh in gs2_io [PR #902 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/902)
+* Minor/slight optimisation in eqitem to reduce copying [PR #900 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/900)
+* Minor/reduce memory overhead of geo type [PR #901 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/901)
+* Guard theta_grid_eik warnings with proc0 [PR #899 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/899)
+* Large geometry refactor to reduce code duplication, avoid module level state and enable external OpenMP use [PR #887 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/887)
+* Enforce language standard f2008 in openmp CI case [PR #895 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/895)
+* Improve handling of checking presence of pFUnit v4 [PR #896 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/896)
+* Add CI_COMMIT_BRANCH to cache name [PR #897 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/897)
+* Replace calls to `flush_output_file` with `flush` statement [PR #893 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/893)
+* Replace use of imag with intrinsic aimag [PR #894 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/894)
+* If esv then force application to all wavenumbers when using getan [PR #891 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/891)
+* Bugfix/ensure procs with no data dont break max abs reduce [PR #890 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/890)
+* Bugfix/change init order in ingen mod [PR #889 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/889)
+* Remove out of date warning on nc_sync_freq [PR #888 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/888)
+* Feature/update ci versions fedora to 39 [PR #892 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/892)
+* Draft: Feature/geo isolation variables tidyup [PR #881 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/881)
+* Add parallel netcdf CI build [PR #885 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/885)
+* Bugfix/fix use of uninitialised variable in gf fields [PR #886 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/886)
+* Switch from [[ == ]] to [ -eq ] [PR #883 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/883)
+* Bugfix/remove mold in arrays where local bounds matter [PR #882 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/882)
+* Define fields by all procs for parallel netcdf [PR #884 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/884)
+* Improve geometry isolation [PR #880 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/880)
+* Improve isolation / interface to split nonlinear operator. [PR #878 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/878)
+* Change the default of proc_to_save_fields from -1 to 0 [PR #879 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/879)
+* Bugfix/fix dipole coeffs [PR #740 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/740)
+* Minor/remove test driver flag and functional test flag [PR #874 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/874)
+* Minor: Tidy up parameter scan module [PR #872 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/872)
+* Update utils to allow us to simplify call to init_file_utils [PR #875 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/875)
+* Guard uses of optional arguments with present check in gs2_io_grids [PR #873 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/873)
+* Minor: Tidy up gs2 main for 8 2 [PR #871 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/871)
+* Fix up broken links in namelist documentation [PR #870 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/870)
+* Rremove deprecated diagnostic flags [PR #869 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/869)
+* Minor/remove unused enable parallel and related infrastructure [PR #868 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/868)
+* Remove unused input nkpolar [PR #866 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/866)
+* Minor/remove some unused inputs [PR #867 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/867)
+* Minor/remove unused nu input [PR #865 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/865)
+* Bugfix/fixup use of ikx and iky [PR #863 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/863)
+* Bugfix: Remove lagrange interp write lpoly as not working [PR #862 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/862)
+* Bugfix/fix gitlab ci for petsc failure due to make v441 and flags [PR #864 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/864)
+* Feature/debug method save distfn slice regularly [PR #664 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/664)
+* Micro optimisations for split integrators and nl term [PR #857 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/857)
+* Minor/port update golden answers from pr #663 [PR #856 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/856)
+* Minor/small tweaks to optimise eexchange 2 [PR #858 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/858)
+* Switch to using neasyf in gs2_save_slice [PR #859 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/859)
+* Extend fortdep to handle submodules [PR #860 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/860)
+* Zero aj0 and aj1 in the forbidden region [PR #852 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/852)
+* Change handling of tracer species in integrate methods to use cycle [PR #855 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/855)
+* We don't use it/ik_u/llim in getan_from_dfn so don't both calculating them [PR #854 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/854)
+* Feature/save a g_adjust per add nl [PR #853 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/853)
+* Feature/reimplement theta0 dependence ideal ball [PR #849 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/849)
+* Weight QL metric to field norm [PR #851 | Maurizio Giacomin](https://bitbucket.org/gyrokinetics/gs2/pull-requests/851)
+* Feature/tool to split flux tube to ballooning space [PR #792 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/792)
+* Add some golden answer tests of ideal_ball related ballstab code [PR #850 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/850)
+* Minor/limit allocation of gexp arrays [PR #845 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/845)
+* Minor/move vpar to dist fn arrays [PR #844 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/844)
+* Minor: Separate vpa and vpar initialisation [PR #843 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/843)
+* Minor/more openmp in copying initvals [PR #846 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/846)
+* Minor/use array utils to copy and zero in a few more places [PR #848 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/848)
+* Minor: Use array utils in init g [PR #847 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/847)
+* Bugfix/dont treat passing wfb as periodic [PR #836 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/836)
+* Minor/add passing like flag to simplify logic [PR #838 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/838)
+* Minor/guard against zero max vel [PR #840 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/840)
+* Remove attempts to override nx/ny in gs2_layouts [PR #839 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/839)
+* More reuse of linked data in fields local [PR #820 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/820)
+* Minor/track dump read response time [PR #841 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/841)
+* Minor: Tidy up modep diagnostics flag [PR #842 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/842)
+* Feature/theta grid file nc [PR #755 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/755)
+* Experimental Feature : Allow linked boundary code to work with nonzero incoming and use solution at the previous step to set internal incoming boundary value [PR #823 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/823)
+* Add routine to create incoming_links redistribute [PR #825 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/825)
+* Experimental/try optimised passing weight split [PR #835 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/835)
+* Feature/allow linked boundary code to work with nonzero incoming add runtime flag [PR #826 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/826)
+* Add some more data about linked domains [PR #819 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/819)
+* Draft: Make sure reset is set back to false after end of step reset_time_step [PR #832 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/832)
+* Draft for 8.2 : Revert "Remove change to new_trap_int weights calculation for 8.1" [PR #523 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/523)
+* Minor/make sure vpac vperp2 zero in forbidden [PR #833 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/833)
+* Bugfix/remove some warnings [PR #829 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/829)
+* Call ensure_single_val_fields_pass in the nogath antot pathway. [PR #828 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/828)
+* Bugfix: Fix runtime errors in tests [PR #827 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/827)
+* Initialize counter [PR #830 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/830)
+* Write t_wstar only when writing = .true. [PR #831 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/831)
+* Bugfix: Restore old approach to calculating dadj in linked wfb boundary conditions. [PR #824 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/824)
+* Update utils commit to get fix to constant_random [PR #822 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/822)
+* Bugfix: Don't use mold in picard allocation [PR #821 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/821)
+* Bugfix/generalise ttp treatment in places [PR #767 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/767)
+* Switch int for logical in fields local [PR #818 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/818)
+* Feature/consistency check for linked boundaries [PR #817 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/817)
+* Fix lots of warnings in tests [PR #794 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/794)
+* Pull out linked boundary application to standalone and refactor slightly [PR #811 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/811)
+* Minor/pull out linked boundary application to standalone add test [PR #815 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/815)
+* Remove uses of prof module. [PR #816 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/816)
+* Feature/improve consistency of periodic detection at low shear [PR #781 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/781)
+* Expand comment around no comm and refactor some associated code [PR #806 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/806)
+* Minor/refactor omega calculation to allow more reuse [PR #787 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/787)
+* Field weighted kperp2 QL metric [PR #786 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/786)
+* Remove wfb_cmr and related routines/variables [PR #808 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/808)
+* In kt_grids_single set akx from theta0 or theta0 from akx [PR #788 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/788)
+* Feature: Utility routine for conversion from flux tube to ballooning space fields [PR #810 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/810)
+* Add supercell label array and write out to netcdf files. [PR #809 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/809)
+* Make default boundary_option try to be more helpful. [PR #780 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/780)
+* Make fileopt_base > 1 character [PR #812 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/812)
+* Don't ignore test_*.in files in tests [PR #813 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/813)
+* Add mixed_wfb flag to represent original mixed wfb treatment [PR #805 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/805)
+* Draft: Feature/tidy up init connected bc reimpl some of pr 601 part 8 [PR #804 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/804)
+* Feature/tidy up init connected bc reimpl some of pr 601 part 7 [PR #803 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/803)
+* Feature/tidy up init connected bc reimpl some of pr 601 part 6 [PR #802 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/802)
+* Feature/tidy up init connected bc reimpl some of pr 601 part 5 [PR #801 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/801)
+* Feature/tidy up init connected bc reimpl some of pr 601 part 4 [PR #800 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/800)
+* Restore GS2 optimisation functionality [PR #789 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/789)
+* Feature/tidy up init connected bc reimpl some of pr 601 part 3 [PR #799 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/799)
+* Feature/tidy up init connected bc reimpl some of pr 601 part 2 [PR #798 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/798)
+* Tidy up init connected bc. Reimplement some of PR # 601. (Part 1) [PR #796 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/796)
+* Makefile edited online with Bitbucket to fix GS2_BUILD_TAG evaulation [PR #797 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/797)
+* Add build_tests and build_{unit,linear,nonlinear}_tests targets [PR #795 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/795)
+* Add some generated files and executables to gitignore [PR #790 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/790)
+* Add user-settable build tag that is displayed in standard header [PR #791 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/791)
+* Feature/add ability to just build tests [PR #793 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/793)
+* Feature/small savings in fields local field solve [PR #783 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/783)
+* Time and report the response matrix inversions [PR #785 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/785)
+* Feature/rationalise flux diagnostic settings [PR #771 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/771)
+* Remove html tags in generated namelist docs [PR #784 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/784)
+* Make tests reuse main Makefile's detected pytest [PR #782 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/782)
+* Add a test based on a grid.out style geometry [PR #774 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/774)
+* Add a utility routine to check arrays are zero in the forbidden region [PR #769 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/769)
+* Construct artificial "old" fields from found eigenmode and eigenvalue [PR #777 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/777)
+* Experimental/eigensolver based linear test [PR #778 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/778)
+* Feature/reuse diagnostics routine to save distfn in eigval solver [PR #776 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/776)
+* Try to call regular diagnostics for each eigenpair found. [PR #775 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/775)
+* Invert logic in is_lower/is_upper_bounce point routines [PR #773 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/773)
+* Add routine to check consistency of bounce point values in passed array [PR #770 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/770)
+* Clean up simpledataio mentions from makefiles [PR #768 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/768)
+* Fix many unused var warnings [PR #764 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/764)
+* [Experimental] Add Picard split scheme integrator [PR #673 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/673)
+* Feature/move some diagnostic routines out of dist fn [PR #761 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/761)
+* Start to address issue 132 [PR #379 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/379)
+* Remove replay feature [PR #763 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/763)
+* Minor/move lowflow initialisation into lowflow module [PR #758 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/758)
+* Try to improve clarity of init_wdrift and fix some potential inconsistencies/bugs [PR #756 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/756)
+* Remove eqzip, secondary, tertiary and harris options [PR #752 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/752)
+* Save kperp2 to netcdf [PR #721 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/721)
+* Remove simpledataio [PR #590 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/590)
+* Fix diagnostics test silently failing [PR #720 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/720)
+* Minor/removed unused inputs in dist_fn [PR #762 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/762)
+* Correct default fftw3 library link option [PR #760 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/760)
+* Replace sqrt(abs(...)) with sqrt(max(0.0,...)) in collisions [PR #754 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/754)
+* Minor/tag openmp build for more resource [PR #759 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/759)
+* Change ieqzip from integer to logical [PR #751 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/751)
+* Add an option to change normalization of dipole [PR #739 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/739)
+* Force itor_over_B = 0 for qval = 0 [PR #733 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/733)
+* Move down NETCDF_COMPRESSION check [PR #753 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/753)
+* Reimplement PR #28 more generally [PR #747 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/747)
+* More openmp in linked code and fields_local plus minor optimisations [PR #746 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/746)
+* Minor: Small tweaks to split nonlinear rk impl [PR #749 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/749)
+* Cache homogeneous solution [PR #205 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/205)
+* Bugfix/build all in ci and fix pr 742 [PR #750 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/750)
+* Minor : Remove some dist fn public statements [PR #742 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/742)
+* Restructure mom coeff calculation [PR #741 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/741)
+* Restructure le_derivatives to move most LOWFLOW code into single section [PR #736 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/736)
+* Feature/logical version of g adjust [PR #745 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/745)
+* Move init_vnm responsibility to collisions from run_parameters [PR #744 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/744)
+* Feature/move time related init from run parameters to gs2 time [PR #743 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/743)
+* Bugfix/git config safe directory web page build fix [PR #738 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/738)
+* Add logicals to indicate if we have fields [PR #737 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/737)
+* OpenMP default shared to none [PR #735 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/735)
+* Very basic test for all diagnostics [PR #732 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/732)
+* Read plot data from eik6.out file [PR #734 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/734)
+* Helper script for theta grid file [PR #729 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/729)
+* Initialize cdrift, cdrift0 [PR #725 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/725)
+* Use neasyf wrapper for netCDF functions in old diagnostics [PR #587 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/587)
+* Minor/more grid data to netcdf output [PR #730 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/730)
+* Bump Python package versions [PR #727 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/727)
+* PFunit coverage fixes [PR #728 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/728)
+* Update utils to remove fft_save_widsom and fix interface issue [PR #724 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/724)
+* Prefer to pass ulim rather than blocksize for opt_local_copy [PR #723 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/723)
+* Bugfix/fix nl omp pragma [PR #722 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/722)
+* Reuse "final" diagnostics routines between new and old modules [PR #453 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/453)
+* Pass source into invert rhs 1 [PR #430 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/430)
+* Add command line option to run ingen on input file [PR #581 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/581)
+* Small changes to allow ffttester to still link correctly [PR #719 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/719)
+* Bump utils for changes to fft_work [PR #717 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/717)
+* Refactor preprocessor-guarded conditional [PR #718 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/718)
+* Don't use diagnostics_config in final routines [PR #713 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/713)
+* Remove ntg_out in volume_averages, using ntgrid directly instead [PR #715 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/715)
+* Completely remove local `ng` variable from volume averages [PR #716 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/716)
+* Bugfix : Remove timing stats in tests [PR #714 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/714)
+* Drop support for FFTW2 [PR #712 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/712)
+* If passed il isn't totally trapped anywhere then skip attempt to add ttp source in opt path [PR #711 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/711)
+* Update utils to fetch allocatable redist buffers feature [PR #708 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/708)
+* Remove build_gs2 link [PR #710 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/710)
+* Also treat CFL violation as a failed step in split integrators [PR #666 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/666)
+* Remove unsupported build_gs2 script [PR #585 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/585)
+* Add OpenMP usage [PR #620 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/620)
+* Bugfix : Fix pr #627 for persistent comms [PR #709 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/709)
+* More openmp split nl module [PR #679 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/679)
+* Add ability to ask for field calculation to only operate on local portion of kt grids. [PR #693 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/693)
+* Add openmp to get fields from dfn and associated routines (getfieldeq1 etc.) [PR #691 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/691)
+* Openmp collapse some loops [PR #692 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/692)
+* Try to optimise collisions loops slightly [PR #703 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/703)
+* Add logical methods in le grids for wrapping up standard logic to do with pitch angles and use these [PR #698 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/698)
+* Bounce point detection lookup/logic [PR #700 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/700)
+* Add routines for getting and saving statistics around timer values [PR #706 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/706)
+* [Minor] Add time of field solve in split nl operator [PR #705 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/705)
+* Add a flag to request the init timers are saved [PR #707 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/707)
+* More openmp in collisions [PR #702 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/702)
+* OpenMP use zero_array in le grids [PR #704 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/704)
+* Move ittp from dist_fn_arrays/dist_fn to le_grids [PR #701 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/701)
+* Make sure jend=0 when there are no trapped particles [PR #699 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/699)
+* Move wfbbc option handling to le grids [PR #697 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/697)
+* Default netcdf compression to off if building with parallel netcdf [PR #696 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/696)
+* Add declaration of a variable [PR #695 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/695)
+* Add initialization/finalization of mp [PR #694 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/694)
+* Docs: Fix some links in the manual [PR #689 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/689)
+* Avoid character truncation in rk_schemes. [PR #688 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/688)
+* Remove mistaken element [PR #687 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/687)
+* Set the communicator in state to fix transform_round_trip [PR #686 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/686)
+* fixes to eiktest.f90 so that it compiles. add eiktest to gs2_all target. [PR #641 | Noah Mandell](https://bitbucket.org/gyrokinetics/gs2/pull-requests/641)
+* Fix many warnings [PR #421 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/421)
+* Bugfix/eiktest minor modification to address comments [PR #647 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/647)
+* Add gs2 transform round trip tests [PR #674 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/674)
+* Bugfix/allocatable property for optional config inputs [PR #685 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/685)
+* Mark ab_coefficients argument as allocatable in source term routines [PR #684 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/684)
+* Minor/save wstar units time [PR #683 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/683)
+* Create single entry point for GS2 [PR #675 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/675)
+* Update gfortran 11 CI to 12 and F35->F37 [PR #680 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/680)
+* Tweak impact of QUIET make flag [PR #678 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/678)
+* Bugfix/improve gs2 diagnostics new ascii test [PR #682 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/682)
+* Skip writing to ascii files if we are in create mode [PR #681 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/681)
+* Change name length to avoid compile error [PR #677 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/677)
+* Add a method to help with debugging which calculates the relative difference on potentials passed and those calculated directly from a passed g [PR #668 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/668)
+* Small reduction in RK integrator operations and slight tidy up [PR #672 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/672)
+* Add non-error controlled Euler RK scheme [PR #669 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/669)
+* Pass time step to take to the nonlinear integrators [PR #671 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/671)
+* Change split_method default to be RK [PR #670 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/670)
+* Add test to check new namelists are added to namelist collection [PR #659 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/659)
+* Wrap object dependencies in ifndef block [PR #662 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/662)
+* Debugging : Flags to turn off nl components [PR #660 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/660)
+* Tweak handling of max_sim_time and other exit states [PR #667 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/667)
+* Remove HDF5 flags from build system [PR #658 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/658)
+* Add split_nonlinear_terms to config_collection [PR #656 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/656)
+* Add test of nonlinear runs via flux [PR #655 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/655)
+* Skip communication of forbidden region in NL transforms (related to pr #547) [PR #650 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/650)
+* Start to improve gs2_init code [PR #600 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/600)
+* Split nonlinear : User can specify relative and absolute tolerance [PR #651 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/651)
+* Ensure we don't allocate when we don't have data [PR #653 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/653)
+* Remove field solve at end of RK integrator as we do not use the final field for anything. [PR #652 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/652)
+* Feature/smaller restart files [PR #648 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/648)
+* Turn netcdf compression on by default [PR #649 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/649)
+* Fix split nonlinear algorithm and refactor [PR #645 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/645)
+* Bugfix/write diagnostics at the end of the run [PR #646 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/646)
+* Add split nonlinear namelist [PR #644 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/644)
+* Split nonlinear term and evolve separately [PR #640 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/640)
+* Move advance nonlinear term method to a new module [PR #643 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/643)
+* Add beuler error control test [PR #642 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/642)
+* Allow user to specify nproc for most layouts [PR #632 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/632)
+* Refactor redistribute creation [PR #627 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/627)
+* Require at least gfortran 9 [PR #588 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/588)
+* Remove use of `command_line` module [PR #580 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/580)
+* Stop parsing the command line when we find `--` [PR #633 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/633)
+* Require python3 for all build system scripts [PR #639 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/639)
+* Avoid potential use of uninitialised data in remove zonal flow [PR #635 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/635)
+* Add kxfac to netcdf outputs [PR #638 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/638)
+* Bugfix/geo eiktest dipole [PR #630 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/630)
+* Update ford version and pin markupsafe [PR #629 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/629)
+* Pass in nproc and iproc when constructing layouts [PR #623 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/623)
+* Merge release 8.1.2 into next [PR #628 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/628)
+* Add constant initial conditions option [PR #603 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/603)
+* Open text output file from proc0 only [PR #604 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/604)
+* Try to give theuser ownership of the checked out repo [PR #602 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/602)
+* Update next with 8.1.1 [PR #599 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/599)
 
 ## 8.1.2 (2022-07-26)
 
@@ -104,7 +545,7 @@ aren't fixing a definite bug.*
 
 The breaking changes for v8.1 are:
 
-* [PR 353 Ensure maximum timestep stored in restart](https://bitbucket.org/gyrokinetics/gs2/pull-requests/353/). 
+* [PR 353 Ensure maximum timestep stored in restart](https://bitbucket.org/gyrokinetics/gs2/pull-requests/353/).
 With this change, the maximum time step (input variable `dt0`) is stored in
 the restart file and is restored when `delt_option = 'check_restart'`. The
 value used can still be overridden by setting `dt0`.  This breaks backwards
@@ -116,7 +557,7 @@ step history from the restart file, and an error is thrown.
   remove `opt_redist_init` from `layout_knobs` namelist in input files.
 * For consistency, the new diagnostics now uses lower case for `rplot`,
   `zplot`, `rprime` and `zprime`. This has the potential to **break analysis
-  scripts**. 
+  scripts**.
 * **Changes to defaults**: `write_fluxes` and `write_fluxes_by_mode` now
   default to `true` for nonlinear runs and `false` for nonlinear runs.
 * Runs **now abort** if the user attempts to load a restart file with a

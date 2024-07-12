@@ -10,6 +10,7 @@ authors:
   - family-names: Barnes
     given-names: Michael
     affiliation: University of Oxford
+    orcid: https://orcid.org/0000-0002-0177-1689
 
   - family-names: Dickinson
     given-names: David
@@ -34,29 +35,48 @@ authors:
   - family-names: Roach
     given-names: Colin Malcolm
     affiliation: Culham Centre for Fusion Energy
+    orcid: https://orcid.org/0000-0001-5856-0287
+
+  - family-names: Giacomin
+    given-names: Maurizio
+    orcid: https://orcid.org/0000-0003-2821-2008
+
+  - family-names: Mandell
+    given-names: Noah
+    orcid: https://orcid.org/0000-0003-1446-5397
+
+  - family-names: Numata
+    given-names: Ryusuke
+    orcid: https://orcid.org/0000-0002-8445-3503
+
+  - family-names: Schuett
+    given-names: Tobias
+    orcid: https://orcid.org/0000-0001-5197-4348
 
   - family-names: Biggs-Fox
     given-names: Stephen
     affiliation: University of York
+    orcid: https://orcid.org/0000-0002-4864-9699
 
   - family-names: Christen
     given-names: Nicolas
     affiliation: University of Oxford
-
-  - family-names: Numata
-    given-names: Ryusuke
+    orcid: https://orcid.org/0000-0002-3009-1439
 
   - family-names: Parisi
     given-names: Jason
+    orcid: https://orcid.org/0000-0003-1328-7154
 
   - family-names: Wilkie
     given-names: George
+    orcid: https://orcid.org/0000-0002-6826-6273
 
   - family-names: Anton
     given-names: Lucian
 
   - family-names: Ball
     given-names: Justin
+    orcid: https://orcid.org/0000-0002-4462-6350
 
   - family-names: Baumgaertel
     given-names: Jessica
@@ -66,44 +86,54 @@ authors:
 
   - family-names: Hardman
     given-names: Michael
+    orcid: https://orcid.org/0000-0001-5152-3061
 
   - family-names: Hein
     given-names: Joachim
 
   - family-names: Highcock
     given-names: Edmund
+    orcid: https://orcid.org/0000-0002-3398-817X
 
   - family-names: Howes
     given-names: Gregory
+    orcid: https://orcid.org/0000-0003-1749-2665
 
   - family-names: Jackson
     given-names: Adrian
+    orcid: https://orcid.org/0000-0003-0073-682X
 
   - family-names: Kotschenreuther
     given-names: Michael T.
     affiliation: Institute for Fusion Studies, University of Texas
+    orcid: https://orcid.org/0000-0001-6327-877X
 
   - family-names: Lee
     given-names: Jungpyo
+    orcid: https://orcid.org/0000-0002-4382-4515
 
   - family-names: Leggate
     given-names: Huw
-
-  - family-names: Mandell
-    given-names: Noah
+    orcid: https://orcid.org/0000-0002-1582-0330
 
   - family-names: Mauriya
     given-names: Adwiteey
+    orcid: https://orcid.org/0000-0003-1122-4707
+
+  - family-names: Patel
+    given-names: Bhavin
+    orcid: https://orcid.org/0000-0003-0121-1187
 
   - family-names: Tatsuno
     given-names: Tomo
 
   - family-names: Van Wyk
     given-names: Ferdinand
+    orcid: https://orcid.org/0000-0002-4857-5159
 
-version: 8.1.2
-date-released: 2022-06-26
+version: 8.2.0
+date-released: 2024-07-11
 repository-code: https://bitbucket.org/gyrokinetics/gs2/
 url: https://gyrokinetics.gitlab.io/gs2/
-doi: 10.5281/zenodo.6882296
+doi: 10.5281/zenodo.12646925
 license: 'MIT'
