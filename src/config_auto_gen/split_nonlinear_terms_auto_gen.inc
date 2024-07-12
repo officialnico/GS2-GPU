@@ -16,10 +16,10 @@ subroutine read_split_nonlinear_terms_config(self)
   ! we shadow the module level variables here. This is intentional to provide
   ! isolation and ensure we can move this routine to another module easily.    
   character(len = 20) :: rk_method, split_method
-  logical :: advance_nonadiabatic_dfn, show_statistics
+  logical :: advance_nonadiabatic_dfn, show_statistics, strang_split
   real :: absolute_tolerance, convergence_tolerance, relative_tolerance, time_step_safety_factor
 
-  namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method, time_step_safety_factor
+  namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method, strang_split, time_step_safety_factor
 
   ! Only proc0 reads from file
   if (.not. proc0) return
@@ -32,6 +32,7 @@ subroutine read_split_nonlinear_terms_config(self)
   rk_method = self%rk_method
   show_statistics = self%show_statistics
   split_method = self%split_method
+  strang_split = self%strang_split
   time_step_safety_factor = self%time_step_safety_factor
 
   ! Now read in the main namelist
@@ -46,6 +47,7 @@ subroutine read_split_nonlinear_terms_config(self)
   self%rk_method = rk_method
   self%show_statistics = show_statistics
   self%split_method = split_method
+  self%strang_split = strang_split
   self%time_step_safety_factor = time_step_safety_factor
 
   self%exist = exist
@@ -71,6 +73,7 @@ subroutine write_split_nonlinear_terms_config(self, unit)
   call self%write_key_val("rk_method", self%rk_method, unit_internal)
   call self%write_key_val("show_statistics", self%show_statistics, unit_internal)
   call self%write_key_val("split_method", self%split_method, unit_internal)
+  call self%write_key_val("strang_split", self%strang_split, unit_internal)
   call self%write_key_val("time_step_safety_factor", self%time_step_safety_factor, unit_internal)
   call self%write_namelist_footer(unit_internal)
 end subroutine write_split_nonlinear_terms_config
@@ -98,6 +101,7 @@ subroutine broadcast_split_nonlinear_terms_config(self)
   call broadcast(self%rk_method)
   call broadcast(self%show_statistics)
   call broadcast(self%split_method)
+  call broadcast(self%strang_split)
   call broadcast(self%time_step_safety_factor)
 
   call broadcast(self%exist)

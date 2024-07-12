@@ -4016,7 +4016,7 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn
+    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn, strang_split
     use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit, nonlin
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
@@ -4030,18 +4030,29 @@ contains
     integer, optional, intent (in) :: mode
     integer, save :: istep_last = -1
     integer, parameter :: verb = 3
+    logical :: is_first_half_step, is_second_half_step
+    real :: nl_dt
+
+    is_first_half_step = istep /= istep_last
+    is_second_half_step = istep == istep_last
+
+    if (strang_split) then
+       nl_dt = code_dt * 0.5
+    else
+       nl_dt = code_dt
+    end if
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
-       ! If we're starting a new full step then advance just the nonlinear term
-       ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) then
+       ! If we're starting a new full step then advance just the
+       ! nonlinear term by nl_dt.
+       if (is_first_half_step .and. istep > 0) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, nl_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, nl_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
@@ -4078,8 +4089,29 @@ contains
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
     if (def_parity) call enforce_parity(parity_redist)
-      
-    istep_last=istep
+
+    !Calculate the explicit nonlinear terms
+    if (split_nonlinear .and. nonlin .and. strang_split) then
+       ! If we're finishing a full step then advance just the nonlinear term
+       ! by nl_dt.
+       if (is_second_half_step .and. istep > 0) then
+          if (advance_nonadiabatic_dfn) then
+             call advance_nonlinear_term(gnew, istep, phinew, aparnew, bparnew, nl_dt, &
+                  calculate_potentials_from_nonadiabatic_dfn, &
+                  calculate_current_nl_source_and_cfl_limit)
+          else
+             call advance_nonlinear_term(gnew, istep, phinew, aparnew, bparnew, nl_dt, &
+                  get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
+          end if
+          ! It is not unreasonable to expect that calculating the
+          ! consistent fields from the current state is reasonable
+          ! however, in test case find better agreement by not
+          ! doing the following.
+          ! call get_init_field(phinew, aparnew, bparnew)
+       end if
+    end if
+
+    istep_last = istep
 
   end subroutine timeadv
 
@@ -4097,7 +4129,7 @@ contains
   !!  Author : Joseph Parker, STFC
   subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, mode)
     use collisions, only: split_collisions
-    use dist_fn_arrays, only: gnew, g, g_work
+    use dist_fn_arrays, only: gnew, g, g_work, g_adjust, to_g_gs2, from_g_gs2
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -4114,9 +4146,24 @@ contains
     call debug_message(verb, &
       'dist_fn::collisions_advance calculated collisions etc')
 
-    !Find fields for new distribution function
-    call get_init_field (phinew, aparnew, bparnew)
-
+    !Find fields for new distribution function -- we first convert from
+    !g to h. This is motivated by the following:
+    ! 1. On entry to vspace_derivatives we have gnew, phinew and bparnew
+    !    from the collisions time advance. These are consistent.
+    ! 2. We then obtain h from these and apply collisions to h.
+    ! 3. On exit from vspace_derivatives we then adjust h->gnew
+    !    again. However, this uses the collisionless fields. This is either
+    !    not consistent (and as such we're effectively changing h when we resolve
+    !    for the fields) _or_ our fields are totally unchanged. If the latter then
+    !    we don't need the following field calculation as we expect it to return
+    !    identical fields. If the former then we need to solve for the new fields
+    !    directly from h.
+    ! We could save two g_adjust calls (the one on exit from vspace_derivatives and
+    ! the first one below). Probably easiest to achieve this with an optional argument
+    ! to vspace_derivatives.
+    call g_adjust(gnew, phinew, bparnew, from_g_gs2)
+    call calculate_potentials_from_nonadiabatic_dfn(gnew, phinew, aparnew, bparnew)
+    call g_adjust(gnew, phinew, bparnew, to_g_gs2)
   end subroutine collisions_advance
 
 ! communication initializations for exb_shear should be done once and 

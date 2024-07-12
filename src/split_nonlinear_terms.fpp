@@ -7,7 +7,7 @@ module split_nonlinear_terms
   private
 
   public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
-  public :: advance_nonlinear_term, advance_nonadiabatic_dfn
+  public :: advance_nonlinear_term, advance_nonadiabatic_dfn, strang_split
   public :: split_nonlinear_terms_config_type, get_split_nonlinear_terms_config
 
   logical :: initialized = .false.
@@ -42,7 +42,7 @@ module split_nonlinear_terms
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3, split_method_picard = 4
   type(rk_scheme_type) :: the_rk_scheme
-  logical :: show_statistics, advance_nonadiabatic_dfn
+  logical :: show_statistics, advance_nonadiabatic_dfn, strang_split
   real :: convergence_tolerance, time_step_safety_factor
   real :: relative_tolerance, absolute_tolerance
 
@@ -92,6 +92,11 @@ module split_nonlinear_terms
      !>            for experimentation.
      !>
      character(len = 20) :: split_method = 'default'
+     !> If true then indicates that we want to use a strang split approach where
+     !> we advance the NL operator by a half step, linear by a full step and then
+     !> NL by another half step. This _should_ be second order accurate whilst the
+     !> regular split is only first order accurate.
+     logical :: strang_split = .false.
      !> Multiplies the new time step calculated from either the error or
      !> cfl limits. Smaller values are more conservative but may help avoid
      !> repeated violation of the error/cfl limits and hence reduce the
@@ -153,6 +158,7 @@ contains
     rk_method = split_nonlinear_terms_config%rk_method
     show_statistics = split_nonlinear_terms_config%show_statistics
     split_method = split_nonlinear_terms_config%split_method
+    strang_split = split_nonlinear_terms_config%strang_split
     time_step_safety_factor = split_nonlinear_terms_config%time_step_safety_factor
 
     exist = split_nonlinear_terms_config%exist
