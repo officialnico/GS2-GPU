@@ -214,6 +214,8 @@ GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
 NEASYF := $(EXTERNALDIR)/neasyf/src
 
+AUTO_GEN_CONFIG_DIR:= $(SRCDIR)/config_auto_gen
+
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
 TEST_RESULT_DIR:= $(GK_HEAD_DIR)/test-results
@@ -329,7 +331,9 @@ else
 $(warning Could not find Python, looking for '$(GS2_PYTHON_NAME)'. \
 You will not be able to generate some files, or run some tests. \
 Please make sure '$(GS2_PYTHON_NAME)' is in your '$$PATH', or set \
-"GS2_PYTHON_NAME" to the correct name of the Python executable on your system)
+"GS2_PYTHON_NAME" to the correct name of the Python executable on your system.\
+Python will soon become a hard-dependency to build GS2.
+)
 endif
 
 PYTEST := $(shell which $(GS2_PYTEST_NAME) 2>/dev/null)
@@ -514,36 +518,36 @@ ALL_SOURCE_FILES := $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIR
 ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
-INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
-		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
-
-INCLUDES += -I$(MODDIR)
-
-# Here we attempt to remove non-existent directories from INCLUDES. We assume that
-# INCLUDES is currently just a list of entries of the form -I<some directory> so for
-# each entry we strip the -I and then echo -I<some directory> if <some directory> is
-# found to exist. This can help avoid warnings about non-existent directories
-INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
-
-F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
-F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
-FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
-
-VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
-# this just removes non-existing directory from VPATH
-VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
-VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF)
+DEFAULT_INC_LIST := $(UTILS) $(GEO) $(NEASYF) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
 DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
 DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+
+LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
+		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
+INCLUDES += -I$(MODDIR)
+
+# Here we attempt to remove non-existent directories from INCLUDES. We assume that
+# INCLUDES is currently just a list of entries of the form -I<some directory> so for
+# each entry we strip the -I and then echo -I<some directory> if <some directory> is
+# found to exist. This can help avoid warnings about non-existent directories
+INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^ *-I//g') ] && echo $(tmpvp) ))
+
+F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
+F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
+FPPFLAGS += $(MACRO_DEFS)
+
+VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
+# this just removes non-existing directory from VPATH
+VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
+VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
@@ -575,7 +579,7 @@ endif
 .PHONY: doc check_ford_install namelist_doc clean_namelist_doc cleandoc
 
 ####################################################################### Source code targets
-$(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
+$(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR) $(AUTO_GEN_CONFIG_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
 %.o : %.pf
@@ -590,8 +594,6 @@ $(info Alternatively you may simply remove the corresponding '$(GENERATED_SRC_DI
 #Special interim handling for cray which will only preprocess files
 #with a limited set of suffixes (including F90). Here we just copy
 #our source files to GENERATED_SRC_DIR with a F90 extension
-# Ensure we can include .inc files from SRCDIR
-F90FLAGS+=-I$(SRCDIR)
 # Keep the F90 files in GENERATED_SRC_DIR
 .PRECIOUS: $(GENERATED_SRC_DIR)/%.F90
 # Define rules for copying. Important that fpp is before f90
@@ -668,6 +670,15 @@ git_version: force
 # a new commit). The object file should depend on git_version
 $(OBJDIR)/git_hash.o: git_version
 
+.PHONY: config_auto_gen
+ifeq ($(GS2_HAS_PYTHON),yes)
+config_auto_gen: |$(AUTO_GEN_CONFIG_DIR)
+	$(call messageInfo,"Generating config object boilerplate.")
+	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/config_generation.py --include-only --target-dir $(AUTO_GEN_CONFIG_DIR)
+else
+config_auto_gen:
+endif
+
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -676,7 +687,7 @@ all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
-DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help config_auto_gen clean_auto_gen_config
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
 # We achieve that using filter-out. Because we also want to be able to build when the user
@@ -727,6 +738,10 @@ cleanlib:
 cleanconfig:
 	$(call messageRm,"System config")
 	-$(QUIETSYM)rm -f system_config .tmp_output
+
+clean_auto_gen_config:
+	$(call messageRm,"Auto-generated config boilerplate")
+	-$(QUIETSYM)rm -rf $(AUTO_GEN_CONFIG_DIR)
 
 clean_depend:
 	$(call messageRm,"Dependency file")	

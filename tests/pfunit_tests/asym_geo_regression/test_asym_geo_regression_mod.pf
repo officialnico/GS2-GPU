@@ -65,7 +65,7 @@ contains
   subroutine test_asym_geo_miller(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, set_theta_grid_config
     use theta_grid, only : init_theta_grid, theta
-    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_params_config, &
+    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_parameters_config, &
          theta_grid_parameters_config_type
 
     class(MPITestMethod), intent(inout) :: this
@@ -182,7 +182,7 @@ contains
         ntheta = 32 &
     )
     call theta_grid_parameters_config%setup("theta_grid_parameters", requires_index=.false.)
-    call set_theta_grid_params_config(theta_grid_parameters_config)
+    call set_theta_grid_parameters_config(theta_grid_parameters_config)
 
     call init_theta_grid
 
@@ -207,7 +207,7 @@ contains
   subroutine test_asym_geo_fourier(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, set_theta_grid_config
     use theta_grid, only : init_theta_grid, theta
-    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_params_config, &
+    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_parameters_config, &
          theta_grid_parameters_config_type
 
     class(MPITestMethod), intent(inout) :: this
@@ -326,7 +326,7 @@ contains
         ntheta = 32 &
     )
     call theta_grid_parameters_config%setup("theta_grid_parameters", requires_index=.false.)
-    call set_theta_grid_params_config(theta_grid_parameters_config)
+    call set_theta_grid_parameters_config(theta_grid_parameters_config)
 
     call init_theta_grid
 
@@ -352,7 +352,7 @@ contains
   subroutine test_asym_geo_genElong(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, set_theta_grid_config
     use theta_grid, only : init_theta_grid, theta
-    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_params_config, &
+    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_parameters_config, &
          theta_grid_parameters_config_type
 
     class(MPITestMethod), intent(inout) :: this
@@ -470,7 +470,7 @@ contains
         ntheta = 32 &
     )
     call theta_grid_parameters_config%setup("theta_grid_parameters", requires_index=.false.)
-    call set_theta_grid_params_config(theta_grid_parameters_config)
+    call set_theta_grid_parameters_config(theta_grid_parameters_config)
 
     call init_theta_grid
 
@@ -495,7 +495,7 @@ contains
   subroutine test_asym_geo_global(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, set_theta_grid_config
     use theta_grid, only : init_theta_grid, theta
-    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_params_config, &
+    use theta_grid_params, only: init_theta_grid_params, set_theta_grid_parameters_config, &
          theta_grid_parameters_config_type
 
     class(MPITestMethod), intent(inout) :: this
@@ -610,7 +610,7 @@ contains
         ntheta = 32 &
     )
     call theta_grid_parameters_config%setup("theta_grid_parameters", requires_index=.false.)
-    call set_theta_grid_params_config(theta_grid_parameters_config)
+    call set_theta_grid_parameters_config(theta_grid_parameters_config)
 
     call init_theta_grid
 

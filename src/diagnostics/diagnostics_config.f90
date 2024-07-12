@@ -3,7 +3,7 @@
 module diagnostics_config
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use diagnostics_ascii, only: diagnostics_ascii_type
-  use diagnostics_base_config, only: diagnostics_base_config_type
+  use diagnostics_base_configuration, only: diagnostics_base_config_type
   implicit none
 
   private
@@ -265,7 +265,7 @@ contains
   end subroutine apply_new_defaults
 
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
-    use diagnostics_base_config, only: warn_about_nonfunctional_selection
+    use diagnostics_base_configuration, only: warn_about_nonfunctional_selection
     use nonlinear_terms, only: nonlin
     use collisions, only: use_le_layout
     implicit none
