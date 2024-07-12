@@ -8,32 +8,48 @@
 
 * New operator splitting approach for nonlinear simulations. Still
   experimental but see
-  [split_nonlinear_terms](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#nonlinear_terms_knobs-split_nonlinear) for more details.
+  [split_nonlinear_terms](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#nonlinear_terms_knobs-split_nonlinear)
+  for more details.
 
 * A (very) experimental [exponential decay boundary
-  condition](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#dist_fn_knobs-exponential_boundary) and experimental option to put the boundary condition off of the grid.
+  condition](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#dist_fn_knobs-exponential_boundary)
+  and experimental option to put the boundary condition off of the
+  grid.
 
 * Ideal ballooning stability calculation now supports `theta0 /= 0`.
 
-* Added a quasi-linear metric diagnostic output.
+* Added a [quasi-linear metric diagnostic output](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#gs2_diagnostics_knobs-write_ql_metric).
 
-* Ability to display a progress message.
+* Ability to display a [progress
+  message](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#gs2_diagnostics_knobs-write_ql_metric).
 
-* More timer statistics output.
+* More [timer statistics
+  output](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#knobs-save_timer_statistics).
 
 * Ability to limit the number of processors used in different data
-  decompositions.
+  decompositions, such as in
+  [g_lo](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#layouts_knobs-nproc_g_lo).
 
-* Option to split both of the trapped and passing regions into
-  sub-domains to help improve integration errors in some cases.
+* Option to split both of the
+  [trapped](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#le_grids_knobs-new_trap_int_split)
+  and
+  [passing](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#le_grids_knobs-split_passing_region)
+  regions into sub-domains to help improve integration errors in some
+  cases.
 
-* Ability to turn off potentials in the nonlinear term only.
+* Ability to turn off
+  [potentials](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#nonlinear_terms_knobs-include_phi)
+  in the nonlinear term only.
 
-* NetCDF theta grid file input.
+* [NetCDF theta grid
+  file](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#theta_grid_knobs-equilibrium_option)
+  input.
 
-* MXH geometry option.
+* [MXH geometry
+  option](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#theta_grid_parameters-geotype).
 
-* Added a kinetic energy transfer diagnostic.
+* Added a [kinetic energy transfer
+  diagnostic](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#gs2_diagnostics_knobs-write_kinetic_energy_transfer).
 
 * Added a very experimental fields based eigensolver. Set
   `FIELDS_EIG=on` in addition to `USE_EIG=on` when running make.

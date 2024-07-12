@@ -72,6 +72,8 @@ module theta_grid
      !> nperiod and ntheta (from the theta_grid_parameters namelist)
      !> are ignored.
      !> - 'grid.out' Same as 'file'
+     !> - 'ncfile' Similar to 'file' but using a netcdf file input
+     !> instead of ascii.
      !>
      character(len = 20) :: equilibrium_option = "default"
      !> Scales the grad-B drift.
