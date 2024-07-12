@@ -4097,7 +4097,7 @@ contains
   !!  Author : Joseph Parker, STFC
   subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, mode)
     use collisions, only: split_collisions
-    use dist_fn_arrays, only: gnew, g, g_work
+    use dist_fn_arrays, only: gnew, g, g_work, g_adjust, to_g_gs2, from_g_gs2
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -4114,9 +4114,24 @@ contains
     call debug_message(verb, &
       'dist_fn::collisions_advance calculated collisions etc')
 
-    !Find fields for new distribution function
-    call get_init_field (phinew, aparnew, bparnew)
-
+    !Find fields for new distribution function -- we first convert from
+    !g to h. This is motivated by the following:
+    ! 1. On entry to vspace_derivatives we have gnew, phinew and bparnew
+    !    from the collisions time advance. These are consistent.
+    ! 2. We then obtain h from these and apply collisions to h.
+    ! 3. On exit from vspace_derivatives we then adjust h->gnew
+    !    again. However, this uses the collisionless fields. This is either
+    !    not consistent (and as such we're effectively changing h when we resolve
+    !    for the fields) _or_ our fields are totally unchanged. If the latter then
+    !    we don't need the following field calculation as we expect it to return
+    !    identical fields. If the former then we need to solve for the new fields
+    !    directly from h.
+    ! We could save two g_adjust calls (the one on exit from vspace_derivatives and
+    ! the first one below). Probably easiest to achieve this with an optional argument
+    ! to vspace_derivatives.
+    call g_adjust(gnew, phinew, bparnew, from_g_gs2)
+    call calculate_potentials_from_nonadiabatic_dfn(gnew, phinew, aparnew, bparnew)
+    call g_adjust(gnew, phinew, bparnew, to_g_gs2)
   end subroutine collisions_advance
 
 ! communication initializations for exb_shear should be done once and 
