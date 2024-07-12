@@ -30,6 +30,7 @@ md_extensions: markdown.extensions.toc
                markdown.extensions.md_in_html
 fpp_extensions: fpp
 fpp_extensions: F90
+fpp_extensions: f90
 predocmark: >
 predocmark_alt: !
 docmark: <
