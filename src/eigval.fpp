@@ -1326,6 +1326,7 @@ contains
     use fields, only: set_init_fields, advance
     use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt
+    use array_utils, only: copy
     implicit none
     Mat, intent(in) :: MatOperator
     Vec, intent(inout) :: VecIn, Res
@@ -1339,7 +1340,8 @@ contains
     call VecToGnew(VecIn)
 
     ! Store a copy of the initial state
-    ginit=gnew
+    allocate(ginit, mold = gnew)
+    call copy(gnew, ginit)
 
     !Now set fields to be consistent with gnew
     call set_init_fields

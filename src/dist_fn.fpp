@@ -79,7 +79,7 @@ module dist_fn
   public :: gf_lo_integrate
   public :: calculate_flux_surface_average
 
-  public :: calculate_potentials_from_nonadiabatic_dfn
+  public :: calculate_potentials_from_nonadiabatic_dfn, get_fields_direct_from_dfn
   public :: flux_tube_field_like_to_ballooning_space
   public :: check_linked_boundaries_are_satisfied
 

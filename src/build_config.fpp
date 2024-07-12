@@ -64,8 +64,14 @@ module build_config
 
 #ifdef WITH_EIG
   logical, parameter :: gs2_has_with_eig = .true.
+#ifdef FIELDS_EIG
+  logical, parameter :: gs2_has_fields_eig = .true.
+#else
+  logical, parameter :: gs2_has_fields_eig = .false.
+#endif
 #else
   logical, parameter :: gs2_has_with_eig = .false.
+  logical, parameter :: gs2_has_fields_eig = .false.
 #endif
 
 #ifdef F200X_INTRINSICS
@@ -115,6 +121,7 @@ contains
     write(output, '(a, l)') trim(output) // nl // "LAPACK: ", gs2_has_lapack
     write(output, '(a, l)') trim(output) // nl // "Lowflow: ", gs2_has_lowflow
     write(output, '(a, l)') trim(output) // nl // "Eigensolver: ", gs2_has_with_eig
+    write(output, '(a, l)') trim(output) // nl // "Field eigensolver: ", gs2_has_fields_eig
     write(output, '(a, l)') trim(output) // nl // "F200X intrinsics: ", gs2_has_f200x_intrinsics
     write(output, '(a, l)') trim(output) // nl // "Single precision: ", gs2_is_single_precision
     write(output, '(a, l)') trim(output) // nl // "Quad precision: ", gs2_has_quad

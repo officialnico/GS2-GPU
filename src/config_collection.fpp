@@ -9,7 +9,9 @@ module config_collection
   use dist_fn, only: dist_fn_config_type
   use dist_fn, only: dist_fn_species_config_type
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
   use eigval, only: eigval_config_type
+#endif
 #endif
   use fields, only: fields_config_type
   use gs2_diagnostics, only: gs2_diagnostics_config_type
@@ -56,7 +58,9 @@ module config_collection
      type(dist_fn_species_config_type), dimension(:), allocatable :: dist_fn_species_config
      type(driver_config_type) :: driver_config
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
      type(eigval_config_type) :: eigval_config
+#endif
 #endif
      type(fields_config_type) :: fields_config
      type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
@@ -138,7 +142,9 @@ contains
 
     call self%driver_config%write(local_output_unit)
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
     call self%eigval_config%write(local_output_unit)
+#endif
 #endif
     call self%fields_config%write(local_output_unit)
 #ifdef NEW_DIAG
@@ -227,7 +233,9 @@ contains
     use collisions, only: get_collisions_config
     use dist_fn, only: get_dist_fn_config, get_dist_fn_species_config, get_source_config
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
     use eigval, only: get_eigval_config
+#endif
 #endif
     use fields, only: get_fields_config
     use gs2_diagnostics, only: get_gs2_diagnostics_config
@@ -269,7 +277,9 @@ contains
     self%dist_fn_config = get_dist_fn_config()
     self%dist_fn_species_config = get_dist_fn_species_config()
 #ifdef WITH_EIG
+#ifndef FIELDS_EIG
     self%eigval_config = get_eigval_config()
+#endif
 #endif
     self%fields_config = get_fields_config()
     self%gs2_diagnostics_config = get_gs2_diagnostics_config()

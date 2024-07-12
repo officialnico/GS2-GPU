@@ -894,7 +894,11 @@ contains
   !> Employ the eigenvalue solver to seek eigenmodes using SLEPc
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
+#ifdef FIELDS_EIG
+    use fields_eigval, only: init_eigval, finish_eigval, BasicSolve
+#else
     use eigval, only: init_eigval, finish_eigval, BasicSolve
+#endif
 #endif 
     use job_manage, only: time_message
     use mp, only: mp_abort
