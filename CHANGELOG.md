@@ -52,7 +52,7 @@
   diagnostic](https://gyrokinetics.gitlab.io/gs2/page/namelists/index.html#gs2_diagnostics_knobs-write_kinetic_energy_transfer).
 
 * Added a very experimental fields based eigensolver. Set
-  `FIELDS_EIG=on` in addition to `USE_EIG=on` when running make.
+  `USE_FIELDS_EIG=on` in addition to `USE_EIG=on` when running make.
 
 * Around 22k lines removed from the repository without losing used
   features and being almost warning clean.
