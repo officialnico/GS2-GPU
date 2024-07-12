@@ -7,7 +7,7 @@ module split_nonlinear_terms
   private
 
   public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
-  public :: advance_nonlinear_term, advance_nonadiabatic_dfn
+  public :: advance_nonlinear_term, advance_nonadiabatic_dfn, strang_split
   public :: split_nonlinear_terms_config_type, get_split_nonlinear_terms_config
 
   logical :: initialized = .false.
@@ -42,7 +42,7 @@ module split_nonlinear_terms
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3, split_method_picard = 4
   type(rk_scheme_type) :: the_rk_scheme
-  logical :: show_statistics, advance_nonadiabatic_dfn
+  logical :: show_statistics, advance_nonadiabatic_dfn, strang_split
   real :: convergence_tolerance, time_step_safety_factor
   real :: relative_tolerance, absolute_tolerance
 
@@ -92,6 +92,11 @@ module split_nonlinear_terms
      !>            for experimentation.
      !>
      character(len = 20) :: split_method = 'default'
+     !> If true then indicates that we want to use a strang split approach where
+     !> we advance the NL operator by a half step, linear by a full step and then
+     !> NL by another half step. This _should_ be second order accurate whilst the
+     !> regular split is only first order accurate.
+     logical :: strang_split = .false.
      !> Multiplies the new time step calculated from either the error or
      !> cfl limits. Smaller values are more conservative but may help avoid
      !> repeated violation of the error/cfl limits and hence reduce the
@@ -153,6 +158,7 @@ contains
     rk_method = split_nonlinear_terms_config%rk_method
     show_statistics = split_nonlinear_terms_config%show_statistics
     split_method = split_nonlinear_terms_config%split_method
+    strang_split = split_nonlinear_terms_config%strang_split
     time_step_safety_factor = split_nonlinear_terms_config%time_step_safety_factor
 
     exist = split_nonlinear_terms_config%exist
@@ -1018,10 +1024,10 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
-    logical :: advance_nonadiabatic_dfn, show_statistics
+    logical :: advance_nonadiabatic_dfn, show_statistics, strang_split
     real :: absolute_tolerance, convergence_tolerance, relative_tolerance, time_step_safety_factor
 
-    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method, time_step_safety_factor
+    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method, strang_split, time_step_safety_factor
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1034,6 +1040,7 @@ contains
     rk_method = self%rk_method
     show_statistics = self%show_statistics
     split_method = self%split_method
+    strang_split = self%strang_split
     time_step_safety_factor = self%time_step_safety_factor
 
     ! Now read in the main namelist
@@ -1048,6 +1055,7 @@ contains
     self%rk_method = rk_method
     self%show_statistics = show_statistics
     self%split_method = split_method
+    self%strang_split = strang_split
     self%time_step_safety_factor = time_step_safety_factor
 
     self%exist = exist
@@ -1073,6 +1081,7 @@ contains
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
     call self%write_key_val("show_statistics", self%show_statistics, unit_internal)
     call self%write_key_val("split_method", self%split_method, unit_internal)
+    call self%write_key_val("strang_split", self%strang_split, unit_internal)
     call self%write_key_val("time_step_safety_factor", self%time_step_safety_factor, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_split_nonlinear_terms_config
@@ -1100,6 +1109,7 @@ contains
     call broadcast(self%rk_method)
     call broadcast(self%show_statistics)
     call broadcast(self%split_method)
+    call broadcast(self%strang_split)
     call broadcast(self%time_step_safety_factor)
 
     call broadcast(self%exist)
