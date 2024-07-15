@@ -774,7 +774,7 @@ contains
 
     if (use_cfl_limit) then
        ! This code may need changing if the handling of the cfl limit changes
-       max_vel_local = max_vel
+       max_vel_local = get_max_vel(max_vel_components)
     else
        max_vel_local = 1.0e-8
     end if
@@ -1207,6 +1207,14 @@ contains
     cfl_req_hand = mp_request_null
   end subroutine finish_nonblocking_max_vel_reduction
 
+  real pure function get_max_vel(components) result(max_vel)
+    real, dimension(3), intent(in) :: components
+    real :: max_vel_cfl, max_vel_error
+    max_vel_cfl = components(1) + components(2)
+    max_vel_error = components(3)
+    max_vel = max(max_vel_cfl, max_vel_error)
+  end function get_max_vel
+
   !> Calculates the cfl limit from the module level max_vel value
   !> saves it using [[gs2_time:save_dt_cfl]] and then sets the reset
   !> flag based on checking if the current time step is too large.
@@ -1216,10 +1224,7 @@ contains
     implicit none
     real :: dt_cfl, max_vel_cfl, max_vel_error, max_vel
 
-    max_vel_cfl = max_vel_components(1) + max_vel_components(2)
-    max_vel_error = max_vel_components(3)
-
-    max_vel = max(max_vel_cfl, max_vel_error)
+    max_vel = get_max_vel(max_vel_components)
 
     ! Estimate the global cfl limit based on max_vel.
     if (max_vel <= 0.0) then
