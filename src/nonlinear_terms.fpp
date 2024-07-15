@@ -6,7 +6,6 @@ module nonlinear_terms
 
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use mp, only: mp_request_null
-  use iso_fortran_env, only: real32
   implicit none
 
   private
@@ -28,7 +27,6 @@ module nonlinear_terms
   type :: nonlinear_terms_testing
     contains
       procedure, nopass :: add_nl
-
   end type nonlinear_terms_testing
 
   integer :: istep_last = 0
