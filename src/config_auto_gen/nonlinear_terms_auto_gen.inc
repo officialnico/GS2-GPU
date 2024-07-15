@@ -17,10 +17,10 @@ subroutine read_nonlinear_terms_config(self)
   ! isolation and ensure we can move this routine to another module easily.    
   character(len = 20) :: nonlinear_mode
   integer :: istep_error_start
-  logical :: include_apar, include_bpar, include_phi, nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
+  logical :: include_apar, include_bpar, include_phi, nl_forbid_force_zero, split_nonlinear, use_2d_cfl, use_cfl_limit, use_order_based_error, zip
   real :: cfl, error_target
 
-  namelist /nonlinear_terms_knobs/ cfl, error_target, include_apar, include_bpar, include_phi, istep_error_start, nl_forbid_force_zero, nonlinear_mode, split_nonlinear, use_cfl_limit, use_order_based_error, zip
+  namelist /nonlinear_terms_knobs/ cfl, error_target, include_apar, include_bpar, include_phi, istep_error_start, nl_forbid_force_zero, nonlinear_mode, split_nonlinear, use_2d_cfl, use_cfl_limit, use_order_based_error, zip
 
   ! Only proc0 reads from file
   if (.not. proc0) return
@@ -35,6 +35,7 @@ subroutine read_nonlinear_terms_config(self)
   nl_forbid_force_zero = self%nl_forbid_force_zero
   nonlinear_mode = self%nonlinear_mode
   split_nonlinear = self%split_nonlinear
+  use_2d_cfl = self%use_2d_cfl
   use_cfl_limit = self%use_cfl_limit
   use_order_based_error = self%use_order_based_error
   zip = self%zip
@@ -53,6 +54,7 @@ subroutine read_nonlinear_terms_config(self)
   self%nl_forbid_force_zero = nl_forbid_force_zero
   self%nonlinear_mode = nonlinear_mode
   self%split_nonlinear = split_nonlinear
+  self%use_2d_cfl = use_2d_cfl
   self%use_cfl_limit = use_cfl_limit
   self%use_order_based_error = use_order_based_error
   self%zip = zip
@@ -82,6 +84,7 @@ subroutine write_nonlinear_terms_config(self, unit)
   call self%write_key_val("nl_forbid_force_zero", self%nl_forbid_force_zero, unit_internal)
   call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
   call self%write_key_val("split_nonlinear", self%split_nonlinear, unit_internal)
+  call self%write_key_val("use_2d_cfl", self%use_2d_cfl, unit_internal)
   call self%write_key_val("use_cfl_limit", self%use_cfl_limit, unit_internal)
   call self%write_key_val("use_order_based_error", self%use_order_based_error, unit_internal)
   call self%write_key_val("zip", self%zip, unit_internal)
@@ -113,6 +116,7 @@ subroutine broadcast_nonlinear_terms_config(self)
   call broadcast(self%nl_forbid_force_zero)
   call broadcast(self%nonlinear_mode)
   call broadcast(self%split_nonlinear)
+  call broadcast(self%use_2d_cfl)
   call broadcast(self%use_cfl_limit)
   call broadcast(self%use_order_based_error)
   call broadcast(self%zip)

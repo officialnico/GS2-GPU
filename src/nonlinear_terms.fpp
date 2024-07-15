@@ -64,7 +64,7 @@ module nonlinear_terms
   real, dimension(3) :: max_vel_components
 
   integer :: cfl_req_hand = mp_request_null
-  logical :: use_cfl_limit
+  logical :: use_cfl_limit, use_2d_cfl
 
   !> Variables related to the order based error estimate -- see config documentation
   real :: error_target
@@ -129,6 +129,8 @@ module nonlinear_terms
      !> Do we evolve the nonlinear term separately from the linear terms (true) or
      !> include the nonlinear term as a source in the standard algorithm (false).
      logical :: split_nonlinear = .false.
+     !> If true then sum x and y cfl limiting velocities instead of taking the maximum.
+     logical :: use_2d_cfl = .true.
      !> If true then use the cfl limit to set the maximum timestep allowed.
      logical :: use_cfl_limit = .true.
      !> If true then use an error estimate from comparing the nonlinear source
@@ -385,6 +387,7 @@ contains
     nl_forbid_force_zero = nonlinear_terms_config%nl_forbid_force_zero
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     split_nonlinear = nonlinear_terms_config%split_nonlinear
+    use_2d_cfl = nonlinear_terms_config%use_2d_cfl
     use_cfl_limit = nonlinear_terms_config%use_cfl_limit
     use_order_based_error = nonlinear_terms_config%use_order_based_error
     zip = nonlinear_terms_config%zip
@@ -1209,7 +1212,11 @@ contains
   real pure function get_max_vel(components) result(max_vel)
     real, dimension(3), intent(in) :: components
     real :: max_vel_cfl, max_vel_error
-    max_vel_cfl = components(1) + components(2)
+    if (use_2d_cfl) then
+       max_vel_cfl = components(1) + components(2)
+    else
+       max_vel_cfl = maxval(components(1:2))
+    end if
     max_vel_error = components(3)
     max_vel = max(max_vel_cfl, max_vel_error)
   end function get_max_vel
