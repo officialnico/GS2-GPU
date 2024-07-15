@@ -819,12 +819,12 @@ contains
     !Transform to real space
     if (accelerated) then
        call transform2 (g1, aba)
-       max_vel_y = maxval(abs(aba))
+       max_vel_x = maxval(abs(aba))
     else
        call transform2 (g1, ba)
-       max_vel_y = maxval(abs(ba))
+       max_vel_x = maxval(abs(ba))
     end if
-    max_vel_y = max_vel_y * cfly
+    max_vel_x = max_vel_x * cflx
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
@@ -866,12 +866,12 @@ contains
     !Transform to real space    
     if (accelerated) then
        call transform2 (g1, aba)
-       max_vel_x = maxval(abs(aba))
+       max_vel_y = maxval(abs(aba))
     else
        call transform2 (g1, ba)
-       max_vel_x = maxval(abs(ba))
+       max_vel_y = maxval(abs(ba))
     end if
-    max_vel_x = max_vel_x * cflx
+    max_vel_y = max_vel_y * cfly
 
     !Form g1=i*kx*g_wesson noting that g2 holds our starting g_wesson
 
