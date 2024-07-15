@@ -103,7 +103,6 @@ program test_le_grids_integrate
 
   logical :: dummy
   complex, dimension (:,:,:,:), allocatable :: integrate_results
-  real, dimension(:, :,:), allocatable :: test_sum
   integer :: ig, il, ie, is, iglo
   real :: tolerance = 1.0e-8
   logical :: agrees
@@ -115,7 +114,7 @@ program test_le_grids_integrate
   real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
   real, dimension(:), allocatable :: lambda_error, energy_error
   real, dimension(:, :), allocatable :: mixed_error, mixed_value
-  real :: relevant_value, tmp
+  real :: relevant_value
   character(len=22) :: error_name
   namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 
@@ -268,7 +267,7 @@ contains
        if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",maxval(abs(integrate_results-expected_value)),"). Note the quoted obtained value is not accurate here."
 
     else
-       integral = reduce_to_single_value(integrate_results)
+       integral = real(reduce_to_single_value(integrate_results))
        agrees = abs(integral - expected_value) <= tolerance
        if(.not. agrees .and. proc0) print*,"Failure : ",name," : Got ",integral," but expected ",expected_value,"(disagreement ~ ",abs(integral-expected_value),")"
     end if
@@ -411,8 +410,8 @@ contains
        do ig = -ntgrid, ntgrid
           if(forbid(ig, il)) cycle
           sin_squared_pitch_angle = al(il)*bmag(ig)
-          gnew(ig,1,iglo) = sqrt(1 - sin_squared_pitch_angle)
-          gnew(ig,2,iglo) = sqrt(1 - sin_squared_pitch_angle)
+          gnew(ig,1,iglo) = sqrt(max(1 - sin_squared_pitch_angle, 0.0))
+          gnew(ig,2,iglo) = sqrt(max(1 - sin_squared_pitch_angle, 0.0))
        end do
     end do
     agrees = integrate_and_test(name, expected_value)

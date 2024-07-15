@@ -1,7 +1,7 @@
 sinclude ../Makefile.tests_common
 
 clean_individual_test: LOCAL_TEST_FILES:=./gs2 *.log
-
+build_test_exe: link_gs2
 ifdef TESTNORUN
 all:
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
@@ -31,12 +31,13 @@ TESTCOMMAND =
 link_gs2: clean_individual_test
 	@ln -sfv $(BINDIR)/gs2 ./gs2
 
-all: link_gs2
+all: build_test_exe
 	$(call RUNCOMMAND,./test_restarting,--gs2="$(RESTART_EXEC)gs2")
 
 .PHONY: all
 endif
 else
+link_gs2:
 all:
 	$(call SKIPCOMMAND,compiled without netCDF; compile with USE_NETCDF=on to run this test)
 endif

@@ -22,12 +22,6 @@
 !==============================
 !GENERAL PARAMETERS  
 !==============================
-&parameters
- beta = 0.1 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
- zeff = 1.0 ! Effective ionic charge.
-/
-
-
 &kt_grids_knobs
  grid_option = "box" ! The general layout of the perpendicular grid.
 /
@@ -101,11 +95,12 @@
 !  
 !==============================
 &knobs
+ beta = 0.1 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
+ zeff = 1.0 ! Effective ionic charge.
  use_old_diagnostics = .true.
  wstar_units = .false. ! For linear runs only. Evolves each k_y with a different timestep.
  fphi = 1.0 ! Multiplies Phi (electrostatic potential).
  fapar = 1.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
- faperp = 0.0 ! Multiplies A_perp. Use 1 for high beta, 0 otherwise. Deprecated: use fbpar instead
  fbpar = 1.0
  delt = 0.05 ! Time step
  nstep = 200 ! Maximum number of timesteps
@@ -207,13 +202,13 @@
 !==============================
 &gs2_diagnostics_knobs
  print_flux_line = .F. ! Instantaneous fluxes output to screen
- write_nl_flux = .true. ! Write nonlinear fluxes as a function of time.
+ write_fluxes = .true. ! Write nonlinear fluxes as a function of time.
  print_line = .false. ! Estimated frequencies and growth rates to the screen/stdout
  write_verr = .true. ! Write velocity space diagnostics to '.lpc' and '.verr' files
   ! write_g not specified --- Write the distribution function to the '.dist' (NetCDF?)
  write_line = .false. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
   ! write_gyx not specified --- Write dist fn at a given physical spacial point to a file
- write_hrate = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
+ write_heating = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
   ! write_final_epar not specified --- If (write_ascii = T) E_parallel(theta) written to runname.eigenfunc
  write_avg_moments = .true. ! Write flux surface averaged low-order moments of g to runname.out.nc and runname.moments (if write_ascii = T)
   ! write_lorentzian not specified --- Frequency Sweep Data
@@ -229,26 +224,7 @@
  omegatol = -0.001 ! The convergence has to be better than one part in 1/omegatol
  omegatinst = 500.0 ! Recommended value: 500.
  save_for_restart = .false. ! Write restart files.
-  ! write_flux_line not specified --- 
-  ! write_ascii not specified --- 
-  ! write_kpar not specified --- 
-  ! write_gs not specified --- 
-  ! write_gg not specified --- 
-  ! write_lpoly not specified --- 
-  ! write_fields not specified --- 
-  ! write_final_antot not specified --- 
-  ! write_cerr not specified --- 
-  ! write_max_verr not specified --- 
-  ! nmovie not specified --- 
-  ! igomega not specified --- 
-  ! exit_when_converged not specified --- 
-  ! write_full_moments_notgc not specified --- 
-  ! write_cross_phase not specified --- 
       write_cross_phase = .true.
-  ! dump_check1 not specified --- 
-  ! dump_check2 not specified --- 
-  ! dump_fields_periodically not specified --- 
-  ! make_movie not specified --- 
  write_phi_over_time = .false. ! Write entire Phi field to NetCDF file every nwrite.
   ! write_apar_over_time not specified --- Write entire A_parallel field to NetCDF file every nwrite.
   ! write_bpar_over_time not specified --- Write entire B_parallel field to NetCDF file every nwrite.
@@ -257,7 +233,6 @@
   ! write_correlation_extend not specified --- Extend domain of correlation function calculation.
   ! nwrite_mult not specified --- Large datasets written every nwrite_mult * nwrite timesteps.
   ! write_correlation not specified --- Write parallel correlation.
-  ! write_moments not specified --- 
   ! write_final_db not specified --- Write final delta B.
 /
 

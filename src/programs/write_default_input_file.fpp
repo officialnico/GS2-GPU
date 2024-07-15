@@ -6,8 +6,6 @@ program write_default_input_file
   implicit none
 
   type(gs2_config_type) :: the_config
-
-  logical :: list
   integer :: local_output_unit
 
   call init_mp

@@ -1,0 +1,10 @@
+&species_knobs
+  nspec =1
+/
+
+&species_parameters_1  
+/
+
+&dist_fn_species_knobs_1
+/
+

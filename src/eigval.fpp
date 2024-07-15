@@ -1,4 +1,6 @@
 #ifdef WITH_EIG
+#include "unused_dummy.inc"
+
 !> A module for finding eigenvalues and eigenmodes
 !> Requires SLEPC and PETSC
 module eigval
@@ -31,6 +33,18 @@ module eigval
 #include <slepc/finclude/slepcepsdef.h>
 #else
 #include <slepc/finclude/slepceps.h>
+#endif
+
+  ! Redefine some types that we use directly to avoid
+  ! relying on a non-standard declaration which not all
+  ! compilers understand
+#ifdef EPSType
+#undef EPSType
+#define EPSType character(len=80)
+#endif
+#ifdef STType
+#undef STType
+#define STType character(len=80)
 #endif
 
   private
@@ -298,6 +312,74 @@ module eigval
 
   type(eigval_config_type) :: eigval_config
 
+  ! For some reason, PETSc doesn't provide module interfaces for these procedures.
+  ! They also don't name arguments in headers
+  interface
+    subroutine MatCreateVecs(a, b, c, ierr)
+      import tMat, tVec
+      type(tMat), intent(in) :: a
+      type(tVec), intent(in) :: b
+      type(tVec), intent(out) :: c
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine MatCreateVecs
+
+    subroutine MatCreateShell(comm, a, b, c, d, e, f, ierr)
+      import tMat
+      integer :: comm
+      type(PetscInt) :: a, b, c, d
+      type(PetscInt), dimension(:), intent(inout) :: e
+      type(tMat), intent(inout) :: f
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine MatCreateShell
+
+    subroutine MatShellSetOperation(a, b, c, ierr)
+      import tMat, tVec
+      type(tMat), intent(in) :: a
+      type(PetscInt), intent(in) :: b
+      interface
+        subroutine advance_interface(MatOperator, VecIn, Res, ierr2)
+          import tMat, tVec
+          type(tMat), intent(in) :: MatOperator
+          type(tVec), intent(inout) :: VecIn, Res
+          type(PetscErrorCode), intent(inout) :: ierr2
+        end subroutine advance_interface
+      end interface
+      procedure(advance_interface) :: c
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine MatShellSetOperation
+
+    subroutine EPSGetType(eps, epstype, ierr)
+      import tEPS
+      type(tEPS), intent(in) :: eps
+      type(EPSType), intent(out) :: epstype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine EPSGetType
+
+    subroutine EPSSetType(eps, epstype, ierr)
+      import tEPS
+      type(tEPS), intent(in) :: eps
+      type(EPSType), intent(in) :: epstype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine EPSSetType
+
+    subroutine STGetType(st, sttype, ierr)
+      import tST
+      type(tST), intent(in) :: st
+      type(STType), intent(out) :: sttype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine STGetType
+
+    subroutine STSetType(st, sttype, ierr)
+      import tST
+      type(tST), intent(in) :: st
+      type(STType), intent(in) :: sttype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine STSetType
+
+    subroutine SlepcFinalize(ierr)
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine SlepcFinalize
+  end interface
 contains
 
   !> Returns true if GS2 was compiled with WITH_EIG defined
@@ -308,7 +390,11 @@ contains
 
   !> Initialise eigenvalue problem
   subroutine init_eigval(eigval_config_in)
-    use mp, only: mp_comm, proc0
+#ifdef PETSC_USE_COMPLEX
+    use mp, only: mp_comm
+#else
+    use mp, only: proc0
+#endif
     use file_utils, only: error_unit
     implicit none
     type(eigval_config_type), intent(in), optional :: eigval_config_in
@@ -631,7 +717,6 @@ contains
 
   !> Create a default settings object
   subroutine InitSettings(eps_settings)
-    use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
     eps_settings%analyse_ddt_operator=analyse_ddt_operator
@@ -814,8 +899,6 @@ contains
           SolverType=EPSLAPACK
        case(SolverTypeArpack)
           SolverType=EPSARPACK
-       case(SolverTypeBlzpack)
-          SolverType=EPSBLZPACK
        case(SolverTypeTrlan)
           SolverType=EPSTRLAN
        case(SolverTypeBlopex)
@@ -1048,16 +1131,20 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: code_dt, user_time, user_dt
-    use collisions, only: vnmult
-    use run_parameters, only: fphi, fapar, fbpar
+    use constants, only: zi
+    use gs2_time, only: code_dt
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
-    use fields_arrays, only: phinew, bparnew
+    use fields_arrays, only: phi, phinew, apar, aparnew, bpar, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
-    use gs2_save, only: add_eigenpair_to_file, gs2_save_for_restart, finish_gs2_save
+    use gs2_save, only: add_eigenpair_to_file, finish_gs2_save
     use file_utils, only: run_name
-    use dist_fn_arrays, only: gnew, g_adjust
-    use gs2_diagnostics, only: save_distfn
+    use gs2_diagnostics, only: save_distfn, save_glo_info_and_grids, save_restart_dist_fn
+    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities, navg
+    use run_parameters, only: use_old_diagnostics
+#ifdef NEW_DIAG
+    use gs2_diagnostics_new, only: run_diagnostics, gnostics
+#endif
     implicit none
     EPS, intent(in) :: my_solver
     Mat, intent(in) :: my_operator
@@ -1066,12 +1153,12 @@ contains
     PetscInt :: iteration_count, n_converged
     Vec :: eig_vec_r, eig_vec_i
     PetscScalar :: eig_val_r, eig_val_i
-    complex :: EigVal
-    logical :: all_found
+    complex :: EigVal, previous_field_factor
+    logical :: all_found, diagnostics_exit
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
     character(len=20) :: restart_unique_string
-    integer :: istatus
+    integer :: original_navg
 
     !Find out how many iterations were performed
     call EPSGetIterationNumber(my_solver,iteration_count,ierr)
@@ -1093,7 +1180,7 @@ contains
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
-       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
+       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", io_ids)
 
        !Now loop over converged values
        do ieig=0,n_converged-1
@@ -1122,32 +1209,44 @@ contains
           call set_init_fields
 
           !Add to file
-          if(proc0)call add_eigenpair_to_file(EigVal,fphi,fapar,fbpar,io_ids)
+          if(proc0)call add_eigenpair_to_file(EigVal, has_phi, has_apar, has_bpar, io_ids)
 
-          !Save restart file
-          if(save_restarts) then
-             !First make the unique bit of the name
-             write(restart_unique_string,'(".eig_",I0)') ieig
+          !/Calculate what the fields at the previous time step would
+          !/look like given current state and Eigval. This is intended
+          !/to allow diagnostics to recover Eigval from the usual
+          !/calculation of omega
+          previous_field_factor = exp(zi * Eigval * code_dt)
+          if (has_phi) phi = phinew * previous_field_factor
+          if (has_apar) apar = aparnew * previous_field_factor
+          if (has_bpar) bpar = bparnew * previous_field_factor
 
-             !Save restart files
-             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
+          if (use_old_diagnostics) then
+             original_navg = navg
+             navg = 1
+             call loop_diagnostics ((ieig+1) * nwrite, diagnostics_exit)
+             navg = original_navg
+#ifdef NEW_DIAG
+          else
+             original_navg = gnostics%navg
+             gnostics%navg = 1
+             call run_diagnostics ((ieig+1) * gnostics%nwrite, diagnostics_exit)
+             gnostics%navg = original_navg
+#endif
+          end if
 
-             !Save distfn files
-             if(save_distfn)then
-                !Convert h to distribution function
-                call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+          !Save restart file if requested.
+          !First make the unique bit of the name
+          write(restart_unique_string,'(".eig_",I0)') ieig
 
-                !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
+          call save_restart_dist_fn(save_restarts, save_distfn, &
+               save_glo_info_and_grids, save_velocities, &
+               user_time = (ieig+1) * code_dt, &
+               fileopt_base = restart_unique_string)
 
-                !Convert distribution function back to h
-                call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-             endif
+          !Reset the status of save_for_restart
+          if (save_restarts .or. save_distfn) call finish_gs2_save
 
-             !Reset the status of save_for_restart
-             call finish_gs2_save
-          endif
-       enddo
+       end do
 
        !Close netcdf file
        if(proc0)call finish_eigenfunc_file(io_ids)
@@ -1202,6 +1301,8 @@ contains
     PetscErrorCode, intent(inout) :: ierr
     integer, parameter :: istep=2
     integer :: is
+    UNUSED_DUMMY(MatOperator); UNUSED_DUMMY(ierr)
+
     !First unpack input vector into gnew
     call VecToGnew(VecIn)
 
@@ -1225,6 +1326,7 @@ contains
     use fields, only: set_init_fields, advance
     use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt
+    use array_utils, only: copy
     implicit none
     Mat, intent(in) :: MatOperator
     Vec, intent(inout) :: VecIn, Res
@@ -1232,11 +1334,14 @@ contains
     integer, parameter :: istep=2
     integer :: is
     complex, dimension(:,:,:), allocatable :: ginit
+
+    UNUSED_DUMMY(MatOperator); UNUSED_DUMMY(ierr)
     !First unpack input vector into gnew
     call VecToGnew(VecIn)
 
     ! Store a copy of the initial state
-    ginit=gnew
+    allocate(ginit, mold = gnew)
+    call copy(gnew, ginit)
 
     !Now set fields to be consistent with gnew
     call set_init_fields
@@ -1382,7 +1487,6 @@ contains
   !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
-    use gs2_time, only: code_dt
     implicit none
     EPS, intent(inout) :: solver
     PetscInt, intent(inout) :: iters, nconv, n_est
@@ -1391,6 +1495,10 @@ contains
     integer, pointer, intent(inout), optional :: mm
     integer, save :: nconv_prev=0, iter_prev=0
     integer :: new_conv, new_iter
+
+    UNUSED_DUMMY(eig_r); UNUSED_DUMMY(eig_i)
+    UNUSED_DUMMY(err_est); UNUSED_DUMMY(n_est)
+    UNUSED_DUMMY(solver); UNUSED_DUMMY(mm)
 
     !Set return value
     SimpleMonitor=0
@@ -1424,150 +1532,7 @@ contains
     end if
   end subroutine set_eigval_config
 
-  !> Get the module level config instance
-  function get_eigval_config()
-    type(eigval_config_type) :: get_eigval_config
-    get_eigval_config = eigval_config
-  end function get_eigval_config
-
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-
-  !> Reads in the eigval_knobs namelist and populates the member variables
-  subroutine read_eigval_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(eigval_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: extraction_option, solver_option, transform_option, which_option
-    integer :: max_iter, n_eig, nadv
-    logical :: analyse_ddt_operator, save_restarts, use_ginit
-    real :: targ_im, targ_re, tolerance
-
-    namelist /eigval_knobs/ analyse_ddt_operator, extraction_option, max_iter, n_eig, nadv, save_restarts, solver_option, targ_im, targ_re, tolerance, transform_option, use_ginit, which_option
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    analyse_ddt_operator = self%analyse_ddt_operator
-    extraction_option = self%extraction_option
-    max_iter = self%max_iter
-    n_eig = self%n_eig
-    nadv = self%nadv
-    save_restarts = self%save_restarts
-    solver_option = self%solver_option
-    targ_im = self%targ_im
-    targ_re = self%targ_re
-    tolerance = self%tolerance
-    transform_option = self%transform_option
-    use_ginit = self%use_ginit
-    which_option = self%which_option
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = eigval_knobs)
-
-    ! Now copy from local variables into type members
-    self%analyse_ddt_operator = analyse_ddt_operator
-    self%extraction_option = extraction_option
-    self%max_iter = max_iter
-    self%n_eig = n_eig
-    self%nadv = nadv
-    self%save_restarts = save_restarts
-    self%solver_option = solver_option
-    self%targ_im = targ_im
-    self%targ_re = targ_re
-    self%tolerance = tolerance
-    self%transform_option = transform_option
-    self%use_ginit = use_ginit
-    self%which_option = which_option
-
-    self%exist = exist
-  end subroutine read_eigval_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_eigval_config(self, unit)
-    implicit none
-    class(eigval_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("analyse_ddt_operator", self%analyse_ddt_operator, unit_internal)
-    call self%write_key_val("extraction_option", self%extraction_option, unit_internal)
-    call self%write_key_val("max_iter", self%max_iter, unit_internal)
-    call self%write_key_val("n_eig", self%n_eig, unit_internal)
-    call self%write_key_val("nadv", self%nadv, unit_internal)
-    call self%write_key_val("save_restarts", self%save_restarts, unit_internal)
-    call self%write_key_val("solver_option", self%solver_option, unit_internal)
-    call self%write_key_val("targ_im", self%targ_im, unit_internal)
-    call self%write_key_val("targ_re", self%targ_re, unit_internal)
-    call self%write_key_val("tolerance", self%tolerance, unit_internal)
-    call self%write_key_val("transform_option", self%transform_option, unit_internal)
-    call self%write_key_val("use_ginit", self%use_ginit, unit_internal)
-    call self%write_key_val("which_option", self%which_option, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_eigval_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_eigval_config(self)
-    class(eigval_config_type), intent(in out) :: self
-    type(eigval_config_type) :: empty
-    select type (self)
-    type is (eigval_config_type)
-       self = empty
-    end select
-  end subroutine reset_eigval_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_eigval_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(eigval_config_type), intent(in out) :: self
-    call broadcast(self%analyse_ddt_operator)
-    call broadcast(self%extraction_option)
-    call broadcast(self%max_iter)
-    call broadcast(self%n_eig)
-    call broadcast(self%nadv)
-    call broadcast(self%save_restarts)
-    call broadcast(self%solver_option)
-    call broadcast(self%targ_im)
-    call broadcast(self%targ_re)
-    call broadcast(self%tolerance)
-    call broadcast(self%transform_option)
-    call broadcast(self%use_ginit)
-    call broadcast(self%which_option)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_eigval_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_eigval_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_eigval_config
-    get_default_name_eigval_config = "eigval_knobs"
-  end function get_default_name_eigval_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_eigval_config()
-    implicit none
-    logical :: get_default_requires_index_eigval_config
-    get_default_requires_index_eigval_config = .false.
-  end function get_default_requires_index_eigval_config
+#include "eigval_auto_gen.inc"  
 end module eigval
 
 #else

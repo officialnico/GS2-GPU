@@ -1,10 +1,12 @@
 
 sinclude ../Makefile.tests_common
 
-clean_individual_test: LOCAL_TEST_FILES:=test_gs2_diagnostics_new old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase,exit_reason} averages.dat tmpdata.dat
+TEST_BASE_NAME:=test_gs2_diagnostics_new
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME} old_diagnostics/.test_* old_diagnostics/*.{o,error,out*,vres,*mom*,*vspace_integration*,eigenfunc,fields,g,heat*,jext,lpc,parity,phase,exit_reason} averages.dat tmpdata.dat old_diagnostics/*.used_inputs.*
+build_test_exe: ${TEST_BASE_NAME}
 
 ifdef TESTNORUN
-all: test_gs2_diagnostics_new 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -22,13 +24,13 @@ else
 # steps. Then we restart and run for another half, copying the file
 # from the first half and appending to it, and check that the result
 # is still unchanged.
-all: test_gs2_diagnostics_new 
-	$(call RUNCOMMAND,test_gs2_diagnostics_new,old_diagnostics/test_gs2_diagnostics_new.in)
-	$(call RUNCOMMAND,test_gs2_diagnostics_new,test_gs2_diagnostics_new.in)
-	rm -f test_gs2_diagnostics_new_start.out.nc
-	$(call RUNCOMMAND,test_gs2_diagnostics_new,test_gs2_diagnostics_new_start.in)
-	cp test_gs2_diagnostics_new_start.out.nc test_gs2_diagnostics_new_append.out.nc; echo
-	$(call RUNCOMMAND,test_gs2_diagnostics_new,test_gs2_diagnostics_new_append.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},old_diagnostics/${TEST_BASE_NAME}.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
+	rm -f ${TEST_BASE_NAME}_start.out.nc
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_start.in)
+	cp ${TEST_BASE_NAME}_start.out.nc ${TEST_BASE_NAME}_append.out.nc; echo
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_append.in)
 
 endif
 else
@@ -37,9 +39,9 @@ all:
 endif
 endif
 
-test_gs2_diagnostics_new.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-test_gs2_diagnostics_new: test_gs2_diagnostics_new.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

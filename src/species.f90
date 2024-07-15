@@ -5,48 +5,33 @@ module species
   implicit none
 
   private
-  public :: init_species, finish_species
-
-  public :: write_trinity_parameters
-  public :: wnml_species, check_species
-  public :: nspec, specie, spec
-  public :: tracer_species
-  public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species, has_hybrid_electron_species
-  public :: is_electron_species, is_hybrid_electron_species
-  public :: calculate_slowingdown_parameters
-  public :: ions, electrons, impurity
-  public :: set_overrides
-  public :: determine_species_order
+  public :: init_species, finish_species, wnml_species, check_species
+  public :: nspec, spec, tracer_species
+  public :: has_ion_species, has_electron_species
+  public :: has_hybrid_electron_species, is_electron_species, is_hybrid_electron_species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
-  public :: nonmaxw_corr, f0_values, dlnf0drho
-  
-  public :: species_config_type
-  public :: species_element_config_type
-  public :: set_species_config
-  public :: get_species_config
-  public :: get_species_element_config
+  public :: nonmaxw_corr, f0_values, dlnf0drho, f0_maxwellian, f0_sdanalytic, set_overrides
+  public :: species_config_type, species_element_config_type
+  public :: set_species_config, get_species_config, get_species_element_config
 
-  !> FIXME : Add documentation 
+  !> FIXME : Add documentation
   type :: specie
-     real :: z
-     real :: mass
-     real :: dens, dens0, u0
-     real :: tpar0,tperp0
-     real :: temp
-     real :: tprim
-     real :: fprim
-     real :: uprim, uprim2
-     real :: vnewk, nustar
-     real :: nu, nu_h  ! nu will be the preferred collisionality parameter moving forward
-                       ! as it will have a consistent v_t scaling
-                       ! nu_h controls a hyperviscous term embedded in the collision operator
+     !> Main physical properties of the species, see namelist documentation.
+     real :: z, mass, dens, temp, tprim, fprim, vnewk
+     !> Common combinations of species properties
      real :: stm, zstm, tz, smz, zt
-     real :: bess_fac !Artificial factor multiplying the Bessel function argument
-     real :: vcrit
-     real :: vcprim
-     integer :: type
-     integer :: f0type
+     !> Provides offsets to parallel flow shear drive term
+     real :: uprim, uprim2
+     !> Parameters associated with a few initialisation options, including Orszag-Tang.
+     real :: dens0, u0, tpar0, tperp0
+     !> nu_h controls a hyperviscous term embedded in the collision operator
+     real :: nu_h
+     !> Artificial factor multiplying the Bessel function argument
+     real :: bess_fac
+     !> Parameters associated with analytic slowing-down distribution
+     real :: vcrit, vcprim
+     !> Flags to identify the species type and the background distribution treatment
+     integer :: type, f0type
   end type specie
 
   integer, parameter :: ion_species = 1
@@ -57,24 +42,25 @@ module species
   integer, dimension(*), parameter :: electron_like_species = &
        [electron_species, hybrid_electron_species]
 
-  integer, parameter :: f0_maxwellian = 1, &           !< Regular Maxwellian species
-                        f0_tabulated = 2, &            !< f0 determined from table in external input file
-                        f0_sdanalytic = 3              !< Analytic Gaffey slowing-down distribution
+  integer, parameter :: &
+       !> Regular Maxwellian species
+       f0_maxwellian = 1, &
+       !> f0 determined from table in external input file
+       f0_tabulated = 2, &
+       !> Analytic Gaffey slowing-down distribution
+       f0_sdanalytic = 3
 
-  ! FIXME
-  !> Various quantities needed in the calculation of the slowing-down distribution in case electrons are
-  !! adiabatic
+  !> Various quantities needed in the calculation of the
+  !> slowing-down distribution in case electrons are adiabatic
   real:: me, ZI_fac
-  
-  !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
+
+  !> Defines a working species so that eval_f0 only needs to take one
+  !> argument (needed for genquad)
   integer:: is_global = -1
 
   integer :: nspec
   type (specie), dimension (:), allocatable :: spec
-
-  integer :: ions, electrons, impurity
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
-
 
   logical :: initialized = .false.
   logical :: exist
@@ -120,31 +106,24 @@ module species
      !> Select which type of background distribution should be assumed
      !> for this species. Must be one of:
      !>
+     !> - 'default' : equivalent to maxwellian
      !> - 'maxwellian' : Standard maxwellian
      !> - 'tabulated' : A general tabulated form
      !> - 'sdanalytic' : A analytic slowing down form.
      !>
      !> See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
-     character(len = 20) :: f0type = "maxwellian"
+     character(len = 20) :: f0type = "default"
      !> Normalised inverse density gradient: \(-\frac{1}{n}\frac{dn}{d
      !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
      !> \(\frac{\rho}{L_\textrm{ref}}\).
      real :: fprim = 2.2
      !> Normalised mass of this species
      real :: mass = 1.0
-     !> Not used.
-     !>
-     !> @todo remove
-     real :: nu = -1.0
      !> Set the species hyper collision frequency used in the pitch
      !> angle scattering collision operator if
      !> [[collision_knobs::hypermult]] is `true`.
      real :: nu_h = 0.0
-     !> Not used.
-     !>
-     !> @todo remove
-     real :: nustar = -1.0
      !> Set the normalised species temperature
      real :: temp = 1.0
      !> Parameter used for a few specific initial condition types.
@@ -182,12 +161,17 @@ module species
      !> Controls an energy independent part of a source term.
      !>
      !> @note Documentation needs improving, looks like it's an early
-     !> attempt at adding in the parallel flow shear drive term
+     !> attempt at adding in the parallel flow shear drive term. This
+     !> effectively provides a constant offset to the parallel flow
+     !> shear term, allowing one to add a species dependent shift.
      real :: uprim = 0.0
      !> Controls an energy dependent part of a source term.
      !>
      !> @note Documentation needs improving, looks like it's an early
-     !> attempt at adding in the parallel flow shear drive term
+     !> attempt at adding in the parallel flow shear drive term. This
+     !> effectively provides a energy dependent offset to the parallel
+     !> flow shear term, allowing one to add a species and energy
+     !> dependent shift.
      real :: uprim2 = 0.0
      !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
@@ -397,7 +381,7 @@ contains
   subroutine init_species(species_config_in, species_elements_config_in)
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
 
     if (initialized) return
     initialized = .true.
@@ -410,16 +394,11 @@ contains
   subroutine read_parameters(species_config_in, species_elements_config_in)
     use file_utils, only: input_unit, error_unit, get_indexed_namelist_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, mp_abort
+    use mp, only: proc0, mp_abort
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
-    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
-    real :: tperp0, tpar0, bess_fac, vcrit, vcprim
-    real, dimension(:), allocatable :: tmp_bcast
-    character(20) :: type, f0type
-    integer :: is
-    integer :: ierr
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
+    integer :: is, ierr
 
     type (text_option), dimension (*), parameter :: typeopts = [ &
          text_option('default', ion_species), &
@@ -430,7 +409,8 @@ contains
          text_option('hybrid_electron', hybrid_electron_species) &
          ]
 
-    type (text_option), dimension (3), parameter :: f0_opts = [ &
+    type (text_option), dimension (*), parameter :: f0_opts = [ &
+         text_option('default', f0_maxwellian), &
          text_option('maxwellian', f0_maxwellian), &
          text_option('tabulated', f0_tabulated), &
          text_option('sdanalytic', f0_sdanalytic) &
@@ -446,14 +426,11 @@ contains
     zi_fac = species_config%zi_fac
 
     exist = species_config%exist
-    
-    if (proc0) then
-       if (nspec < 1) then
-          ierr = error_unit()
-          write (unit=ierr, &
-               fmt="('Invalid nspec in species_knobs: ', i5)") nspec
-          call mp_abort('Invalid nspec in species_knobs')
-       end if
+
+    ierr = error_unit()
+    if (proc0 .and. nspec < 1) then
+       write (unit=ierr, fmt="('Invalid nspec in species_knobs: ', i5)") nspec
+       call mp_abort('Invalid nspec in species_knobs')
     end if
 
     allocate (spec(nspec))
@@ -462,137 +439,95 @@ contains
 
     if (.not.allocated(species_element_config)) allocate(species_element_config(nspec))
 
-    if (size(species_element_config) .ne. nspec) then
+    ! This might look odd given the above line _but_ we might have set species_element_config
+    ! elsewhere and hence not allocated in the above, potentially giving inconsistencies
+    if (size(species_element_config) /= nspec) then
        if (proc0) print*,"inconsistent number of config elements"
-    endif
+    end if
        
     do is = 1, nspec
        call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
        ! Copy out internal values into module level parameters
-       bess_fac = species_element_config(is)%bess_fac
-       dens = species_element_config(is)%dens
-       dens0 = species_element_config(is)%dens0
-       f0type = species_element_config(is)%f0type
-       fprim = species_element_config(is)%fprim
-       mass = species_element_config(is)%mass
-       nu = species_element_config(is)%nu
-       nu_h = species_element_config(is)%nu_h
-       nustar = species_element_config(is)%nustar
-       temp = species_element_config(is)%temp
-       tpar0 = species_element_config(is)%tpar0
-       tperp0 = species_element_config(is)%tperp0
-       tprim = species_element_config(is)%tprim
-       type = species_element_config(is)%type
-       u0 = species_element_config(is)%u0
-       uprim = species_element_config(is)%uprim
-       uprim2 = species_element_config(is)%uprim2
-       vcprim = species_element_config(is)%vcprim
-       vcrit = species_element_config(is)%vcrit
-       vnewk = species_element_config(is)%vnewk
-       z = species_element_config(is)%z
+       spec(is)%bess_fac = species_element_config(is)%bess_fac
+       spec(is)%dens = species_element_config(is)%dens
+       spec(is)%dens0 = species_element_config(is)%dens0
+       spec(is)%fprim = species_element_config(is)%fprim
+       spec(is)%mass = species_element_config(is)%mass
+       spec(is)%nu_h = species_element_config(is)%nu_h
+       spec(is)%temp = species_element_config(is)%temp
+       spec(is)%tpar0 = species_element_config(is)%tpar0
+       spec(is)%tperp0 = species_element_config(is)%tperp0
+       spec(is)%tprim = species_element_config(is)%tprim
+       spec(is)%u0 = species_element_config(is)%u0
+       spec(is)%uprim = species_element_config(is)%uprim
+       spec(is)%uprim2 = species_element_config(is)%uprim2
+       spec(is)%vcprim = species_element_config(is)%vcprim
+       spec(is)%vcrit = species_element_config(is)%vcrit
+       spec(is)%vnewk = species_element_config(is)%vnewk
+       spec(is)%z = species_element_config(is)%z
 
-       spec(is)%z = z
-       spec(is)%mass = mass
-       spec(is)%dens = dens
-       spec(is)%dens0 = dens0
-       spec(is)%u0 = u0
-       spec(is)%tperp0 = tperp0
-       spec(is)%tpar0 = tpar0
-       spec(is)%temp = temp
-       spec(is)%tprim = tprim
-       spec(is)%fprim = fprim
-       spec(is)%uprim = uprim
-       spec(is)%uprim2 = uprim2
-       spec(is)%vnewk = vnewk
-       spec(is)%nustar = nustar
-       spec(is)%nu = nu
-       spec(is)%nu_h = nu_h
-
-       spec(is)%stm = sqrt(temp/mass)
-       spec(is)%zstm = z/sqrt(temp*mass)
-       spec(is)%tz = temp/z
-       spec(is)%zt = z/temp
-       spec(is)%smz = abs(sqrt(temp*mass)/z)
-
-       spec(is)%bess_fac=bess_fac
-       spec(is)%vcrit=vcrit
-       spec(is)%vcprim=vcprim
-
-       ierr = error_unit()
-       call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-       call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, &
+            ierr, "type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, &
+            ierr, "f0type in species_parameters_x",.true.)
     end do
 
-    !We use a temporary array here to allow us to broadcast all species data at once
-    !May be possible to avoid this by simply calling broadcast(spec%z) etc.
-    allocate(tmp_bcast(nspec))
-    tmp_bcast=spec%z ; call broadcast(tmp_bcast) ; spec%z=tmp_bcast
-    tmp_bcast=spec%mass ; call broadcast(tmp_bcast) ; spec%mass=tmp_bcast
-    tmp_bcast=spec%dens ; call broadcast(tmp_bcast) ; spec%dens=tmp_bcast
-    tmp_bcast=spec%dens0 ; call broadcast(tmp_bcast) ; spec%dens0=tmp_bcast
-    tmp_bcast=spec%u0 ; call broadcast(tmp_bcast) ; spec%u0=tmp_bcast
-    tmp_bcast=spec%tperp0 ; call broadcast(tmp_bcast) ; spec%tperp0=tmp_bcast
-    tmp_bcast=spec%tpar0 ; call broadcast(tmp_bcast) ; spec%tpar0=tmp_bcast
-    tmp_bcast=spec%temp ; call broadcast(tmp_bcast) ; spec%temp=tmp_bcast
-    tmp_bcast=spec%tprim ; call broadcast(tmp_bcast) ; spec%tprim=tmp_bcast
-    tmp_bcast=spec%fprim ; call broadcast(tmp_bcast) ; spec%fprim=tmp_bcast
-    tmp_bcast=spec%uprim ; call broadcast(tmp_bcast) ; spec%uprim=tmp_bcast
-    tmp_bcast=spec%uprim2 ; call broadcast(tmp_bcast) ; spec%uprim2=tmp_bcast
-    tmp_bcast=spec%vnewk ; call broadcast(tmp_bcast) ; spec%vnewk=tmp_bcast
-    tmp_bcast=spec%nu ; call broadcast(tmp_bcast) ; spec%nu=tmp_bcast
-    tmp_bcast=spec%nu_h ; call broadcast(tmp_bcast) ; spec%nu_h=tmp_bcast
-    tmp_bcast=spec%nustar ; call broadcast(tmp_bcast) ; spec%nustar=tmp_bcast
-    tmp_bcast=spec%stm ; call broadcast(tmp_bcast) ; spec%stm=tmp_bcast
-    tmp_bcast=spec%zstm ; call broadcast(tmp_bcast) ; spec%zstm=tmp_bcast
-    tmp_bcast=spec%tz ; call broadcast(tmp_bcast) ; spec%tz=tmp_bcast
-    tmp_bcast=spec%zt ; call broadcast(tmp_bcast) ; spec%zt=tmp_bcast
-    tmp_bcast=spec%smz ; call broadcast(tmp_bcast) ; spec%smz=tmp_bcast
-    tmp_bcast=spec%type ; call broadcast(tmp_bcast) ; spec%type=int(tmp_bcast)
-    tmp_bcast=spec%f0type ; call broadcast(tmp_bcast) ; spec%f0type=int(tmp_bcast)
-    tmp_bcast=spec%bess_fac ; call broadcast(tmp_bcast) ; spec%bess_fac=tmp_bcast
-    tmp_bcast=spec%vcrit ; call broadcast(tmp_bcast) ; spec%vcrit=tmp_bcast
-    tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
-    deallocate(tmp_bcast)
+    spec%stm = sqrt(spec%temp / spec%mass)
+    spec%zstm = spec%z / sqrt(spec%temp * spec%mass)
+    spec%tz = spec%temp / spec%z
+    spec%zt = spec%z / spec%temp
+    spec%smz = abs(sqrt(spec%temp * spec%mass) / spec%z)
   end subroutine read_parameters
 
   !> FIXME : Add documentation
-  subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
+  subroutine calculate_slowingdown_parameters(alpha_index, vc, vcprim)
     use constants, only: pi
     use mp, only: proc0
     implicit none
     integer, intent(in):: alpha_index
-    real, intent(inout):: vc, vcprim
-    integer:: electron_spec, main_ion_species, is,js
-    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte
+    real, intent(out):: vc, vcprim
+    integer:: electron_spec, main_ion_species, is, js
+    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte, charge_contribution
     
     electron_spec = -1
     main_ion_species = -1
 
-    do is = 1,nspec
+    ! Find species index corresponding to electrons and "main ions"
+    ! where we assume the first ion species corresponds to the main ions.
+    ! Perhaps we're looking for the species with mass = 1 (i.e. the reference mass?)
+    do is = 1, nspec
        if (is_electron_species(spec(is))) electron_spec = is
-       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species) main_ion_species = is
+       if (main_ion_species < 1 .and. spec(is)%type == ion_species) main_ion_species = is
     end do
 
-    if (electron_spec .GT. 0) then
+    if (electron_spec > 0) then
+       ! If we found the electron index extract its parameters
        me = spec(electron_spec)%mass
        ne = spec(electron_spec)%dens
        ne_prim = spec(electron_spec)%fprim
        Te_prim = spec(electron_spec)%tprim
        vte = sqrt(spec(electron_spec)%temp/spec(electron_spec)%mass)
     else
-       if (me .LT. 0.0) then
-          if (proc0) write(*,*) "WARNING: vte not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
+       ! If we don't have an electron species try to work out the relevant parameters
+       if (me < 0.0) then
+          if (proc0) write(*,*) "WARNING: me not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
           me = 0.0002723085
        end if             
-
-       ne = sum(spec(:)%z*spec(:)%dens)
-       ne_prim = sum(spec(:)%z*spec(:)%dens*spec(:)%fprim)/ne
+       ! Set electron density and gradient from quasineutrality
+       ne = sum(spec%z * spec%dens)
+       ne_prim = sum(spec%z * spec%dens * spec%fprim) / ne
+       ! Assume Te' = Ti' of the main ions
        Te_prim = spec(main_ion_species)%tprim
+       ! Compute electron thermal velocity using the main ion properties? This seems
+       ! surprising. Whilst Te = Ti is perhaps reasonable, we specify the electron mass
+       ! so why not use it here? Could we also use the tite input to scale the ion T?
        vte = sqrt(spec(main_ion_species)%temp/spec(main_ion_species)%mass)
+
        if (proc0) then
           write(*,*) "Since electrons are adiabatic, we need to improvise electron parameters to "
           write(*,*) "caluclate alpha species properties. Imposed by global quasineutrality:"
+          write(*,*) "  me = ", me
           write(*,*) "  ne = ", ne
           write(*,*) "  vte = ", vte
           write(*,*) "  ne_prim = ", ne_prim
@@ -602,12 +537,13 @@ contains
 
     ni_prim = 0.0
     ! If ZI_fac is not specified, calculate it from existing ion species:
-    if (ZI_fac .LT. 0.0) then
+    if (ZI_fac < 0.0) then
        ZI_fac_local = 0.0
-       do js = 1,nspec
-          if (spec(js)%type .eq. ion_species) then 
-             ZI_fac_local = ZI_fac_local   + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2/(spec(js)%mass*ne)
-             ni_prim = ni_prim + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2*spec(js)%fprim/(spec(js)%mass*ne)
+       do js = 1, nspec
+          if (spec(js)%type == ion_species) then
+             charge_contribution = spec(alpha_index)%mass * spec(js)%dens * spec(js)%z**2 / (spec(js)%mass * ne)
+             ZI_fac_local = ZI_fac_local + charge_contribution
+             ni_prim = ni_prim + charge_contribution * spec(js)%fprim
           end if
        end do
     else
@@ -616,9 +552,10 @@ contains
     ni_prim = ni_prim / ZI_fac_local
 
     ! Calculate vc/vinj
-    vinj = sqrt(spec(alpha_index)%temp/spec(alpha_index)%mass)
-    vc = (0.25*3.0*sqrt(pi)*ZI_fac_local*me/spec(alpha_index)%mass)**(1.0/3.0)*vte/vinj
-    vcprim = ni_prim - ne_prim + 1.5*Te_prim
+    vinj = sqrt(spec(alpha_index)%temp / spec(alpha_index)%mass)
+    vc = (0.25 * 3 * sqrt(pi) * ZI_fac_local * me / spec(alpha_index)%mass)**(1/3.0) * &
+         (vte / vinj)
+    vcprim = ni_prim - ne_prim + 1.5 * Te_prim
 
   end subroutine calculate_slowingdown_parameters
 
@@ -635,29 +572,28 @@ contains
      allocate(f0_values(negrid,nspec))
      allocate(dlnf0drho(negrid,nspec))
 
-     do is = 1,nspec
+     do is = 1, nspec
         is_global = is
-        do ie = 1,negrid
-           v = sqrt(egrid(ie,is))
+        if (spec(is)%f0type == f0_tabulated) then
+           call calculate_f0_arrays_tabulated(is, egrid)
+        else
+           do ie = 1, negrid
+              v = sqrt(egrid(ie,is))
 
-           select case (spec(is)%f0type)
-           case (f0_maxwellian)
-              f0_values(ie,is) = eval_f0(v)
-              nonmaxw_corr(ie,is) = 1.0
-              dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5)*spec(is)%tprim
-           case (f0_sdanalytic)
-              call eval_f0_sdanalytic(is,v,f0,df0dE,f0prim)
-              f0_values(ie,is) = f0
-              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-              dlnf0drho(ie,is) = f0prim
-           end select
-        end do
-        if (spec(is)%f0type .EQ. f0_tabulated) then
-           call calculate_f0_arrays_tabulated(is,egrid)
+              select case (spec(is)%f0type)
+              case (f0_maxwellian)
+                 f0_values(ie,is) = eval_f0(v)
+                 nonmaxw_corr(ie,is) = 1.0
+                 dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5) * spec(is)%tprim
+              case (f0_sdanalytic)
+                 call eval_f0_sdanalytic(is, v, f0, df0dE, f0prim)
+                 f0_values(ie, is) = f0
+                 nonmaxw_corr(ie, is) = -spec(is)%temp * df0dE
+                 dlnf0drho(ie, is) = f0prim
+              end select
+           end do
         end if
-        
      end do
-
   end subroutine calculate_f0_arrays
 
   !> FIXME : Add documentation   
@@ -668,68 +604,77 @@ contains
   end subroutine set_current_f0_species
 
   !> FIXME : Add documentation
-  !!
-  !! @note Relies upon is_global to determine species. This function only takes one argument so that
-  !! it can be passed as an argument to genquad
-  function eval_f0(v)
+  !>
+  !> @note Relies upon is_global to determine species. This function only takes one argument so that
+  !> it can be passed as an argument to genquad
+  real function eval_f0(v)
      use constants, only: pi
      use mp, only: mp_abort
      implicit none
      real, intent(in):: v
-     real:: eval_f0
-     real::f0temp, dummy1,dummy2
-
-     if (is_global .LT. 0)  call mp_abort("is_global not specified when calling eval_f0")
+     real::dummy1, dummy2
+     eval_f0 = 0.0 !Set a default, avoids warnings about maybe unset
+     if (is_global <= 0)  call mp_abort("is_global not specified when calling eval_f0")
 
      select case(spec(is_global)%f0type)
      case (f0_maxwellian)
-        f0temp = exp(-v**2)/pi**1.5        
+        eval_f0 = exp(-v**2) / pi**1.5
      case (f0_sdanalytic)
-        call eval_f0_sdanalytic(is_global,v,f0temp,dummy1,dummy2)
+        call eval_f0_sdanalytic(is_global, v, eval_f0, dummy1, dummy2)
      case (f0_tabulated)
         call mp_abort("ERROR: eval_f0 cannot yet handle tabulated option.")
      end select
-
-     eval_f0 = f0temp
-
   end function eval_f0
 
-  !> FIXME : Add documentation   
-  subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
+  !> FIXME : Add documentation
+  subroutine eval_f0_sdanalytic(is, v, f0, df0dE_out, f0prim)
     use constants, only: pi
-    use mp, only: mp_abort
-    use spfunc, only: erf => erf_ext
     implicit none
     integer,intent(in):: is
     real,intent(in):: v
-    real,intent(inout):: f0,df0dE_out, f0prim
-    real:: A, df0dv,vcprim, vcrit
+    real,intent(out):: f0, df0dE_out, f0prim
+    real:: A, df0dv, vcprim, vcrit
 
-    if (spec(is)%vcrit .LE. 0.0) then
-       call calculate_slowingdown_parameters(is,vcrit,vcprim)
-       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)  vcprim = spec(is)%vcprim
-    else
-       !> If vcrit is specified, there is no way of knowing its radial derivative, so set dvc/drho = 0
-       vcrit = spec(is)%vcrit
-       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)   vcprim = 0.0
-    end if
-
-
-    A = (3.0/(4.0*pi))/log( (vcrit**3 + 1.0)/(vcrit**3))
-
-    f0 = A/(vcrit**3 + v**3)
-    df0dv = -A*3.0*v**2/(vcrit**3 + v**3)**2
-    df0dE_out =  (0.5/v)*df0dv / ( f0 * spec(is)%temp )
-    f0prim = -spec(is)%fprim - (-(vcrit**3/(vcrit**3 + v**3)) + (1.0/( log(1.0 + vcrit**(-3)) * (1.0 + vcrit**(3)))))*vcprim
-
-    if (v .GT. 1.0) then
+    ! Early exit -- if v > 1 then assume f0 has been cutoff, i.e.
+    ! we are above the threshold for the Heaviside function to
+    ! zero the distribution. Note for v==1 our f0prim etc. are
+    ! don't account for the Heaviside.
+    if (v > 1.0) then
        f0 = 0.0
        f0prim = 0.0
        df0dE_out = 1.0
+       return
     end if
 
-!    write(*,*) v, vcrit,vcprim,f0prim
+    if (spec(is)%vcrit <= 0.0) then
+       ! If vcrit hasn't been set work out vcrit and vcprim using
+       ! eqn 1.17 and 1.25 of [G. Wilkie thesis](https://drum.lib.umd.edu/handle/1903/17302)
+       ! Note this is independent of `v` so we could precalculate for the relevant species.
+       ! This could be "trivially" cached by simply storing the calculated values in spec(is)
+       call calculate_slowingdown_parameters(is, vcrit, vcprim)
+       ! This line is a bit odd, it _looks_ like it is checking if spec(is)%vcprim
+       ! has not been set, and if it _hasn't_ then force vcprim = spec(is)%vcprim.
+       ! In fact as spec(is)%vcprim defaults to -999.9 currently this logic _doesn't_
+       ! trigger without the user manually setting vcprim more negative. I suspect
+       ! this was intended to be if(was_set(spec(is)%vcprim)) vcprim = spec(is)%vcprim
+       if (abs(spec(is)%vcprim + 999.0) < 1.0e-3) vcprim = spec(is)%vcprim
+    else
+       vcrit = spec(is)%vcrit
+       ! If vcrit is specified, there is no way of knowing its radial
+       ! derivative, so set dvc/drho = 0. As above, this doesn't actually trigger
+       ! for the default value of spec(is)%vcprim. I suspect this is meant to be
+       ! if(not_set(spec(is)%vcprim)) vcprim = 0.
+       if (abs(spec(is)%vcprim + 999.0) < 1.0e-3) vcprim = 0.0
+    end if
 
+    A = (3 / (4 * pi)) / log((vcrit**3 + 1) / (vcrit**3))
+
+    f0 = A / (vcrit**3 + v**3)
+    df0dv = -f0 * 3 * v**2 / (vcrit**3 + v**3)
+    df0dE_out =  (0.5 / v) * df0dv / ( f0 * spec(is)%temp )
+    ! See eqn 1.22 of Wilkie's thesis with v_alpha -> 1
+    f0prim = -spec(is)%fprim - (-(vcrit**3 / (vcrit**3 + v**3)) + &
+         (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**3)))) * vcprim
   end subroutine eval_f0_sdanalytic
 
   !> This subroutine calculates f0 on the grid from an external
@@ -752,18 +697,18 @@ contains
     use mp, only: broadcast
     use constants, only: pi
     use file_utils, only: run_name
-    use splines, only: fitp_curvd, fitp_curv1, fitp_curv2
+    use splines, only: spline, new_spline, delete_spline, splint, dsplint
     implicit none
     integer, intent(in) :: is
     real, dimension(:,:),intent(in):: egrid
-    integer:: f0in_unit = 21, mode, ie, ierr, numdat, negrid
+    type(spline) :: spl
+    integer:: f0in_unit, mode, ie, numdat, negrid
     logical:: acceptable_spline
     real:: moment0, sigma, sigma_fac, df0dE
-    real, dimension(:), allocatable:: f0_values_dat, df0dE_dat, egrid_dat, &
-                                      yp, temp, df0drho_dat
-    
+    real, dimension(:), allocatable:: f0_values_dat, df0dE_dat, egrid_dat, df0drho_dat
+
     ! Open file and read column option
-    open(unit=f0in_unit,file=trim(run_name)//'.f0in',status='old',action='read')
+    open(newunit = f0in_unit,file=trim(run_name)//'.f0in',status='old',action='read')
     read(f0in_unit,*) mode
     read(f0in_unit,*) numdat
 
@@ -771,16 +716,14 @@ contains
     allocate(df0dE_dat(numdat))
     allocate(df0drho_dat(numdat))
     allocate(egrid_dat(numdat))
-    allocate(yp(numdat))
-    allocate(temp(numdat))
 
     negrid = size(egrid(:,1))
-    
+
     sigma = 1.0
     sigma_fac = 2.0
     acceptable_spline = .false.
 
-    if (mode .EQ. 1) then
+    if (mode == 1) then
        ! Read f0 values
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie)
@@ -791,27 +734,23 @@ contains
        ! If F0 ends up being negative or zero anywhere on the grid, double the tension
        ! factor and try again
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                             f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie, is), spl)
 
              ! Calculate d/dE lnF0 to get generalised temperature
-             df0dE =  fitp_curvd(egrid(ie,is),numdat,egrid_dat, f0_values_dat,yp,sigma)  / &
-                                (f0_values(ie,is) * spec(is)%temp)
+             df0dE =  dsplint(egrid(ie,is), spl) / (f0_values(ie,is) * spec(is)%temp)
              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
 
           end do
 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          call delete_spline(spl)
+
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
@@ -820,156 +759,129 @@ contains
 
        dlnf0drho(:,is) = - spec(is)%fprim
 
-    else if (mode .EQ. 2) then
+    else if (mode == 2) then
        ! Read both f0 and df0/dE
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
-
              ! Interpolate to get F0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie, is), spl)
           end do
 
-          ! Generate spline parameters for df0/dE
-          call fitp_curv1(numdat,egrid_dat,df0dE_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          call delete_spline(spl)
 
-          do ie = 1,negrid
-             ! Interpolate to get f0 at grid points
-             df0dE     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                df0dE_dat,yp,sigma)  / spec(is)%temp
-             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-          end do
- 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
+             cycle
           end if
 
+          ! Generate spline parameters for df0/dE
+          spl = new_spline(egrid_dat, df0dE_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             df0dE     = splint(egrid(ie,is), spl) / spec(is)%temp
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+
+          call delete_spline(spl)
        end do
 
        dlnf0drho(:,is) = - spec(is)%fprim
 
-    else if (mode .EQ. 3) then
+    else if (mode == 3) then
        ! Read f0 and df0/drho
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0drho_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get F0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                 f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie,is), spl)
              ! Calculate d/dE lnF0 to get generalised temperature
-             df0dE = fitp_curvd(egrid(ie,is),numdat,egrid_dat, &
-                             f0_values_dat,yp,sigma) / (f0_values(ie,is) * spec(is)%temp)
+             df0dE = dsplint(egrid(ie,is), spl) / (f0_values(ie,is) * spec(is)%temp)
              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
           end do
 
-          ! Generate spline parameters for df0/drho
-          call fitp_curv1(numdat,egrid_dat,df0drho_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          call delete_spline(spl)
 
-          do ie = 1,negrid
-             ! Interpolate to get f0prim at grid points
-             dlnf0drho(ie,is)    = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                df0drho_dat,yp,sigma)
-          end do
- 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
+             cycle
           end if
 
+          ! Generate spline parameters for df0/drho
+          spl = new_spline(egrid_dat, df0drho_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0prim at grid points
+             dlnf0drho(ie,is) = splint(egrid(ie,is), spl)
+          end do
+
+          call delete_spline(spl)
        end do
 
-    else if (mode .EQ. 4) then
+    else if (mode == 4) then
        ! Read f0, df0/dE, df0/drho
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie), df0drho_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
-
              ! Interpolate to get F0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie,is), spl)
           end do
 
-          ! Generate spline parameters for df0/dE
-          call fitp_curv1(numdat,egrid_dat,df0dE_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          call delete_spline(spl)
 
-          do ie = 1,negrid
-             ! Interpolate to get f0 at grid points
-             df0dE     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                df0dE_dat,yp,sigma)  / spec(is)%temp
-             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-          end do
- 
-          ! Generate spline parameters for df0/drho
-          call fitp_curv1(numdat,egrid_dat,df0drho_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
-
-          do ie = 1,negrid
-             ! Interpolate to get f0 at grid points
-             dlnf0drho(ie,is)     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                 df0drho_dat,yp,sigma) 
-          end do
- 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
+             cycle
           end if
 
+          ! Generate spline parameters for df0/dE
+          spl = new_spline(egrid_dat, df0dE_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             df0dE     = splint(egrid(ie,is), spl) / spec(is)%temp
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+
+          call delete_spline(spl)
+
+          ! Generate spline parameters for df0/drho
+          spl = new_spline(egrid_dat, df0drho_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             dlnf0drho(ie,is) = splint(egrid(ie,is), spl)
+          end do
+
+          call delete_spline(spl)
        end do
 
        dlnf0drho(:,is) = - spec(is)%fprim
@@ -992,7 +904,7 @@ contains
     moment0 = moment0*4.0*pi
 
     
-    deallocate(egrid_dat,f0_values_dat,df0dE_dat,df0drho_dat,yp,temp)
+    deallocate(egrid_dat,f0_values_dat,df0dE_dat,df0drho_dat)
 
   end subroutine calculate_f0_arrays_tabulated
 
@@ -1063,39 +975,6 @@ contains
     initialized = .false.
   end subroutine finish_species
 
-  !> This routine is used only for Trinity
-  subroutine determine_species_order
-    use mp, only: broadcast, proc0, mp_abort
-
-    implicit none
-
-    integer is
-     if (nspec == 1) then
-        ions = 1
-        electrons = 0
-        impurity = 0
-     else
-        ! if 2 or more species in GS2 calculation, figure out which is main ion
-        ! and which is electron via mass (main ion mass assumed to be one)
-        do is = 1, nspec
-           if (abs(spec(is)%mass-1.0) <= epsilon(0.0)) then
-              ions = is
-           else if (spec(is)%mass < 0.3) then
-              ! for electrons, assuming electrons are at least a factor of 3 less massive
-              ! than main ion and other ions are no less than 30% the mass of the main ion
-              electrons = is
-           else if (spec(is)%mass > 1.0 + epsilon(0.0)) then
-              impurity = is
-           else
-              if (proc0) write (*,*) &
-                   "Error: TRINITY requires the main ions to have mass 1", &
-                   "and the secondary ions to be impurities (mass > 1)"
-              call mp_abort("Error: TRINITY requires the main ions to have mass 1 and the secondary ions to be impurities (mass > 1)")
-           end if
-        end do
-     end if
-  end subroutine determine_species_order
-
   !> FIXME : Add documentation   
   subroutine set_overrides(prof_ov)
     use overrides, only: profiles_overrides_type
@@ -1124,7 +1003,6 @@ contains
   !> FIXME : Add documentation 
   subroutine calculate_and_broadcast_species_properties
     use mp, only: proc0, broadcast
-    use kt_grids, only: gryfx
     integer :: is
     if (proc0) then 
       do is = 1, nspec
@@ -1133,11 +1011,6 @@ contains
          spec(is)%tz = spec(is)%temp/spec(is)%z
          spec(is)%zt = spec(is)%z/spec(is)%temp
          spec(is)%smz = abs(sqrt(spec(is)%temp*spec(is)%mass)/spec(is)%z)
-         if (gryfx()) then
-            !WARNING THIS NORMALISATION IS A GUESS!!!
-            !FEEL FREE TO QUESTION IT AND WORRY ABOUT IT
-           spec(is)%vnewk = 0.01 ! spec(is)%vnewk / sqrt(2.0)
-         end if
       end do
     end if
     call broadcast (nspec)
@@ -1156,32 +1029,13 @@ contains
     end do
   end subroutine calculate_and_broadcast_species_properties
 
-  !> FIXME : Add documentation   
-  subroutine write_trinity_parameters(trinpars_unit)
-    integer, intent(in) :: trinpars_unit
-    integer :: is
-    do is = 1,nspec
-      if (is<10) then
-        write(trinpars_unit, "(A20,I1)") '&species_parameters_', is
-      else
-        write(trinpars_unit, "(A20,I2)") '&species_parameters_', is
-      end if
-      write (trinpars_unit, *) ' temp = ', spec(is)%temp
-      write (trinpars_unit, *) ' dens = ', spec(is)%dens
-      write (trinpars_unit, *) ' tprim = ', spec(is)%tprim
-      write (trinpars_unit, *) ' fprim = ', spec(is)%fprim
-      write (trinpars_unit, *) ' vnewk = ', spec(is)%vnewk
-      write (trinpars_unit, "(A1)") '/'
-    end do
-  end subroutine write_trinity_parameters
-
   !> Set the module level config types
   !> Will abort if the module has already been initialised to avoid
   !> inconsistencies.
   subroutine set_species_config(species_config_in, species_element_config_in)
     use mp, only: mp_abort
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_element_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_element_config_in
 
     if (initialized) then
        call mp_abort("Trying to set species_config when already initialized.", to_screen = .true.)
@@ -1194,286 +1048,6 @@ contains
     end if    
   end subroutine set_species_config   
 
-  !> Get the module level config instance
-  function get_species_config()
-    type(species_config_type) :: get_species_config
-    get_species_config = species_config
-  end function get_species_config
-
-  !> Get the module level config instance
-  function get_species_element_config()
-    type(species_element_config_type), allocatable :: get_species_element_config(:)
-    if (allocated(species_element_config)) then
-      get_species_element_config = species_element_config
-    else
-      allocate(get_species_element_config(0))
-    end if
-  end function get_species_element_config
-
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-
-  !> Reads in the species_knobs namelist and populates the member variables
-  subroutine read_species_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(species_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    integer :: nspec
-    real :: me, zi_fac
-
-    namelist /species_knobs/ me, nspec, zi_fac
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    me = self%me
-    nspec = self%nspec
-    zi_fac = self%zi_fac
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = species_knobs)
-
-    ! Now copy from local variables into type members
-    self%me = me
-    self%nspec = nspec
-    self%zi_fac = zi_fac
-
-    self%exist = exist
-  end subroutine read_species_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_species_config(self, unit)
-    implicit none
-    class(species_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("me", self%me, unit_internal)
-    call self%write_key_val("nspec", self%nspec, unit_internal)
-    call self%write_key_val("zi_fac", self%zi_fac, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_species_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_species_config(self)
-    class(species_config_type), intent(in out) :: self
-    type(species_config_type) :: empty
-    select type (self)
-    type is (species_config_type)
-       self = empty
-    end select
-  end subroutine reset_species_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_species_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(species_config_type), intent(in out) :: self
-    call broadcast(self%me)
-    call broadcast(self%nspec)
-    call broadcast(self%zi_fac)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_species_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_species_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_config
-    get_default_name_species_config = "species_knobs"
-  end function get_default_name_species_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_species_config()
-    implicit none
-    logical :: get_default_requires_index_species_config
-    get_default_requires_index_species_config = .false.
-  end function get_default_requires_index_species_config
-  
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-  
-  !> Reads in the species_parameters namelist and populates the member variables
-  subroutine read_species_element_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(species_element_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    character(len = 20) :: f0type, type
-    real :: bess_fac, dens, dens0, fprim, mass, nu, nu_h, nustar, temp, tpar0, tperp0, tprim, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
-
-    namelist /species_parameters/ bess_fac, dens, dens0, f0type, fprim, mass, nu, nu_h, nustar, temp, tpar0, tperp0, tprim, type, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    bess_fac = self%bess_fac
-    dens = self%dens
-    dens0 = self%dens0
-    f0type = self%f0type
-    fprim = self%fprim
-    mass = self%mass
-    nu = self%nu
-    nu_h = self%nu_h
-    nustar = self%nustar
-    temp = self%temp
-    tpar0 = self%tpar0
-    tperp0 = self%tperp0
-    tprim = self%tprim
-    type = self%type
-    u0 = self%u0
-    uprim = self%uprim
-    uprim2 = self%uprim2
-    vcprim = self%vcprim
-    vcrit = self%vcrit
-    vnewk = self%vnewk
-    z = self%z
-
-    ! Now read in the main namelist
-    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
-    if (exist) read(in_file, nml = species_parameters)
-    close(unit = in_file)
-
-    ! Now copy from local variables into type members
-    self%bess_fac = bess_fac
-    self%dens = dens
-    self%dens0 = dens0
-    self%f0type = f0type
-    self%fprim = fprim
-    self%mass = mass
-    self%nu = nu
-    self%nu_h = nu_h
-    self%nustar = nustar
-    self%temp = temp
-    self%tpar0 = tpar0
-    self%tperp0 = tperp0
-    self%tprim = tprim
-    self%type = type
-    self%u0 = u0
-    self%uprim = uprim
-    self%uprim2 = uprim2
-    self%vcprim = vcprim
-    self%vcrit = vcrit
-    self%vnewk = vnewk
-    self%z = z
-
-    self%exist = exist
-  end subroutine read_species_element_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_species_element_config(self, unit)
-    implicit none
-    class(species_element_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("bess_fac", self%bess_fac, unit_internal)
-    call self%write_key_val("dens", self%dens, unit_internal)
-    call self%write_key_val("dens0", self%dens0, unit_internal)
-    call self%write_key_val("f0type", self%f0type, unit_internal)
-    call self%write_key_val("fprim", self%fprim, unit_internal)
-    call self%write_key_val("mass", self%mass, unit_internal)
-    call self%write_key_val("nu", self%nu, unit_internal)
-    call self%write_key_val("nu_h", self%nu_h, unit_internal)
-    call self%write_key_val("nustar", self%nustar, unit_internal)
-    call self%write_key_val("temp", self%temp, unit_internal)
-    call self%write_key_val("tpar0", self%tpar0, unit_internal)
-    call self%write_key_val("tperp0", self%tperp0, unit_internal)
-    call self%write_key_val("tprim", self%tprim, unit_internal)
-    call self%write_key_val("type", self%type, unit_internal)
-    call self%write_key_val("u0", self%u0, unit_internal)
-    call self%write_key_val("uprim", self%uprim, unit_internal)
-    call self%write_key_val("uprim2", self%uprim2, unit_internal)
-    call self%write_key_val("vcprim", self%vcprim, unit_internal)
-    call self%write_key_val("vcrit", self%vcrit, unit_internal)
-    call self%write_key_val("vnewk", self%vnewk, unit_internal)
-    call self%write_key_val("z", self%z, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_species_element_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_species_element_config(self)
-    class(species_element_config_type), intent(in out) :: self
-    type(species_element_config_type) :: empty
-    select type (self)
-    type is (species_element_config_type)
-       self = empty
-    end select
-  end subroutine reset_species_element_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_species_element_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(species_element_config_type), intent(in out) :: self
-    call broadcast(self%bess_fac)
-    call broadcast(self%dens)
-    call broadcast(self%dens0)
-    call broadcast(self%f0type)
-    call broadcast(self%fprim)
-    call broadcast(self%mass)
-    call broadcast(self%nu)
-    call broadcast(self%nu_h)
-    call broadcast(self%nustar)
-    call broadcast(self%temp)
-    call broadcast(self%tpar0)
-    call broadcast(self%tperp0)
-    call broadcast(self%tprim)
-    call broadcast(self%type)
-    call broadcast(self%u0)
-    call broadcast(self%uprim)
-    call broadcast(self%uprim2)
-    call broadcast(self%vcprim)
-    call broadcast(self%vcrit)
-    call broadcast(self%vnewk)
-    call broadcast(self%z)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_species_element_config 
-
-  !> Gets the default name for this namelist
-  function get_default_name_species_element_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_species_element_config
-    get_default_name_species_element_config = "species_parameters"
-  end function get_default_name_species_element_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_species_element_config()
-    implicit none
-    logical :: get_default_requires_index_species_element_config
-    get_default_requires_index_species_element_config = .true.
-  end function get_default_requires_index_species_element_config
+#include "species_auto_gen.inc"
+#include "species_element_auto_gen.inc"
 end module species

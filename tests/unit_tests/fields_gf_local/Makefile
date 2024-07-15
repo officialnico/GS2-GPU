@@ -1,10 +1,10 @@
 
 sinclude ../Makefile.tests_common
-
+TEST_BASE_NAME:=test_fields_gf_local
 clean_individual_test: LOCAL_TEST_FILES:=test_fields_gf_local
-
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: test_fields_gf_local 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -18,15 +18,15 @@ ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
 all:
 	$(call SKIPCOMMAND,current NTESTPROCS=${NTESTPROCS}; set NTESTPROCS>=6 to run this test)
 else
-all: test_fields_gf_local 
+all: build_test_exe
 	$(call RUNCOMMAND,test_fields_gf_local,test_fields_gf_local.in)
 endif
 endif
 endif
 
-test_fields_gf_local.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-test_fields_gf_local: test_fields_gf_local.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

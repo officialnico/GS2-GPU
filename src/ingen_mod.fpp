@@ -32,8 +32,8 @@ module ingen_mod
   implicit none
 
   public :: ingen_config_type
-  public :: set_ingen_mod_config
-  public :: get_ingen_mod_config
+  public :: set_ingen_config
+  public :: get_ingen_config
   
   character (100) :: pythonin
   integer :: interactive_record, interactive_input
@@ -113,28 +113,16 @@ module ingen_mod
 
 contains
 
-  !> FIXME : Add documentation  
-  subroutine run_ingen(ingen_config_in)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!      Main code starts here       !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Entry point: initialise needed modules, run checks, and write namelists
+  subroutine run_ingen(ingen_config_in, input_file)
     use file_utils, only: init_file_utils
     use standard_header, only: standard_header_type
     use mp, only : proc0
     implicit none
+    !> Input options. Defaults to reading the 'ingen_knobs' namelist from the input file
     type(ingen_config_type), intent(in), optional :: ingen_config_in
+    !> Filename of input file. Default is to read from the command line
+    character(len=*), intent(in), optional :: input_file
     type(standard_header_type) :: local_header
     logical :: list
     
@@ -142,7 +130,7 @@ contains
 
     local_header = standard_header_type()
 
-    call init_file_utils (list, name="template")
+    call init_file_utils (list, name="template", input_file=input_file)
     call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
@@ -802,18 +790,16 @@ contains
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
+    use gs2_time, only: init_gs2_time
     implicit none
-    logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
 
     if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
-    call init_antenna
 
-    ! run_parameters:
     call init_run_parameters
-
+    call init_gs2_time
 if (debug) write(6,*) 'get_namelists: collisions'
     call coll_read_parameters
 
@@ -833,7 +819,7 @@ if (debug) write(6,*) 'get_namelists: kt_grids'
     call init_kt_grids
 
 if (debug) write(6,*) 'get_namelists: le_grids'
-    call init_le_grids(accelx, accelv)
+    call init_le_grids
 
 if (debug) write(6,*) 'get_namelists: nonlinear terms'
     call nonlinear_terms_read_parameters
@@ -845,6 +831,8 @@ if (debug) write(6,*) 'get_namelists: init_species'
         coll_on = spec(is)%vnewk > epsilon(0.0) .or. coll_on
     end do
     coll_on = coll_on .and. (collision_model_switch /= collision_model_none)
+
+    call init_antenna
 
 !CMR, 2/2/2011:  reduce much duplication by calling init_theta_grid
 if (debug) write(6,*) 'get_namelists: call init_theta_grid, ntgrid=',ntgrid
@@ -896,6 +884,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     integer :: h, t, u
     character (4) :: suffix
+    character(len=:), allocatable :: filename
     
     if (present(header)) then
       local_header = header
@@ -911,10 +900,13 @@ if (debug) write(6,*) 'get_namelists: returning'
        t = (jr - h * 100) / 10
        u = (jr - h * 100 - t * 10)
        suffix = '_'//achar(48+h)//achar(48+t)//achar(48+u)
-       open (unit=unit, file=trim(run_name)//suffix//".in")
+       filename = trim(run_name) // suffix // ".in"
     else
-       open (unit=unit, file=trim(run_name)//".inp")
+       filename = trim(run_name) // ".inp"
     endif
+
+    open (unit=unit, file=filename)
+    write (*, *) "Writing processed input file to '" // filename // "'"
 
     write (unit, *)
 
@@ -1011,6 +1003,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
     use standard_header, only: standard_header_type
+    use file_utils, only: run_name
 
     implicit none
     !> Header for files with build and run information
@@ -1030,8 +1023,9 @@ if (debug) write(6,*) 'get_namelists: returning'
     end if
 
     call open_output_file (report_unit, ".report")
+    write (*, *) "Writing report to '" // trim(run_name) // ".report'"
 
-    write (report_unit, *) 
+    write (report_unit, *)
 
     write (report_unit, fmt='(a)') local_header%to_string(file_description="Input file report from ingen")
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
@@ -1128,26 +1122,26 @@ if (debug) write(6,*) 'get_namelists: returning'
        call nprocs (nmesh)
        if (nonlin) then
           write (report_unit, fmt="(/'Nonlinear run => consider #proc sweetspots for xxf+yxf objects!')") 
-          call nprocs_xxf(nmesh)
-          call nprocs_yxf(nmesh)
+          call nprocs_xxf()
+          call nprocs_yxf()
        endif
 
        if(use_le_layout) then
           write (report_unit, fmt="(/'Collisions using le_lo')") 
-          call nprocs_le(nmesh)
+          call nprocs_le()
        else
           select case (collision_model_switch)
           case (collision_model_full)
              write (report_unit, fmt="(/'Collisions using lz_lo')") 
-             call nprocs_lz(nmesh)
+             call nprocs_lz()
              write (report_unit, fmt="(/'Collisions using e_lo')") 
-             call nprocs_e(nmesh)
+             call nprocs_e()
           case(collision_model_lorentz,collision_model_lorentz_test)
              write (report_unit, fmt="(/'Collisions using lz_lo')") 
-             call nprocs_lz(nmesh)
+             call nprocs_lz()
           case (collision_model_ediffuse)
              write (report_unit, fmt="(/'Collisions using e_lo')") 
-             call nprocs_e(nmesh)
+             call nprocs_e()
           end select
        end if
     endif
@@ -1300,7 +1294,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine wsweetspots
 
   !> FIXME : Add documentation  
-  subroutine nprocs_xxf(nmesh)
+  subroutine nprocs_xxf()
     use nonlinear_terms, only : nonlin
     use species, only : nspec
     use kt_grids, only: naky
@@ -1308,7 +1302,6 @@ if (debug) write(6,*) 'get_namelists: returning'
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nlfacs, nkyfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1347,7 +1340,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_xxf
 
   !> FIXME : Add documentation    
-  subroutine nprocs_yxf(nmesh)
+  subroutine nprocs_yxf()
     use nonlinear_terms, only : nonlin
     use species, only : nspec
     use kt_grids, only: naky, nx
@@ -1356,7 +1349,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nlfacs, nkxfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1395,7 +1387,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_yxf
 
   !> FIXME : Add documentation  
-  subroutine nprocs_e(nmesh)
+  subroutine nprocs_e()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda
@@ -1403,7 +1395,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nlfacs, nkxfacs, nkyfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1455,7 +1446,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_e
 
   !> FIXME : Add documentation  
-  subroutine nprocs_lz(nmesh)
+  subroutine nprocs_lz()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid
@@ -1463,7 +1454,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nkxfacs, nkyfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1508,13 +1498,12 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_lz
 
   !> FIXME : Add documentation  
-  subroutine nprocs_le(nmesh)
+  subroutine nprocs_le()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nkxfacs, nkyfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -2423,7 +2412,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
   !> inconsistencies.
-  subroutine set_ingen_mod_config(ingen_config_in)
+  subroutine set_ingen_config(ingen_config_in)
     use mp, only: mp_abort
     type(ingen_config_type), intent(in), optional :: ingen_config_in
     if (initialized) then
@@ -2432,112 +2421,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     if (present(ingen_config_in)) then
        ingen_config = ingen_config_in
     end if
-  end subroutine set_ingen_mod_config
+  end subroutine set_ingen_config
 
-  !> Get the module level config instance
-  function get_ingen_mod_config()
-    type(ingen_config_type) :: get_ingen_mod_config
-    get_ingen_mod_config = ingen_config
-  end function get_ingen_mod_config
-
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-  
-  !> Reads in the ingen_knobs namelist and populates the member variables
-  subroutine read_ingen_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(ingen_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
-    integer :: ncut, npmax
-    logical :: scan, stdin
-
-    namelist /ingen_knobs/ ncut, npmax, scan, stdin
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    ncut = self%ncut
-    npmax = self%npmax
-    scan = self%scan
-    stdin = self%stdin
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = ingen_knobs)
-
-    ! Now copy from local variables into type members
-    self%ncut = ncut
-    self%npmax = npmax
-    self%scan = scan
-    self%stdin = stdin
-
-    self%exist = exist
-  end subroutine read_ingen_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_ingen_config(self, unit)
-    implicit none
-    class(ingen_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("ncut", self%ncut, unit_internal)
-    call self%write_key_val("npmax", self%npmax, unit_internal)
-    call self%write_key_val("scan", self%scan, unit_internal)
-    call self%write_key_val("stdin", self%stdin, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_ingen_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_ingen_config(self)
-    class(ingen_config_type), intent(in out) :: self
-    type(ingen_config_type) :: empty
-    select type (self)
-    type is (ingen_config_type)
-       self = empty
-    end select
-  end subroutine reset_ingen_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_ingen_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(ingen_config_type), intent(in out) :: self
-    call broadcast(self%ncut)
-    call broadcast(self%npmax)
-    call broadcast(self%scan)
-    call broadcast(self%stdin)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_ingen_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_ingen_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_ingen_config
-    get_default_name_ingen_config = "ingen_knobs"
-  end function get_default_name_ingen_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_ingen_config()
-    implicit none
-    logical :: get_default_requires_index_ingen_config
-    get_default_requires_index_ingen_config = .false.
-  end function get_default_requires_index_ingen_config
+#include "ingen_auto_gen.inc"  
 end module ingen_mod
