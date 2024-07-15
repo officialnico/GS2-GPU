@@ -351,8 +351,8 @@ contains
           alloc = .false.
        end if
 
-       cfly = (aky(naky)/cfl)*0.5
-       cflx = (akx((ntheta0+1)/2)/cfl)*0.5
+       cfly = maxval(aky) * 0.5 / cfl
+       cflx = maxval(akx) * 0.5 / cfl
     end if
 
   end subroutine init_nonlinear_terms
