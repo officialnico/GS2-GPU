@@ -792,7 +792,7 @@ contains
     use constants, only: zi
     use unit_tests, only: debug_message
     use optionals, only: get_option_with_default
-    use array_utils, only: copy
+    use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
@@ -819,10 +819,10 @@ contains
     !Transform to real space
     if (accelerated) then
        call transform2 (g1, aba)
-       max_vel_x = maxval(abs(aba))
+       max_vel_x = gs2_max_abs(aba)
     else
        call transform2 (g1, ba)
-       max_vel_x = maxval(abs(ba))
+       max_vel_x = gs2_max_abs(ba)
     end if
     max_vel_x = max_vel_x * cflx
 
@@ -866,10 +866,10 @@ contains
     !Transform to real space    
     if (accelerated) then
        call transform2 (g1, aba)
-       max_vel_y = maxval(abs(aba))
+       max_vel_y = gs2_max_abs(aba)
     else
        call transform2 (g1, ba)
-       max_vel_y = maxval(abs(ba))
+       max_vel_y = gs2_max_abs(ba)
     end if
     max_vel_y = max_vel_y * cfly
 
