@@ -471,7 +471,6 @@ contains
        return
     endif
 
-
     !
     ! @todo Currently not self-starting.  Need to fix this.
     !
@@ -819,12 +818,12 @@ contains
     !Transform to real space
     if (accelerated) then
        call transform2 (g1, aba)
-       max_vel_x = gs2_max_abs(aba)
+       max_vel_y = gs2_max_abs(aba)
     else
        call transform2 (g1, ba)
-       max_vel_x = gs2_max_abs(ba)
+       max_vel_y = gs2_max_abs(ba)
     end if
-    max_vel_x = max_vel_x * cflx
+    max_vel_y = max_vel_y * cfly
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
@@ -866,12 +865,12 @@ contains
     !Transform to real space    
     if (accelerated) then
        call transform2 (g1, aba)
-       max_vel_y = gs2_max_abs(aba)
+       max_vel_x = gs2_max_abs(aba)
     else
        call transform2 (g1, ba)
-       max_vel_y = gs2_max_abs(ba)
+       max_vel_x = gs2_max_abs(ba)
     end if
-    max_vel_y = max_vel_y * cfly
+    max_vel_x = max_vel_x * cflx
 
     !Form g1=i*kx*g_wesson noting that g2 holds our starting g_wesson
 
