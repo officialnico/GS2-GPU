@@ -60,24 +60,21 @@ USE_LOCAL_RAN ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
-# Does this compiler support f2008 compiler_version and compiler_options
-GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
-# Use nag libraray (spfunc,undefined)
-USE_NAGLIB ?=
 # Use openmp (very limited use currently)
 USE_OPENMP ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
-# TODO : Rename USE_EIG for consistency
+USE_EIG ?=
+# Deprecated form
 WITH_EIG ?=
+USE_FIELDS_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
-HAS_GCOV=$(USE_GCOV)
 # Name of python exe
 GS2_PYTHON_NAME ?= python3
 # Name of pytest executable
@@ -86,8 +83,6 @@ GS2_PYTEST_NAME ?= pytest
 GS2_BUILD_TAG ?= None
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
-# Does the compiler version support the iso_c_binding features of Fortran?
-HAS_ISO_C_BINDING ?= on
 # If on, build with position independent code, needed if GS2 is going to be included
 # in a shared library or linked dynamically
 # This *may* have performance implications, but it hasn't been tested yet.
@@ -220,6 +215,8 @@ GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
 NEASYF := $(EXTERNALDIR)/neasyf/src
 
+AUTO_GEN_CONFIG_DIR:= $(SRCDIR)/config_auto_gen
+
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
 TEST_RESULT_DIR:= $(GK_HEAD_DIR)/test-results
@@ -230,7 +227,7 @@ PATCHFILE:= .patch.make
 
 ######################################################### PLATFORM DEPENDENCE
 
-# compile mode switches (DEBUG, TEST, PROF, OPT, STATIC, DBLE)
+# compile mode switches (DEBUG, PROF, OPT, STATIC, DBLE)
 # must be set before loading Makefile.$(GK_SYSTEM) because they may affect
 # compiler options.
 
@@ -335,7 +332,9 @@ else
 $(warning Could not find Python, looking for '$(GS2_PYTHON_NAME)'. \
 You will not be able to generate some files, or run some tests. \
 Please make sure '$(GS2_PYTHON_NAME)' is in your '$$PATH', or set \
-"GS2_PYTHON_NAME" to the correct name of the Python executable on your system)
+"GS2_PYTHON_NAME" to the correct name of the Python executable on your system.\
+Python will soon become a hard-dependency to build GS2.
+)
 endif
 
 PYTEST := $(shell which $(GS2_PYTEST_NAME) 2>/dev/null)
@@ -384,10 +383,6 @@ endif
 
 ifeq ($(USE_MPI),mpi3)
 	MACRO_DEFS += -DMPI3
-endif
-
-ifdef HAS_ISO_C_BINDING
-	MACRO_DEFS += -DISO_C_BINDING
 endif
 
 ifeq ($(USE_NEW_DIAG),on)
@@ -461,29 +456,6 @@ ifdef USE_F200X_INTRINSICS
 else
 	ifdef USE_LOCAL_SPFUNC
 		MACRO_DEFS += -DSPFUNC=_SPLOCAL_
-	else
-		ifeq ($(findstring spfunc,$(USE_NAGLIB)),spfunc)
-			MACRO_DEFS += -DSPFUNC=_SPNAG_
-		endif
-	endif
-endif
-
-ifdef GK_HAS_COMPILER_OPTIONS_2008 #Is this required now?
-	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
-endif
-
-ifdef USE_NAGLIB
-	ifeq ($(NAG_PREC),dble)
-		ifndef DBLE
-$(warning Precision mismatch with NAG libarray)	
-		endif
-		MACRO_DEFS += -DNAG_PREC=_NAGDBLE_
-	endif
-	ifeq ($(NAG_PREC),sngl)
-		ifdef DBLE
-$(warning Precision mismatch with NAG libarray)	
-		endif
-		MACRO_DEFS += -DNAG_PREC=_NAGSNGL_
 	endif
 endif
 
@@ -503,8 +475,17 @@ LOWFLOW is deprecated in 8.2 and will be removed in the future\
 $(shell echo -e "$(C_END)"))
 endif
 
-#Setup the flags for using the eigensolver
+#Support old deprecated option
 ifdef WITH_EIG
+$(warning WITH_EIG is deprecated, set USE_EIG instead. Forcing USE_EIG=on.)
+	USE_EIG := on
+endif
+
+#Setup the flags for using the eigensolver
+ifdef USE_EIG
+ifdef USE_FIELDS_EIG
+	MACRO_DEFS += -DFIELDS_EIG
+endif
 	EIG_INC += -I$(PETSC_DIR)/include -I$(SLEPC_DIR)/include
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
@@ -537,36 +518,40 @@ MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
 
 ############################################################################# Done dealing with user flags
 
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
-		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
-INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
-		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
+ALL_SOURCE_FILES := $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
 
-INCLUDES += -I$(MODDIR)
-
-# Here we attempt to remove non-existent directories from INCLUDES. We assume that
-# INCLUDES is currently just a list of entries of the form -I<some directory> so for
-# each entry we strip the -I and then echo -I<some directory> if <some directory> is
-# found to exist. This can help avoid warnings about non-existent directories
-INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
-
-F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
-F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
-FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
-
-VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
-# this just removes non-existing directory from VPATH
-VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
-VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF)
+DEFAULT_INC_LIST := $(UTILS) $(GEO) $(NEASYF) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
 # when linking gs2 at bassi (RS6000 with xl fortran)
 DEFAULT_INC:=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
 DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
+
+LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
+		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
+		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
+INCLUDES += -I$(MODDIR)
+
+# Here we attempt to remove non-existent directories from INCLUDES. We assume that
+# INCLUDES is currently just a list of entries of the form -I<some directory> so for
+# each entry we strip the -I and then echo -I<some directory> if <some directory> is
+# found to exist. This can help avoid warnings about non-existent directories
+INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^ *-I//g') ] && echo $(tmpvp) ))
+
+F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
+F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
+FPPFLAGS += $(MACRO_DEFS)
+
+VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
+# this just removes non-existing directory from VPATH
+VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
+VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
@@ -588,11 +573,6 @@ $(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_as
 endif
 endif
 
-# list of intermediate f90 files generated by preprocessor
-FPPFILES = $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
-FPPFILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
-F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsubst %.fpp,%.f90,$(notdir $(FPPFILES)))))
-
 ####################################################################### RULES
 
 .SUFFIXES:
@@ -603,7 +583,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .PHONY: doc check_ford_install namelist_doc clean_namelist_doc cleandoc
 
 ####################################################################### Source code targets
-$(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
+$(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR) $(AUTO_GEN_CONFIG_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
 %.o : %.pf
@@ -618,8 +598,6 @@ $(info Alternatively you may simply remove the corresponding '$(GENERATED_SRC_DI
 #Special interim handling for cray which will only preprocess files
 #with a limited set of suffixes (including F90). Here we just copy
 #our source files to GENERATED_SRC_DIR with a F90 extension
-# Ensure we can include .inc files from SRCDIR
-F90FLAGS+=-I$(SRCDIR)
 # Keep the F90 files in GENERATED_SRC_DIR
 .PRECIOUS: $(GENERATED_SRC_DIR)/%.F90
 # Define rules for copying. Important that fpp is before f90
@@ -681,20 +659,29 @@ depend: $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_
 		$(VPATH) --generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 
-# Dump the compilation flags to a file, so we can check if they change between
-# invocations of `make`. The `cmp` bit checks if the file contents
-# change. Adding a dependency of a file on `compiler_flags` causes it to be
-# rebuilt when the flags change. Taken from
-# https://stackoverflow.com/a/3237349/2043465
-COMPILER_FLAGS_CONTENTS = "$(GIT_VERSION)"
+# Previously we dumpe dthe compilation flags to a file, so we can
+# check if they change between invocations of `make`. The `cmp` bit
+# checks if the file contents change. Adding a dependency of a file on
+# `compiler_flags` causes it to be rebuilt when the flags
+# change. Taken from https://stackoverflow.com/a/3237349/2043465
+# Now we just store the git version and use that to trigger a rebuild of git_hash.o
+GIT_VERSION_CONTENTS = "$(GIT_VERSION)"
 .PHONY: force
-compiler_flags: force
-	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+git_version: force
+	$(QUIETSYM)echo -e $(GIT_VERSION_CONTENTS) | cmp -s - $@ || echo -e $(GIT_VERSION_CONTENTS) > $@
 
-# Things that should be rebuilt if the compilation flags change (for example, on
-# a new commit). Files that get preprocessed need either the object file or the
-# preprocessed file to depend on compiler_flags
-$(OBJDIR)/git_hash.o: compiler_flags
+# Things that should be rebuilt if the git version changes (for example, on
+# a new commit). The object file should depend on git_version
+$(OBJDIR)/git_hash.o: git_version
+
+.PHONY: config_auto_gen
+ifeq ($(GS2_HAS_PYTHON),yes)
+config_auto_gen: |$(AUTO_GEN_CONFIG_DIR)
+	$(call messageInfo,"Generating config object boilerplate.")
+	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/config_generation.py --include-only --target-dir $(AUTO_GEN_CONFIG_DIR)
+else
+config_auto_gen:
+endif
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
@@ -704,7 +691,7 @@ all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
-DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help config_auto_gen clean_auto_gen_config
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
 # We achieve that using filter-out. Because we also want to be able to build when the user
@@ -738,7 +725,7 @@ system_config:
 endif
 
 ############################################################# Cleanup targets
-clean: cleanobjs cleanpreprocess
+clean: cleanobjs
 
 cleanobjs:
 	$(call messageRm,"Object and module files")
@@ -748,10 +735,6 @@ cleandirs:
 	$(call messageRm,"Directories")
 	-$(QUIETSYM)rm -rf $(MODDIR) $(OBJDIR) $(BINDIR) $(LIBDIR) $(GENERATED_SRC_DIR) $(COVERAGE_DIR) $(TEST_RESULT_DIR)
 
-cleanpreprocess:
-	$(call messageRm,"Preprocessed files")
-	-$(QUIETSYM)rm -f $(F90FROMFPP)
-
 cleanlib:
 	$(call messageRm,"Libraries")
 	-$(QUIETSYM)rm -f $(LIBDIR)/*.a
@@ -759,6 +742,10 @@ cleanlib:
 cleanconfig:
 	$(call messageRm,"System config")
 	-$(QUIETSYM)rm -f system_config .tmp_output
+
+clean_auto_gen_config:
+	$(call messageRm,"Auto-generated config boilerplate")
+	-$(QUIETSYM)rm -rf $(AUTO_GEN_CONFIG_DIR)
 
 clean_depend:
 	$(call messageRm,"Dependency file")	
@@ -817,7 +804,6 @@ test_make:
 	$(call messageInfo,"Compilation mode:")
 	$(call messageKeyVal, "DEBUG", $(DEBUG))
 	$(call messageKeyVal, "SCAL", $(SCAL))
-	$(call messageKeyVal, "TEST", $(TEST))
 	$(call messageKeyVal, "PROF", $(PROF))
 	$(call messageKeyVal, "OPT", $(OPT))
 	$(call messageKeyVal, "STATIC", $(STATIC))
@@ -831,11 +817,10 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_PARALLEL_NETCDF", $(USE_PARALLEL_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
-	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
+	$(call messageKeyVal, "USE_EIG", $(USE_EIG))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
-	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
-	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
+	$(call messageKeyVal, "USE_LOCAL_SPFUNC", $(USE_LOCAL_SPFUNC))
 	$(call messageKeyVal, "USE_NEW_DIAG", $(USE_NEW_DIAG))
 	$(call messageKeyVal, "USE_GCOV", $(USE_GCOV))
 	@echo
@@ -861,8 +846,6 @@ test_make:
 	$(call messageKeyVal, "GENERATED_SRC_DIR", $(GENERATED_SRC_DIR))
 	$(call messageKeyVal, "COVERAGE_DIR", $(COVERAGE_DIR))
 	$(call messageKeyVal, "TEST_RESULT_DIR", $(TEST_RESULT_DIR))
-	$(call messageKeyVal, "FPPFILES", $(FPPFILES))
-	$(call messageKeyVal, "F90FROMFPP", $(F90FROMFPP))
 	@echo
 	$(call messageInfo,"PYTHON:")
 	$(call messageKeyVal, "GS2_HAS_PYTHON", $(GS2_HAS_PYTHON))
@@ -908,7 +891,7 @@ else
 	$(call messageInfo,"FFT: DISABLED")
 endif
 	@echo
-ifdef WITH_EIG
+ifdef USE_EIG
 	$(call messageInfo,"Eigensolver:")
 	$(call messageKeyVal, "EIG_LIB", $(EIG_LIB))
 	$(call messageKeyVal, "EIG_INC", $(EIG_INC))
@@ -932,7 +915,7 @@ revision:
 #It would be nice to provide a default helplocal target that just says no help available
 help: helplocal
 
-TAGS: $(FPPFILES) $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+TAGS: $(ALL_SOURCE_FILES)
 	$(QUIETSYM)etags $^
 
 ############################################################# Documentation

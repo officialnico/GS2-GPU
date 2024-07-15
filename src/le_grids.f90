@@ -164,6 +164,9 @@ module le_grids
      integer :: ngauss = 5
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
+     !> When using high ntheta with new_trap_int active it is possible
+     !> that numerical instability can arise. Dropping nmax < ntheta
+     !> can sometimes help in such situations.
      integer :: nmax = 500
      !> The default lambda grid is now gauss-radau, for passing
      !> particles up to and including the passing-trapped boundary
@@ -559,7 +562,7 @@ contains
 
   end subroutine init_weights
 
-  !> The get_weights subroutine determines how to divide up the integral into 
+  !> The get_weights subroutine determines how to divide up the integral into
   !> subintervals and how many grid points should be in each subinterval
   subroutine get_weights (maxpts_in, llim, ulim, nodes, wgts, ndiv, divmax, err_flag)
     implicit none
@@ -573,90 +576,95 @@ contains
     integer, dimension (:), allocatable :: divpts
     real :: wgt_max
 
-! npts is the number of grid points in the integration interval
+    err_flag = .false.
+
+    ! npts is the number of grid points in the integration interval
     npts = size(nodes)
 
-    wgts = 0.0; epts = npts; basepts = nmax; divrmndr = 0; ndiv = 1; divmax = npts
-
-! maxpts is the max number of pts in an integration subinterval
-    maxpts = min(maxpts_in,npts)
+    ! maxpts is the max number of pts in an integration subinterval. It
+    ! is the lower of npts and maxpts_in (which in practice is always
+    ! the input nmax).
+    maxpts = min(maxpts_in, npts)
 
     do
+       wgts = 0.0; divmax = npts
+       wgt_max = abs(ulim - llim) * wgt_fac / npts
 
-!       wgt_max = wgt_fac/maxpts
-       wgt_max = abs(ulim-llim)*wgt_fac/npts
-
-! only need to subdivide integration interval if maxpts < npts
-       if (maxpts .ge. npts) then
+       ! only need to subdivide integration interval if maxpts < npts
+       ! This will be the typical case unless nmax < ntheta.
+       if (maxpts >= npts) then
           call get_intrvl_weights (llim, ulim, nodes, wgts)
        else
-          rmndr = mod(npts-maxpts,maxpts-1)
-          
-! if rmndr is 0, then each subinterval contains maxpts pts
+          rmndr = mod(npts - maxpts, maxpts - 1)
+
+          ! if rmndr is 0, then each subinterval contains maxpts pts
           if (rmndr == 0) then
-! ndiv is the number of subintervals
-             ndiv = (npts-maxpts)/(maxpts-1) + 1
+             ! ndiv is the number of subintervals
+             ndiv = (npts - maxpts) / (maxpts - 1) + 1
              allocate (divpts(ndiv))
-! divpts is an array containing the # of pts for each subinterval
+             ! divpts is an array containing the number of pts for each subinterval
              divpts = maxpts
           else
-             ndiv = (npts-maxpts)/(maxpts-1) + 2
+             ndiv = (npts - maxpts) / (maxpts - 1) + 2
              allocate (divpts(ndiv))
-! epts is the effective number of pts after taking into account double
-! counting of some grid points (those that are boundaries of subintervals
-! are used twice)
+             ! epts is the effective number of pts after taking into account double
+             ! counting of some grid points (those that are boundaries of subintervals
+             ! are used twice)
              epts = npts + ndiv - 1
-             basepts = epts/ndiv
-             divrmndr = mod(epts,ndiv)
-             
-! determines if all intervals have same # of pts
+             basepts = epts / ndiv
+             divrmndr = mod(epts, ndiv)
+
+             ! determines if all intervals have same number of pts
              if (divrmndr == 0) then
                 divpts = basepts
              else
+                ! First divrmndr intervals get one extra point each
                 divpts(:divrmndr) = basepts + 1
                 divpts(divrmndr+1:) = basepts
              end if
           end if
-          
+
           base_idx = 0
-          
-! loop calls subroutine to get weights for each subinterval
-          do idiv=1,ndiv
+
+          ! loop calls subroutine to get weights for each subinterval
+          do idiv = 1, ndiv
              if (idiv == 1) then
                 call get_intrvl_weights (llim, nodes(base_idx+divpts(idiv)), &
-                     nodes(base_idx+1:base_idx+divpts(idiv)),wgts(base_idx+1:base_idx+divpts(idiv)))
+                     nodes(base_idx+1:base_idx+divpts(idiv)), &
+                     wgts(base_idx+1:base_idx+divpts(idiv)))
              else if (idiv == ndiv) then
                 call get_intrvl_weights (nodes(base_idx+1), ulim, &
-                     nodes(base_idx+1:base_idx+divpts(idiv)),wgts(base_idx+1:base_idx+divpts(idiv)))
+                     nodes(base_idx+1:base_idx+divpts(idiv)), &
+                     wgts(base_idx+1:base_idx+divpts(idiv)))
              else
                 call get_intrvl_weights (nodes(base_idx+1), nodes(base_idx+divpts(idiv)), &
-                     nodes(base_idx+1:base_idx+divpts(idiv)),wgts(base_idx+1:base_idx+divpts(idiv)))
+                     nodes(base_idx+1:base_idx+divpts(idiv)), &
+                     wgts(base_idx+1:base_idx+divpts(idiv)))
              end if
              base_idx = base_idx + divpts(idiv) - 1
           end do
-          
-          divmax = maxval(divpts)
 
+          divmax = maxval(divpts)
           deallocate (divpts)
        end if
 
-       ! check to make sure the weights do not get too large
-       ! @Warning: This looks a bit unusual -- we're taking the magnitude of
-       ! the maximum value, whilst usually we would find the maximum value of
-       ! the magnitude.
-       if (abs(maxval(wgts)) .gt. wgt_max) then
-          if (maxpts .lt. 3) then
+       ! check to make sure the weights do not get too large @Warning:
+       ! This looks a bit unusual -- we're taking the magnitude of the
+       ! maximum value, whilst usually we would find the maximum value
+       ! of the magnitude.
+       if (abs(maxval(wgts)) > wgt_max) then
+          if (maxpts < 3) then
+             ! If we can't split any more then set the error flag and leave.
              err_flag = .true.
              exit
           end if
+          ! Otherwise we can reduce the allowed number of points per interval
+          ! by one and try again.
           maxpts = divmax - 1
        else
           exit
        end if
-
-       wgts = 0.0; epts = npts; divrmndr = 0; basepts = nmax
     end do
-
   end subroutine get_weights
 
   !> Used by [[get_weights]] to find the Lagrange quadrature weights for the given grid.
@@ -4504,166 +4512,7 @@ contains
     end if
   end subroutine set_le_grids_config
 
-  !> Get the module level config instance
-  function get_le_grids_config()
-    type(le_grids_config_type) :: get_le_grids_config
-    get_le_grids_config = le_grids_config
-  end function get_le_grids_config
-
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-  
-  !> Reads in the le_grids_knobs namelist and populates the member variables
-  subroutine read_le_grids_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(le_grids_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: wfbbc_option
-    integer :: negrid, nesub, nesuper, ngauss, nmax
-    logical :: genquad, new_trap_int, new_trap_int_split, radau_gauss_grid, split_passing_region, test, trapped_particles
-    real :: bouncefuzz, vcut, wgt_fac
-
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    bouncefuzz = self%bouncefuzz
-    genquad = self%genquad
-    negrid = self%negrid
-    nesub = self%nesub
-    nesuper = self%nesuper
-    new_trap_int = self%new_trap_int
-    new_trap_int_split = self%new_trap_int_split
-    npassing = self%npassing
-    ngauss = self%ngauss
-    nmax = self%nmax
-    radau_gauss_grid = self%radau_gauss_grid
-    split_passing_region = self%split_passing_region
-    test = self%test
-    trapped_particles = self%trapped_particles
-    vcut = self%vcut
-    wfbbc_option = self%wfbbc_option
-    wgt_fac = self%wgt_fac
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = le_grids_knobs)
-
-    ! Now copy from local variables into type members
-    self%bouncefuzz = bouncefuzz
-    self%genquad = genquad
-    self%negrid = negrid
-    self%nesub = nesub
-    self%nesuper = nesuper
-    self%new_trap_int = new_trap_int
-    self%new_trap_int_split = new_trap_int_split
-    self%npassing = npassing
-    self%ngauss = ngauss
-    self%nmax = nmax
-    self%radau_gauss_grid = radau_gauss_grid
-    self%split_passing_region = split_passing_region
-    self%test = test
-    self%trapped_particles = trapped_particles
-    self%vcut = vcut
-    self%wfbbc_option = wfbbc_option
-    self%wgt_fac = wgt_fac
-
-    self%exist = exist
-  end subroutine read_le_grids_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_le_grids_config(self, unit)
-    implicit none
-    class(le_grids_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("bouncefuzz", self%bouncefuzz, unit_internal)
-    call self%write_key_val("genquad", self%genquad, unit_internal)
-    call self%write_key_val("negrid", self%negrid, unit_internal)
-    call self%write_key_val("nesub", self%nesub, unit_internal)
-    call self%write_key_val("nesuper", self%nesuper, unit_internal)
-    call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
-    call self%write_key_val("new_trap_int_split", self%new_trap_int_split, unit_internal)
-    call self%write_key_val("npassing", self%npassing, unit_internal)
-    call self%write_key_val("ngauss", self%ngauss, unit_internal)
-    call self%write_key_val("nmax", self%nmax, unit_internal)
-    call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
-    call self%write_key_val("split_passing_region", self%split_passing_region, unit_internal)
-    call self%write_key_val("test", self%test, unit_internal)
-    call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
-    call self%write_key_val("vcut", self%vcut, unit_internal)
-    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
-    call self%write_key_val("wgt_fac", self%wgt_fac, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_le_grids_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_le_grids_config(self)
-    class(le_grids_config_type), intent(in out) :: self
-    type(le_grids_config_type) :: empty
-    select type (self)
-    type is (le_grids_config_type)
-       self = empty
-    end select
-  end subroutine reset_le_grids_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_le_grids_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(le_grids_config_type), intent(in out) :: self
-    call broadcast(self%bouncefuzz)
-    call broadcast(self%genquad)
-    call broadcast(self%negrid)
-    call broadcast(self%nesub)
-    call broadcast(self%nesuper)
-    call broadcast(self%new_trap_int)
-    call broadcast(self%new_trap_int_split)
-    call broadcast(self%npassing)
-    call broadcast(self%ngauss)
-    call broadcast(self%nmax)
-    call broadcast(self%radau_gauss_grid)
-    call broadcast(self%split_passing_region)
-    call broadcast(self%test)
-    call broadcast(self%trapped_particles)
-    call broadcast(self%vcut)
-    call broadcast(self%wfbbc_option)
-    call broadcast(self%wgt_fac)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_le_grids_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_le_grids_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_le_grids_config
-    get_default_name_le_grids_config = "le_grids_knobs"
-  end function get_default_name_le_grids_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_le_grids_config()
-    implicit none
-    logical :: get_default_requires_index_le_grids_config
-    get_default_requires_index_le_grids_config = .false.
-  end function get_default_requires_index_le_grids_config
+#include "le_grids_auto_gen.inc"
 end module le_grids
 
 

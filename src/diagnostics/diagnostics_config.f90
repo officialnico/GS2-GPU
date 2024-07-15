@@ -3,7 +3,7 @@
 module diagnostics_config
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use diagnostics_ascii, only: diagnostics_ascii_type
-  use diagnostics_base_config, only: diagnostics_base_config_type
+  use diagnostics_base_configuration, only: diagnostics_base_config_type
   implicit none
 
   private
@@ -155,6 +155,7 @@ module diagnostics_config
      logical :: save_glo_info_and_grids
      logical :: save_velocities
      logical :: write_zonal_transfer
+     logical :: write_kinetic_energy_transfer
      logical :: write_collisional
      logical :: write_omavg
      logical :: ob_midplane
@@ -264,7 +265,7 @@ contains
   end subroutine apply_new_defaults
 
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
-    use diagnostics_base_config, only: warn_about_nonfunctional_selection
+    use diagnostics_base_configuration, only: warn_about_nonfunctional_selection
     use nonlinear_terms, only: nonlin
     use collisions, only: use_le_layout
     implicit none
@@ -355,6 +356,7 @@ contains
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
     gnostics%write_jext = new_gs2_diagnostics_config%write_jext
+    gnostics%write_kinetic_energy_transfer = new_gs2_diagnostics_config%write_kinetic_energy_transfer
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian

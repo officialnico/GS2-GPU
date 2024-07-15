@@ -79,7 +79,7 @@ module dist_fn
   public :: gf_lo_integrate
   public :: calculate_flux_surface_average
 
-  public :: calculate_potentials_from_nonadiabatic_dfn
+  public :: calculate_potentials_from_nonadiabatic_dfn, get_fields_direct_from_dfn
   public :: flux_tube_field_like_to_ballooning_space
   public :: check_linked_boundaries_are_satisfied
 
@@ -2157,7 +2157,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_source_term
-    use dist_fn_arrays, only: vpac, aj0, wstar
+    use dist_fn_arrays, only: vpac, aj0
     use run_parameters, only: has_apar, fapar
     use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
@@ -2168,6 +2168,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
 #ifdef LOWFLOW
     use lowflow, only: vparterm, wdfac, wstarfac
+#else
+    use dist_fn_arrays, only: wstar
 #endif
     implicit none
     integer :: iglo
@@ -3928,7 +3930,9 @@ contains
     use dist_fn_arrays, only: antot, antota, antotp
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use gs2_layouts, only: g_lo
+#ifndef LOWFLOW
     use nonlinear_terms, only: nonlin, split_nonlinear
+#endif
     use run_parameters, only: has_apar
     use array_utils, only: zero_array
 #ifdef SHMEM
@@ -4012,7 +4016,7 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn
+    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn, strang_split
     use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit, nonlin
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
@@ -4026,18 +4030,29 @@ contains
     integer, optional, intent (in) :: mode
     integer, save :: istep_last = -1
     integer, parameter :: verb = 3
+    logical :: is_first_half_step, is_second_half_step
+    real :: nl_dt
+
+    is_first_half_step = istep /= istep_last
+    is_second_half_step = istep == istep_last
+
+    if (strang_split) then
+       nl_dt = code_dt * 0.5
+    else
+       nl_dt = code_dt
+    end if
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
-       ! If we're starting a new full step then advance just the nonlinear term
-       ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) then
+       ! If we're starting a new full step then advance just the
+       ! nonlinear term by nl_dt.
+       if (is_first_half_step .and. istep > 0) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, nl_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, nl_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
@@ -4074,8 +4089,29 @@ contains
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
     if (def_parity) call enforce_parity(parity_redist)
-      
-    istep_last=istep
+
+    !Calculate the explicit nonlinear terms
+    if (split_nonlinear .and. nonlin .and. strang_split) then
+       ! If we're finishing a full step then advance just the nonlinear term
+       ! by nl_dt.
+       if (is_second_half_step .and. istep > 0) then
+          if (advance_nonadiabatic_dfn) then
+             call advance_nonlinear_term(gnew, istep, phinew, aparnew, bparnew, nl_dt, &
+                  calculate_potentials_from_nonadiabatic_dfn, &
+                  calculate_current_nl_source_and_cfl_limit)
+          else
+             call advance_nonlinear_term(gnew, istep, phinew, aparnew, bparnew, nl_dt, &
+                  get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
+          end if
+          ! It is not unreasonable to expect that calculating the
+          ! consistent fields from the current state is reasonable
+          ! however, in test case find better agreement by not
+          ! doing the following.
+          ! call get_init_field(phinew, aparnew, bparnew)
+       end if
+    end if
+
+    istep_last = istep
 
   end subroutine timeadv
 
@@ -4093,7 +4129,7 @@ contains
   !!  Author : Joseph Parker, STFC
   subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, mode)
     use collisions, only: split_collisions
-    use dist_fn_arrays, only: gnew, g, g_work
+    use dist_fn_arrays, only: gnew, g, g_work, g_adjust, to_g_gs2, from_g_gs2
     use le_derivatives, only: vspace_derivatives
     use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
@@ -4110,9 +4146,24 @@ contains
     call debug_message(verb, &
       'dist_fn::collisions_advance calculated collisions etc')
 
-    !Find fields for new distribution function
-    call get_init_field (phinew, aparnew, bparnew)
-
+    !Find fields for new distribution function -- we first convert from
+    !g to h. This is motivated by the following:
+    ! 1. On entry to vspace_derivatives we have gnew, phinew and bparnew
+    !    from the collisions time advance. These are consistent.
+    ! 2. We then obtain h from these and apply collisions to h.
+    ! 3. On exit from vspace_derivatives we then adjust h->gnew
+    !    again. However, this uses the collisionless fields. This is either
+    !    not consistent (and as such we're effectively changing h when we resolve
+    !    for the fields) _or_ our fields are totally unchanged. If the latter then
+    !    we don't need the following field calculation as we expect it to return
+    !    identical fields. If the former then we need to solve for the new fields
+    !    directly from h.
+    ! We could save two g_adjust calls (the one on exit from vspace_derivatives and
+    ! the first one below). Probably easiest to achieve this with an optional argument
+    ! to vspace_derivatives.
+    call g_adjust(gnew, phinew, bparnew, from_g_gs2)
+    call calculate_potentials_from_nonadiabatic_dfn(gnew, phinew, aparnew, bparnew)
+    call g_adjust(gnew, phinew, bparnew, to_g_gs2)
   end subroutine collisions_advance
 
 ! communication initializations for exb_shear should be done once and 
@@ -5085,7 +5136,7 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
         ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
-    use lowflow, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
+    use lowflow, only: hneoc, wdttpfac
 #endif
     use dist_fn_arrays, only: aj0, aj1, vperp2, g, wstar
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
@@ -5314,7 +5365,9 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients
+#ifndef LOWFLOW
     use nonlinear_terms, only: nonlin, split_nonlinear
+#endif
     use kt_grids, only: kwork_filter
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: source
@@ -8004,449 +8057,7 @@ contains
     end if    
   end subroutine set_dist_fn_config   
 
-  !> Get the module level config instance
-  function get_dist_fn_config()
-    type(dist_fn_config_type) :: get_dist_fn_config
-    get_dist_fn_config = dist_fn_config
-  end function get_dist_fn_config
-
-  !> Get the module level config instance
-  function get_dist_fn_species_config()
-    type(dist_fn_species_config_type), allocatable :: get_dist_fn_species_config(:)
-    if (allocated(dist_fn_species_config)) then
-      get_dist_fn_species_config = dist_fn_species_config
-    else
-      allocate(get_dist_fn_species_config(0))
-    end if
-  end function get_dist_fn_species_config
-
-  !> Get the module level config instance
-  function get_source_config()
-    type(source_config_type) :: get_source_config
-    get_source_config = source_config
-  end function get_source_config
-
-  !---------------------------------------
-  ! Following is for the dist_fn config_type
-  !---------------------------------------
-  
-  !> Reads in the dist_fn_knobs namelist and populates the member variables
-  subroutine read_dist_fn_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(dist_fn_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: boundary_option
-    character(len = 30) :: adiabatic_option
-    integer :: g_exb_start_timestep
-    logical :: boundary_off_grid, def_parity, esv, even, exponential_boundary, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
-    real :: afilter, apfac, btor_slab, driftknob, exponential_boundary_factor, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
-
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_off_grid, boundary_option, btor_slab, def_parity, driftknob, esv, even, exponential_boundary, exponential_boundary_factor, &
-         g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, &
-         mult_imp, nonad_zero, omprimfac, opt_source, poisfac, start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    adiabatic_option = self%adiabatic_option
-    afilter = self%afilter
-    apfac = self%apfac
-    boundary_off_grid = self%boundary_off_grid
-    boundary_option = self%boundary_option
-    btor_slab = self%btor_slab
-    def_parity = self%def_parity
-    driftknob = self%driftknob
-    esv = self%esv
-    even = self%even
-    exponential_boundary = self%exponential_boundary
-    exponential_boundary_factor = self%exponential_boundary_factor
-    g_exb = self%g_exb
-    g_exb_error_limit = self%g_exb_error_limit
-    g_exb_start_time = self%g_exb_start_time
-    g_exb_start_timestep = self%g_exb_start_timestep
-    g_exbfac = self%g_exbfac
-    gf_lo_integrate = self%gf_lo_integrate
-    gridfac = self%gridfac
-    hyper_in_initialisation = self%hyper_in_initialisation
-    lf_decompose = self%lf_decompose
-    lf_default = self%lf_default
-    mach = self%mach
-    mult_imp = self%mult_imp
-    nonad_zero = self%nonad_zero
-    omprimfac = self%omprimfac
-    opt_source = self%opt_source
-    poisfac = self%poisfac
-    start_from_previous_solution = self%start_from_previous_solution
-    tpdriftknob = self%tpdriftknob
-    vparknob = self%vparknob
-    wfb = self%wfb
-    zero_forbid = self%zero_forbid
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = dist_fn_knobs)
-
-    ! Now copy from local variables into type members
-    self%adiabatic_option = adiabatic_option
-    self%afilter = afilter
-    self%apfac = apfac
-    self%boundary_off_grid = boundary_off_grid
-    self%boundary_option = boundary_option
-    self%btor_slab = btor_slab
-    self%def_parity = def_parity
-    self%driftknob = driftknob
-    self%esv = esv
-    self%even = even
-    self%exponential_boundary = exponential_boundary
-    self%exponential_boundary_factor = exponential_boundary_factor
-    self%g_exb = g_exb
-    self%g_exb_error_limit = g_exb_error_limit
-    self%g_exb_start_time = g_exb_start_time
-    self%g_exb_start_timestep = g_exb_start_timestep
-    self%g_exbfac = g_exbfac
-    self%gf_lo_integrate = gf_lo_integrate
-    self%gridfac = gridfac
-    self%hyper_in_initialisation = hyper_in_initialisation
-    self%lf_decompose = lf_decompose
-    self%lf_default = lf_default
-    self%mach = mach
-    self%mult_imp = mult_imp
-    self%nonad_zero = nonad_zero
-    self%omprimfac = omprimfac
-    self%opt_source = opt_source
-    self%poisfac = poisfac
-    self%start_from_previous_solution = start_from_previous_solution
-    self%tpdriftknob = tpdriftknob
-    self%vparknob = vparknob
-    self%wfb = wfb
-    self%zero_forbid = zero_forbid
-
-    self%exist = exist
-  end subroutine read_dist_fn_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_dist_fn_config(self, unit)
-    implicit none
-    class(dist_fn_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("adiabatic_option", self%adiabatic_option, unit_internal)
-    call self%write_key_val("afilter", self%afilter, unit_internal)
-    call self%write_key_val("apfac", self%apfac, unit_internal)
-    call self%write_key_val("boundary_off_grid", self%boundary_off_grid, unit_internal)
-    call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
-    call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
-    call self%write_key_val("def_parity", self%def_parity, unit_internal)
-    call self%write_key_val("driftknob", self%driftknob, unit_internal)
-    call self%write_key_val("esv", self%esv, unit_internal)
-    call self%write_key_val("even", self%even, unit_internal)
-    call self%write_key_val("exponential_boundary", self%exponential_boundary, unit_internal)
-    call self%write_key_val("exponential_boundary_factor", self%exponential_boundary_factor, unit_internal)
-    call self%write_key_val("g_exb", self%g_exb, unit_internal)
-    call self%write_key_val("g_exb_error_limit", self%g_exb_error_limit, unit_internal)
-    call self%write_key_val("g_exb_start_time", self%g_exb_start_time, unit_internal)
-    call self%write_key_val("g_exb_start_timestep", self%g_exb_start_timestep, unit_internal)
-    call self%write_key_val("g_exbfac", self%g_exbfac, unit_internal)
-    call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
-    call self%write_key_val("gridfac", self%gridfac, unit_internal)
-    call self%write_key_val("hyper_in_initialisation", self%hyper_in_initialisation, unit_internal)
-    call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
-    call self%write_key_val("lf_default", self%lf_default, unit_internal)
-    call self%write_key_val("mach", self%mach, unit_internal)
-    call self%write_key_val("mult_imp", self%mult_imp, unit_internal)
-    call self%write_key_val("nonad_zero", self%nonad_zero, unit_internal)
-    call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
-    call self%write_key_val("opt_source", self%opt_source, unit_internal)
-    call self%write_key_val("poisfac", self%poisfac, unit_internal)
-    call self%write_key_val("start_from_previous_solution", self%start_from_previous_solution, unit_internal)
-    call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
-    call self%write_key_val("vparknob", self%vparknob, unit_internal)
-    call self%write_key_val("wfb", self%wfb, unit_internal)
-    call self%write_key_val("zero_forbid", self%zero_forbid, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_dist_fn_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_dist_fn_config(self)
-    class(dist_fn_config_type), intent(in out) :: self
-    type(dist_fn_config_type) :: empty
-    select type (self)
-    type is (dist_fn_config_type)
-       self = empty
-    end select
-  end subroutine reset_dist_fn_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_dist_fn_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(dist_fn_config_type), intent(in out) :: self
-    call broadcast(self%adiabatic_option)
-    call broadcast(self%afilter)
-    call broadcast(self%apfac)
-    call broadcast(self%boundary_off_grid)
-    call broadcast(self%boundary_option)
-    call broadcast(self%btor_slab)
-    call broadcast(self%def_parity)
-    call broadcast(self%driftknob)
-    call broadcast(self%esv)
-    call broadcast(self%even)
-    call broadcast(self%exponential_boundary)
-    call broadcast(self%exponential_boundary_factor)
-    call broadcast(self%g_exb)
-    call broadcast(self%g_exb_error_limit)
-    call broadcast(self%g_exb_start_time)
-    call broadcast(self%g_exb_start_timestep)
-    call broadcast(self%g_exbfac)
-    call broadcast(self%gf_lo_integrate)
-    call broadcast(self%gridfac)
-    call broadcast(self%hyper_in_initialisation)
-    call broadcast(self%lf_decompose)
-    call broadcast(self%lf_default)
-    call broadcast(self%mach)
-    call broadcast(self%mult_imp)
-    call broadcast(self%nonad_zero)
-    call broadcast(self%omprimfac)
-    call broadcast(self%opt_source)
-    call broadcast(self%poisfac)
-    call broadcast(self%start_from_previous_solution)
-    call broadcast(self%tpdriftknob)
-    call broadcast(self%vparknob)
-    call broadcast(self%wfb)
-    call broadcast(self%zero_forbid)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_dist_fn_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_dist_fn_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_dist_fn_config
-    get_default_name_dist_fn_config = "dist_fn_knobs"
-  end function get_default_name_dist_fn_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_dist_fn_config()
-    implicit none
-    logical :: get_default_requires_index_dist_fn_config
-    get_default_requires_index_dist_fn_config = .false.
-  end function get_default_requires_index_dist_fn_config
-
-  !---------------------------------------
-  ! Following is for the source config_type
-  !---------------------------------------
-
-  !> Reads in the source_knobs namelist and populates the member variables
-  subroutine read_source_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(source_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: source_option
-    real :: gamma0, omega0, phi_ext, source0, t0
-
-    namelist /source_knobs/ gamma0, omega0, phi_ext, source0, source_option, t0
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    gamma0 = self%gamma0
-    omega0 = self%omega0
-    phi_ext = self%phi_ext
-    source0 = self%source0
-    source_option = self%source_option
-    t0 = self%t0
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = source_knobs)
-
-    ! Now copy from local variables into type members
-    self%gamma0 = gamma0
-    self%omega0 = omega0
-    self%phi_ext = phi_ext
-    self%source0 = source0
-    self%source_option = source_option
-    self%t0 = t0
-
-    self%exist = exist
-  end subroutine read_source_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_source_config(self, unit)
-    implicit none
-    class(source_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("gamma0", self%gamma0, unit_internal)
-    call self%write_key_val("omega0", self%omega0, unit_internal)
-    call self%write_key_val("phi_ext", self%phi_ext, unit_internal)
-    call self%write_key_val("source0", self%source0, unit_internal)
-    call self%write_key_val("source_option", self%source_option, unit_internal)
-    call self%write_key_val("t0", self%t0, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_source_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_source_config(self)
-    class(source_config_type), intent(in out) :: self
-    type(source_config_type) :: empty
-    select type (self)
-    type is (source_config_type)
-       self = empty
-    end select
-  end subroutine reset_source_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_source_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(source_config_type), intent(in out) :: self
-    call broadcast(self%gamma0)
-    call broadcast(self%omega0)
-    call broadcast(self%phi_ext)
-    call broadcast(self%source0)
-    call broadcast(self%source_option)
-    call broadcast(self%t0)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_source_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_source_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_source_config
-    get_default_name_source_config = "source_knobs"
-  end function get_default_name_source_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_source_config()
-    implicit none
-    logical :: get_default_requires_index_source_config
-    get_default_requires_index_source_config = .false.
-  end function get_default_requires_index_source_config
-
-  !---------------------------------------
-  ! Following is for the dist_fn_species config_type
-  !---------------------------------------
-  
-  !> Reads in the dist_fn_species_knobs namelist and populates the member variables
-  subroutine read_dist_fn_species_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(dist_fn_species_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    real :: bakdif, fexpr
-
-    namelist /dist_fn_species_knobs/ bakdif, fexpr
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    bakdif = self%bakdif
-    fexpr = self%fexpr
-
-    ! Now read in the main namelist
-    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
-    if (exist) read(in_file, nml = dist_fn_species_knobs)
-    close(unit = in_file)
-
-    ! Now copy from local variables into type members
-    self%bakdif = bakdif
-    self%fexpr = fexpr
-
-    self%exist = exist
-  end subroutine read_dist_fn_species_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_dist_fn_species_config(self, unit)
-    implicit none
-    class(dist_fn_species_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("bakdif", self%bakdif, unit_internal)
-    call self%write_key_val("fexpr", self%fexpr, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_dist_fn_species_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_dist_fn_species_config(self)
-    class(dist_fn_species_config_type), intent(in out) :: self
-    type(dist_fn_species_config_type) :: empty
-    select type (self)
-    type is (dist_fn_species_config_type)
-       self = empty
-    end select
-  end subroutine reset_dist_fn_species_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_dist_fn_species_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(dist_fn_species_config_type), intent(in out) :: self
-    call broadcast(self%bakdif)
-    call broadcast(self%fexpr)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_dist_fn_species_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_dist_fn_species_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_dist_fn_species_config
-    get_default_name_dist_fn_species_config = "dist_fn_species_knobs"
-  end function get_default_name_dist_fn_species_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_dist_fn_species_config()
-    implicit none
-    logical :: get_default_requires_index_dist_fn_species_config
-    get_default_requires_index_dist_fn_species_config = .true.
-  end function get_default_requires_index_dist_fn_species_config
+#include "dist_fn_auto_gen.inc"
+#include "source_auto_gen.inc"
+#include "dist_fn_species_auto_gen.inc"
 end module dist_fn

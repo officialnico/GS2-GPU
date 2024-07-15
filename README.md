@@ -1,6 +1,6 @@
 # GS2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6882296.svg)](https://doi.org/10.5281/zenodo.6882296)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12646925.svg)](https://doi.org/10.5281/zenodo.12646925)
 
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Coverage Status](https://coveralls.io/repos/bitbucket/gyrokinetics/gs2/badge.svg?branch=master)](https://coveralls.io/bitbucket/gyrokinetics/gs2?branch=master)
@@ -34,7 +34,7 @@ along with other tags and branches on the
 ## Dependencies
 
 GS2 requires a Fortran compiler that supports at least the F2008 standard. We
-regularly test with gfortran 11 and Intel 2022.
+regularly test with gfortran 13 and Intel's most recent IFX (2024.2).
 
 We recommend using at least gfortran 9.3, or Intel 19. Earlier versions may
 still work but we can make no guarantees.
@@ -48,7 +48,7 @@ optional ones:
 - LAPACK
 - NAG
 - python (required for code generation, tests and documentation,
-  requires >= 3.6)
+  requires >= 3.6). This will become a hard dependency after v8.2.0 of GS2
 
 When compiled with netCDF, we also use the
 [neasy-f](https://github.com/PlasmaFAIR/neasy-f/) netCDF wrapper
@@ -115,9 +115,9 @@ https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodule
 GS2 has been built on a variety of existing systems. To build on one of the
 existing supported systems, set `GK_SYSTEM`, and provide the path to the
 directory containing the makefiles. For example, to build GS2 on the UK national
-supercomputer, ARCHER, run:
+supercomputer, ARCHER2, run:
 
-    make -I Makefiles GK_SYSTEM=archer
+    make GK_SYSTEM=archer2
 
 For further details on building GS2, including how to build it on a new system,
 see the documentation in the [user manual][docs_building].
@@ -148,7 +148,7 @@ Please acknowledge grants which support the development of GS2:
 
 > "This work made use of computational support by CoSeC, the Computational
 > Science Centre for Research Communities, through CCP Plasma ([EP/M022463/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/M022463/1))
-> and HEC Plasma ([EP/R029148/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/R029148/1))."
+> and HEC Plasma ([EP/R029148/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/R029148/1) and [EP/X035336/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/X035336/1))."
 
 
 [docs_building]: https://gyrokinetics.gitlab.io/gs2/page/user_manual/index.html

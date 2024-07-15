@@ -9,7 +9,7 @@ contains
   
   !> FIXME : Add documentation
   subroutine initialize_gs2_optimisation(state)
-    use optimisation_config, only: init_optimisation_config
+    use optimisation_configuration, only: init_optimisation_config
     use gs2_main, only: initialize_gs2, finalize_gs2
     use gs2_main, only: initialize_wall_clock_timer
     use mp, only: init_mp, mp_comm
@@ -28,7 +28,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finalize_gs2_optimisation(state)
-    use optimisation_config, only: finish_optimisation_config
+    use optimisation_configuration, only: finish_optimisation_config
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call finish_optimisation_config(state%optim)
@@ -226,7 +226,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine write_summary(unt, results, optimisations)
-    use optimisation_config, only: optimisation_results_type
+    use optimisation_configuration, only: optimisation_results_type
     use overrides, only: optimisations_overrides_type
     implicit none
     integer, intent(in) :: unt
@@ -484,7 +484,7 @@ contains
     use gs2_main, only: finalize_equations
     use gs2_main, only: finalize_gs2
     use overrides, only: optimisations_overrides_type
-    use optimisation_config, only: optimisation_results_type
+    use optimisation_configuration, only: optimisation_results_type
     use mp, only: proc0, broadcast, mp_abort
     implicit none
     type(gs2_program_state_type), intent(inout) :: state

@@ -1012,16 +1012,16 @@ contains
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (g_in, fld, flx)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
 #ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
     use kt_grids, only: aky
-    use theta_grid, only: theta, grho, bmag, jacob, rplot
+    use theta_grid, only: theta, grho, jacob, rplot
     use lowflow, only: mach_lab
     use integration, only: trapezoidal_integration
 #endif
-    use gs2_layouts, only: g_lo
     implicit none
     !> Input weighted distribution
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in

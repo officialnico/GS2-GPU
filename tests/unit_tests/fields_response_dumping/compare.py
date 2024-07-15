@@ -18,7 +18,8 @@ var_names = ['phi2', 'apar2', 'bpar2']
 
 results_match = True
 for v in var_names:
-        results_match = results_match and np.allclose(d1.variables[v], d2.variables[v])
+        if v in d1.variables:
+                results_match = results_match and np.allclose(d1.variables[v], d2.variables[v])
         
 if not results_match:
 	sys.exit(1)

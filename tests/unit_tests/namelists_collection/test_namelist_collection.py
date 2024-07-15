@@ -48,7 +48,8 @@ def get_build_config():
         [gs2_bin, "--build-config"], check=True, text=True, capture_output=True
     ).stdout.splitlines()
 
-    return {"eigensolver": "Eigensolver: T" in output}
+    return {"eigensolver": "Eigensolver: T" in output,
+            "field_eigensolver": "Field eigensolver: T" in output}
 
 
 def test_all_namelists_present(default_input_file):
@@ -74,6 +75,9 @@ def test_all_namelists_present(default_input_file):
 
     build_config = get_build_config()
     if not build_config["eigensolver"]:
+        namelists.discard("eigval_knobs")
+
+    if build_config["field_eigensolver"]:
         namelists.discard("eigval_knobs")
 
     missing = [
