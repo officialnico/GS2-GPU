@@ -319,8 +319,11 @@ contains
     
     call read_parameters(nonlinear_terms_config_in)
 
-    if (debug) write(6,*) "init_nonlinear_terms: init_transforms"
+    ! Initialise maximum velocity values
+    max_vel_components = 0
+
     if (nonlin) then
+       if (debug) write(6,*) "init_nonlinear_terms: init_transforms"
        call init_transforms (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
 
        if (debug) write(6,*) "init_nonlinear_terms: allocations"
