@@ -1209,6 +1209,7 @@ contains
     cfl_req_hand = mp_request_null
   end subroutine finish_nonblocking_max_vel_reduction
 
+  !> Given the max_vel_components array return the limiting max_vel
   real pure function get_max_vel(components) result(max_vel)
     real, dimension(3), intent(in) :: components
     real :: max_vel_cfl, max_vel_error
