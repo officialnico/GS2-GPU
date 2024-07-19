@@ -726,11 +726,8 @@ contains
     allocate (dtmp(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (vns(naky,negrid,nspec,3))
 
-    !This initialisation is needed in case kwork_filter is true anywhere
-    if (any(kwork_filter)) then
-       call zero_array(duinv)
-       call zero_array(dtmp)
-    end if
+    call zero_array(duinv)
+    call zero_array(dtmp)
 
     vns(:,:,:,1) = vnmult(1)*vnew_D
     vns(:,:,:,2) = vnmult(1)*vnew_s
