@@ -13,7 +13,7 @@ parser.add_argument('dir2', help='Path to second GS2 response directory.')
 args = parser.parse_args()
 
 def get_sorted_data(dir_in):
-    files = glob(dir_in+"/*")
+    files = sort(glob(dir_in+"/*"))
     ik_vals = [int(x.split("_ik_")[1].split("_is_")[0]) for x in files]
     is_vals = [int(x.split("_is_")[1].split("_dt_")[0]) for x in files]
     data = [Dataset(f).variables['response'] for f in files]
