@@ -565,17 +565,15 @@ contains
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
-       if (gnostics%write_final_fields) then
-          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
-       end if
+       if (gnostics%write_final_fields) call do_write_final_fields(gnostics%write_ascii, &
+            file_id=gnostics%file_id)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
        if (gnostics%write_kpar) call do_write_kpar(gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
-       if (gnostics%write_final_epar) then
-          call do_write_final_epar(gnostics%write_ascii, file_id=gnostics%file_id)
-       end if
+       if (gnostics%write_final_epar) call do_write_final_epar(gnostics%write_ascii, &
+            file_id=gnostics%file_id)
        
        ! definition here assumes we are not using wstar_units
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &

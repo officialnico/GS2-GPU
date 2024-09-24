@@ -43,7 +43,7 @@ contains
   end subroutine par_spectrum
 
   !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
-  subroutine do_write_final_fields(write_text, write_netcdf, file_id)
+  subroutine do_write_final_fields(write_text, file_id)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use gs2_io, only: nc_final_fields
@@ -51,18 +51,16 @@ contains
     use theta_grid, only: ntgrid, theta
     use fields_arrays, only: phi, apar, bpar
     implicit none
-
     !> Write to text file
     logical, intent(in) :: write_text
-    !> Write to netcdf file
-    logical, intent(in) :: write_netcdf
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 
     integer :: ik, it, ig, unit
 
     if (.not. proc0) return
-    if (.not. (write_text .or. write_netcdf)) return
+
+    call nc_final_fields(file_id)
 
     if (write_text) then
        call open_output_file (unit, ".fields")
@@ -82,9 +80,6 @@ contains
        end do
        call close_output_file (unit)
     end if
-
-    if (write_netcdf) call nc_final_fields(file_id)
-
   end subroutine do_write_final_fields
 
   !> Write the parallel spectrum of \(\phi, A_\parallel, B_\parallel\), overwriting existing values

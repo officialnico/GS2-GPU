@@ -887,9 +887,8 @@ contains
 
     if (proc0) then
        if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), write_ascii, phi0)
-       if (write_final_fields) then
-          call do_write_final_fields(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
-       end if
+       if (write_final_fields) call do_write_final_fields(write_ascii, &
+            file_id=get_netcdf_file_id())
        if (write_kpar) call do_write_kpar(write_ascii)
        if (write_final_epar) call do_write_final_epar(write_ascii, &
             file_id=get_netcdf_file_id())
