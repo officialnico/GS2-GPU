@@ -289,7 +289,7 @@ contains
   !> field-line averages.
   !>
   !> NetCDF files contain just the full values
-  subroutine do_write_final_moments(phi0_in, use_normalisation, write_text, write_netcdf, file_id)
+  subroutine do_write_final_moments(phi0_in, use_normalisation, write_text, file_id)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
     use species, only: nspec, spec
@@ -306,8 +306,6 @@ contains
     logical, intent(in) :: use_normalisation
     !> Write to text file
     logical, intent(in) :: write_text
-    !> Write to netcdf file
-    logical, intent(in) :: write_netcdf
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 
@@ -317,8 +315,6 @@ contains
     complex :: phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
     real, dimension (:, :), allocatable :: phi02
     integer :: is, ik, it, ig, unit
-
-    if (.not. (write_text .or. write_netcdf)) return
 
     allocate (ntot(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (density(-ntgrid:ntgrid,ntheta0,naky,nspec))
@@ -334,6 +330,8 @@ contains
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 
     if (.not. proc0) return
+
+    call nc_final_moments (file_id, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 
     if (write_text) then
       !Setup the phase factor
@@ -411,10 +409,6 @@ contains
       call close_output_file (unit)
 
       deallocate(phi0,phi02)
-    end if
-
-    if (write_netcdf) then
-      call nc_final_moments (file_id, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     end if
     
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)

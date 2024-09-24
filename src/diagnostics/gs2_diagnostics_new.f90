@@ -582,11 +582,10 @@ contains
     end if
 
     phi0 = get_phi0()
-    if (gnostics%write_final_moments) then
+    if (gnostics%write_final_moments) &
       call do_write_final_moments(phi0, use_normalisation=gnostics%write_eigenfunc, &
-                                  write_text=gnostics%write_ascii, write_netcdf=.false., &
+                                  write_text=gnostics%write_ascii, &
                                   file_id=gnostics%file_id)
-    end if
 
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')

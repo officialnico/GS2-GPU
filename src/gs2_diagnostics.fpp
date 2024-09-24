@@ -899,9 +899,9 @@ contains
 
     !Note pass in phase factor phi0 which may not be initialised
     !this is ok as phi0 will be set in routine if not already set
-    if (write_final_moments) call do_write_final_moments(phi0, use_normalisation=write_eigenfunc, &
-                                                         write_text=write_ascii, write_netcdf=.true.,&
-                                                         file_id=get_netcdf_file_id())
+    if (write_final_moments) call do_write_final_moments(phi0, &
+         use_normalisation=write_eigenfunc, write_text=write_ascii, &
+         file_id=get_netcdf_file_id())
 
     if (write_final_antot) then
        call do_write_final_antot(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
