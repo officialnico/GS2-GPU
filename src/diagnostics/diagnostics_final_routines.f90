@@ -416,7 +416,7 @@ contains
 
   !> Write the right-hand sides of the field equations, overwriting
   !> existing values
-  subroutine do_write_final_antot(write_text, write_netcdf, file_id)
+  subroutine do_write_final_antot(write_text, file_id)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky, theta0, aky
@@ -427,17 +427,14 @@ contains
     implicit none
     !> Write to text file
     logical, intent(in) :: write_text
-    !> Write to netcdf file
-    logical, intent(in) :: write_netcdf
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
-
     integer :: ik, it, ig, unit
 
-    if (.not. (write_text .or. write_netcdf)) return
     call getan (antot, antota, antotp)
 
     if (.not. proc0) return
+    call nc_final_an (file_id, antot, antota, antotp)
 
     if (write_text) then
       call open_output_file (unit, ".antot")
@@ -456,8 +453,6 @@ contains
       end do
       call close_output_file (unit)
     end if
-
-    if (write_netcdf) call nc_final_an (file_id, antot, antota, antotp)
   end subroutine do_write_final_antot
 
   !> FIXME : Add documentation

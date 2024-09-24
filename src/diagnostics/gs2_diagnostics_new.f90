@@ -590,9 +590,8 @@ contains
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
-    if (gnostics%write_final_antot) then
-      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
-    end if
+    if (gnostics%write_final_antot) call do_write_final_antot(gnostics%write_ascii, &
+         file_id=gnostics%file_id)
 
     if (proc0) call dump_ant_amp
     

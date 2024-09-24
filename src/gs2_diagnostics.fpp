@@ -903,9 +903,8 @@ contains
          use_normalisation=write_eigenfunc, write_text=write_ascii, &
          file_id=get_netcdf_file_id())
 
-    if (write_final_antot) then
-       call do_write_final_antot(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
-    end if
+    if (write_final_antot) call do_write_final_antot(write_ascii, &
+         file_id=get_netcdf_file_id())
 
     call save_restart_dist_fn(save_for_restart, save_distfn, &
                               save_glo_info_and_grids=save_glo_info_and_grids, &
