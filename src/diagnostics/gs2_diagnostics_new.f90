@@ -574,7 +574,7 @@ contains
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
        if (gnostics%write_final_epar) then
-          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.true., file_id=gnostics%file_id)
+          call do_write_final_epar(gnostics%write_ascii, file_id=gnostics%file_id)
        end if
        
        ! definition here assumes we are not using wstar_units

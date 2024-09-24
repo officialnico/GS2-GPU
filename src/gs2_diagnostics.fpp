@@ -891,9 +891,8 @@ contains
           call do_write_final_fields(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
        end if
        if (write_kpar) call do_write_kpar(write_ascii)
-       if (write_final_epar) then
-          call do_write_final_epar(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
-       end if
+       if (write_final_epar) call do_write_final_epar(write_ascii, &
+            file_id=get_netcdf_file_id())
 
        ! definition here assumes we are not using wstar_units
        if (write_final_db) call do_write_final_db(write_ascii)

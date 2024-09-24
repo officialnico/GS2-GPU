@@ -159,7 +159,7 @@ contains
   end subroutine do_write_kpar
 
   !> Calculate and write \(E_\parallel\), overwriting existing values
-  subroutine do_write_final_epar(write_text, write_netcdf, file_id)
+  subroutine do_write_final_epar(write_text, file_id)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, theta0, aky, akx
@@ -169,20 +169,16 @@ contains
     implicit none
     !> Write to text file
     logical, intent(in) :: write_text
-    !> Write to netcdf file
-    logical, intent(in) :: write_netcdf
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
-
     complex, dimension (:,:,:), allocatable :: epar
     integer :: ik, it, ig, unit
 
     if (.not. proc0) return
-    if (.not. (write_text .or. write_netcdf)) return
 
     allocate (epar(-ntgrid:ntgrid,ntheta0,naky))
-
     call get_epar (phi, apar, phinew, aparnew, epar)
+    call nc_final_epar (file_id, epar)
 
     if (write_text) then
        call open_output_file (unit, ".epar")
@@ -199,9 +195,6 @@ contains
        end do
        call close_output_file (unit)
     end if
-
-    if (write_netcdf) call nc_final_epar (file_id, epar)
-
     deallocate (epar)
   end subroutine do_write_final_epar
 
