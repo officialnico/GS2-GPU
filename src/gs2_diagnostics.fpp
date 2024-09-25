@@ -887,13 +887,11 @@ contains
 
     if (proc0) then
        if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), write_ascii, phi0)
-       if (write_final_fields) then
-          call do_write_final_fields(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
-       end if
+       if (write_final_fields) call do_write_final_fields(write_ascii, &
+            file_id=get_netcdf_file_id())
        if (write_kpar) call do_write_kpar(write_ascii)
-       if (write_final_epar) then
-          call do_write_final_epar(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
-       end if
+       if (write_final_epar) call do_write_final_epar(write_ascii, &
+            file_id=get_netcdf_file_id())
 
        ! definition here assumes we are not using wstar_units
        if (write_final_db) call do_write_final_db(write_ascii)
@@ -901,13 +899,12 @@ contains
 
     !Note pass in phase factor phi0 which may not be initialised
     !this is ok as phi0 will be set in routine if not already set
-    if (write_final_moments) call do_write_final_moments(phi0, use_normalisation=write_eigenfunc, &
-                                                         write_text=write_ascii, write_netcdf=.true.,&
-                                                         file_id=get_netcdf_file_id())
+    if (write_final_moments) call do_write_final_moments(phi0, &
+         use_normalisation=write_eigenfunc, write_text=write_ascii, &
+         file_id=get_netcdf_file_id())
 
-    if (write_final_antot) then
-       call do_write_final_antot(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
-    end if
+    if (write_final_antot) call do_write_final_antot(write_ascii, &
+         file_id=get_netcdf_file_id())
 
     call save_restart_dist_fn(save_for_restart, save_distfn, &
                               save_glo_info_and_grids=save_glo_info_and_grids, &

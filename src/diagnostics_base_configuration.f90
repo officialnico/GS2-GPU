@@ -301,26 +301,18 @@ module diagnostics_base_configuration
     !> Write the right-hand sides of the field equations at the final
     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
     !> suffix is `.antot`
-    !>
-    !> @warning In new diagnostics, this is not written to netCDF!
     logical :: write_final_antot = .false.
     !> Write \(\delta B\) at the final timestep. If
     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
-    !> `.db`
-    !>
-    !> @warning In new diagnostics, this is not written to netCDF!
+    !> `.db`. This is not written to netCDF!
     logical :: write_final_db = .false.
     !> Write \(E_\parallel\) at the final timestep. If
     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
     !> `.epar`
-    !>
-    !> @warning In new diagnostics, this is not written to netCDF!
     logical :: write_final_epar = .false.
     !> Write \(\phi, A_\parallel, B_\parallel\) at the final timestep. If
     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
     !> `.fields`
-    !>
-    !> @warning In new diagnostics, this is not written to netCDF!
     logical :: write_final_fields = .false.
     !> Write various moments (densities, parallel and perpendicular
     !> velocities and temperatures, and heat and momentum fluxes) at
@@ -332,8 +324,6 @@ module diagnostics_base_configuration
     !> @warning If [[gs2_diagnostics_knobs:write_eigenfunc]] is
     !> enabled, then the same normalising factor is used for the
     !> final moments. Otherwise, the moments are unnormalised.
-    !>
-    !> @warning In new diagnostics, this is not written to netCDF!
     !>
     !> @warning The text output is normalised (see note above), but
     !> the netCDF output is not
