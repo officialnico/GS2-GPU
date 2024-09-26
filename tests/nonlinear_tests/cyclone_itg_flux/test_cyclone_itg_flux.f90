@@ -34,7 +34,7 @@ contains
     implicit none
     real, dimension (nspec) ::  heat_fluxes
 
-    real, parameter :: expected_es_hflux_tot = 100.0
+    real, parameter :: expected_es_hflux_tot = 90.0
     integer :: is
 
     call init_diagnostics_fluxes()
