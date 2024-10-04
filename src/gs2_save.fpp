@@ -201,7 +201,13 @@ contains
     else
        n_elements = g_lo%ulim_world+1
     end if
-    call neasyf_dim(ncid, "glo", dim_size=n_elements)
+
+    ! Note when processors have no local data we find n_elements = 0 so here we
+    ! would be trying to create a zero size dimension. Netcdf interprets this as
+    ! an unlimited dimension so neasyf requires unlimited = .true. in this case,
+    ! hence the unlimited argument below. This will lead to empty gr/gi data being
+    ! written on such processors.
+    call neasyf_dim(ncid, "glo", dim_size=n_elements, unlimited = n_elements == 0)
 
     call neasyf_dim(ncid, "theta", theta)
     call neasyf_dim(ncid, "sign", dim_size=2)
