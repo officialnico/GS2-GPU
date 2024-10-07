@@ -117,7 +117,7 @@ existing supported systems, set `GK_SYSTEM`, and provide the path to the
 directory containing the makefiles. For example, to build GS2 on the UK national
 supercomputer, ARCHER2, run:
 
-    make GK_SYSTEM=archer2
+    make GK_SYSTEM=archer2 -I Makefiles
 
 For further details on building GS2, including how to build it on a new system,
 see the documentation in the [user manual][docs_building].
