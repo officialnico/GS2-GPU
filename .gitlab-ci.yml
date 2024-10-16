@@ -60,7 +60,7 @@ variables: &default_variables
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
-  DNF_OPTIONS: "-y"
+  DNF_OPTIONS: "-y --setopt=install_weak_deps=False"
   BASIC_PACKAGES: "environment-modules make git-core which findutils wget m4 perl"
   PFUNIT_PACKAGES: "cmake"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel cpp gcc-gfortran "
