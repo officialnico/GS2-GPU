@@ -63,7 +63,7 @@ variables: &default_variables
   DNF_OPTIONS: "-y --setopt=install_weak_deps=False"
   BASIC_PACKAGES: "environment-modules make git-core which findutils wget m4 perl"
   PFUNIT_PACKAGES: "cmake"
-  GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel cpp gcc-gfortran "
+  GS2_PACKAGES: "fftw-libs-double netcdf-fortran netcdf-devel netcdf-fortran-devel cpp gcc-gfortran "
   MPI_PACKAGES: "openmpi openmpi-devel"
   PYTHON_PACKAGES: "python python3 python3-devel python3-pip"
   EXTRA_PACKAGES: ""
