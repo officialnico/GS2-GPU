@@ -19,7 +19,7 @@ stages:
   - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
-  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${EXTRA_PACKAGES}
+  - dnf install --exclude perl-doc -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${EXTRA_PACKAGES}
   - if [ "x"${WITH_MPI} == "xyes" ]; then dnf install -y ${MPI_PACKAGES} ; source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
   - if [ "x"${GK_CI_PFUNIT} == "xON" ]; then dnf install -y ${PFUNIT_PACKAGES} ; fi
 
