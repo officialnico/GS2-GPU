@@ -19,12 +19,12 @@ stages:
   - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
-  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${EXTRA_PACKAGES}
-  - if [ "x"${WITH_MPI} == "xyes" ]; then dnf install -y ${MPI_PACKAGES} ; source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
+  - dnf install ${DNF_OPTIONS} ${BASIC_PACKAGES} ${GS2_PACKAGES} ${EXTRA_PACKAGES}
+  - if [ "x"${WITH_MPI} == "xyes" ]; then dnf install ${DNF_OPTIONS} ${MPI_PACKAGES} ; source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
   - if [ "x"${GK_CI_PFUNIT} == "xON" ]; then dnf install -y ${PFUNIT_PACKAGES} ; fi
 
 .install_python_packages: &install_python_packages
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then dnf install -y ${PYTHON_PACKAGES} ; pip3 install uv ; uv venv pyenv && source pyenv/bin/activate && uv pip install -r requirements.txt; fi
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then dnf install ${DNF_OPTIONS} ${PYTHON_PACKAGES} ; pip3 install uv ; uv venv pyenv && source pyenv/bin/activate && uv pip install -r requirements.txt; fi
 
 .create_user: &create_user
   - useradd theuser
@@ -60,6 +60,7 @@ variables: &default_variables
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
+  DNF_OPTIONS: "-y"
   BASIC_PACKAGES: "environment-modules make git-core which findutils wget m4 perl"
   PFUNIT_PACKAGES: "cmake"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel cpp gcc-gfortran "
