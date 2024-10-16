@@ -19,7 +19,7 @@ stages:
   - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
-  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES}
+  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES} ${PFUNIT_PACKAGES}
   - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
 
 .install_python_packages: &install_python_packages
@@ -59,7 +59,8 @@ variables: &default_variables
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
-  BASIC_PACKAGES: "environment-modules make git which cmake findutils wget m4"
+  BASIC_PACKAGES: "environment-modules make git-core which findutils wget m4"
+  PFUNIT_PACKAGES: "cmake"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
   MPI_PACKAGES: "openmpi openmpi-devel"
   PYTHON_PACKAGES: "python python3 python3-devel python3-pip"
@@ -105,7 +106,7 @@ formattting_tests:
     CASENAME: "formatting"
     GS2_PACKAGES: ""
     MPI_PACKAGES: ""
-    BASIC_PACKAGES: "which findutils git util-linux"
+    BASIC_PACKAGES: "which findutils git-core util-linux"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
   script:
