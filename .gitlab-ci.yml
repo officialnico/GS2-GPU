@@ -23,7 +23,7 @@ stages:
   - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
 
 .install_python_packages: &install_python_packages
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then uv pip install -r requirements.txt; fi
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install uv ; uv pip install -r requirements.txt; fi
 
 .create_user: &create_user
   - useradd theuser
@@ -62,7 +62,7 @@ variables: &default_variables
   BASIC_PACKAGES: "environment-modules make git which cmake findutils wget m4"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
   MPI_PACKAGES: "openmpi openmpi-devel"
-  PYTHON_PACKAGES: "python python3 python3-devel uv"
+  PYTHON_PACKAGES: "python python3 python3-devel python3-pip"
   EXTRA_PACKAGES: ""
   WITH_PYTHON: "yes"
   WITH_MPI: "yes"
