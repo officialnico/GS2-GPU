@@ -23,7 +23,7 @@ stages:
   - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
 
 .install_python_packages: &install_python_packages
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install uv ; uv pip install -r requirements.txt; fi
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install uv ; uv venv pyenv && source pyenv/bin/activate && uv pip install -r requirements.txt; fi
 
 .create_user: &create_user
   - useradd theuser
