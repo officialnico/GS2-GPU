@@ -19,7 +19,7 @@ stages:
   - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
-  - dnf install ${DNF_OPTIONS} ${BASIC_PACKAGES} ${GS2_PACKAGES} ${EXTRA_PACKAGES}
+  - dnf install ${DNF_OPTIONS} ${BASIC_PACKAGES} ${GS2_CORE_PACKAGES} ${GS2_FEATURE_PACKAGES} ${EXTRA_PACKAGES}
   - if [ "x"${WITH_MPI} == "xyes" ]; then dnf install ${DNF_OPTIONS} ${MPI_PACKAGES} ; source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
   - if [ "x"${GK_CI_PFUNIT} == "xON" ]; then dnf install -y ${PFUNIT_PACKAGES} ; fi
 
@@ -63,7 +63,8 @@ variables: &default_variables
   DNF_OPTIONS: "-y --setopt=install_weak_deps=False"
   BASIC_PACKAGES: "environment-modules make git-core which findutils wget m4 perl"
   PFUNIT_PACKAGES: "cmake"
-  GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel cpp gcc-gfortran "
+  GS2_FEATURE_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel"
+  GS2_CORE_PACKAGES: "cpp gcc-gfortran "
   MPI_PACKAGES: "openmpi openmpi-devel"
   PYTHON_PACKAGES: "python python3 python3-devel python3-pip"
   EXTRA_PACKAGES: ""
@@ -106,7 +107,8 @@ formattting_tests:
   image: fedora:39
   variables:
     CASENAME: "formatting"
-    GS2_PACKAGES: ""
+    GS2_FEATURE_PACKAGES: ""
+    GS2_CORE_PACKAGES: ""
     BASIC_PACKAGES: "which findutils git-core util-linux"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
@@ -182,7 +184,7 @@ intel_tests:
     CASENAME: "intel"
     EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
-    GS2_PACKAGES: "cpp gcc"
+    GS2_FEATURE_PACKAGES: ""
     EXTRA_PACKAGES: "dnf-plugins-core"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
@@ -225,7 +227,7 @@ nodeps_tests:
   variables:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
-    GS2_PACKAGES: "gfortran"
+    GS2_FEATURE_PACKAGES: ""
     WITH_PYTHON: "no"
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
