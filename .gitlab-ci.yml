@@ -239,6 +239,11 @@ pages:
   image: fedora:39
   variables:
     CASENAME: "website"
+    GK_CI_PFUNIT: ""
+    WITH_MPI: ""
+    GS2_FEATURE_PACKAGES: ""
+    GS2_CORE_PACKAGES: ""
+    BASIC_PACKAGES: "make git-core which"
   script:
     - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
