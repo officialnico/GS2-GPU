@@ -185,7 +185,7 @@ intel_tests:
     EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
     GS2_FEATURE_PACKAGES: ""
-    EXTRA_PACKAGES: "dnf-plugins-core ps"
+    EXTRA_PACKAGES: "dnf-plugins-core procps-ng"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
