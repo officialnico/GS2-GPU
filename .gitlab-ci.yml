@@ -106,7 +106,7 @@ default:
 
 formattting_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "formatting"
     GS2_FEATURE_PACKAGES: ""
@@ -124,14 +124,14 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "standard"
   script: *default_script
 
 openmp_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   tags: [ saas-linux-medium-amd64 ]
   variables:
     CASENAME: "openmp"
@@ -142,7 +142,7 @@ openmp_tests:
 
 gfortran14_mpich:
   stage: test
-  image: fedora:40
+  image: fedora:41
   variables:
     CASENAME: "gfortran_14_mpich"
     MPI_PACKAGES: "environment-modules mpich mpich-devel"
@@ -171,7 +171,7 @@ gfortran9_standard_tests:
 
 initialisation_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "ffpe_trap"
     EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
@@ -180,7 +180,7 @@ initialisation_tests:
 
 intel_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   artifacts:
   variables:
     CASENAME: "intel"
@@ -200,7 +200,7 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "standard+coverage+debug"
     GK_CI_INTEGRATED: ""
@@ -216,7 +216,7 @@ coverage_standard_tests:
 
 parallel_netcdf_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "parallel_netcdf_no_compression"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
@@ -225,7 +225,7 @@ parallel_netcdf_tests:
 
 nodeps_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
@@ -238,7 +238,7 @@ nodeps_tests:
 
 pages:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "website"
     GK_CI_PFUNIT: ""
