@@ -243,7 +243,7 @@ pages:
     WITH_MPI: ""
     GS2_FEATURE_PACKAGES: ""
     GS2_CORE_PACKAGES: ""
-    BASIC_PACKAGES: "make git-core which"
+    BASIC_PACKAGES: "make git-core which cpp"
   script:
     - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
