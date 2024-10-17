@@ -38,6 +38,8 @@ stages:
 variables: &default_variables
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
+  # Below is newer version of above
+  PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
   # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
   # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
   # and docker may avoid this issue
