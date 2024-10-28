@@ -1,4 +1,4 @@
 numpy~=1.18
-netCDF4==1.6.5
+netCDF4==1.7.1
 ford~=6.2.0
 pytest~=6.2

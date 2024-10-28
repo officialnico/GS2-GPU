@@ -19,10 +19,14 @@ stages:
   - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
-  - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES}
-  - if [ "x"${WITH_MPI} == "xyes" ]; then source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -U pip; fi
-  - if [ "x"${WITH_PYTHON} == "xyes" ]; then pip3 install -r requirements.txt; fi
+  - date
+  - dnf install ${DNF_OPTIONS} ${BASIC_PACKAGES} ${GS2_CORE_PACKAGES} ${GS2_FEATURE_PACKAGES} ${EXTRA_PACKAGES}
+  - if [ "x"${WITH_MPI} == "xyes" ]; then dnf install ${DNF_OPTIONS} ${MPI_PACKAGES} ; source /etc/profile.d/modules.sh ; module load mpi ; echo 'MPI_LIB=' > Makefile.local ; fi #Note the MPI_LIB is needed until we namespace our Makefile variables
+  - if [ "x"${GK_CI_PFUNIT} == "xON" ]; then dnf install ${DNF_OPTIONS} ${PFUNIT_PACKAGES} ; fi
+  - date
+
+.install_python_packages: &install_python_packages
+  - if [ "x"${WITH_PYTHON} == "xyes" ]; then dnf install ${DNF_OPTIONS} ${PYTHON_PACKAGES} ; pip3 install uv ; uv venv pyenv && source pyenv/bin/activate && uv pip install -r requirements.txt; fi
 
 .create_user: &create_user
   - useradd theuser
@@ -34,6 +38,8 @@ stages:
 variables: &default_variables
   GIT_SUBMODULE_STRATEGY: recursive
   OMPI_MCA_rmaps_base_oversubscribe: "yes"
+  # Below is newer version of above
+  PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
   # The following required to avoid lots of "Read -1, expected _, errno = 38" issues
   # Fix discussed at https://github.com/open-mpi/ompi/issues/4948, suggests newer mpi
   # and docker may avoid this issue
@@ -58,10 +64,13 @@ variables: &default_variables
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
-  BASIC_PACKAGES: "environment-modules make git which cmake findutils wget m4"
-  GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
-  MPI_PACKAGES: "openmpi openmpi-devel"
-  PYTHON_PACKAGES: "python python3 python3-pip python3-devel"
+  DNF_OPTIONS: "-y --setopt=install_weak_deps=False"
+  BASIC_PACKAGES: "make git-core which findutils wget m4"
+  PFUNIT_PACKAGES: "cmake"
+  GS2_FEATURE_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel"
+  GS2_CORE_PACKAGES: "cpp gcc-gfortran perl"
+  MPI_PACKAGES: "environment-modules openmpi openmpi-devel"
+  PYTHON_PACKAGES: "python python3 python3-devel python3-pip"
   EXTRA_PACKAGES: ""
   WITH_PYTHON: "yes"
   WITH_MPI: "yes"
@@ -83,6 +92,7 @@ default:
   before_script:
     - *init_test_job
     - *install_main_packages
+    - *install_python_packages
     - *create_user
   after_script:
     - *push_status
@@ -98,12 +108,12 @@ default:
 
 formattting_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "formatting"
-    GS2_PACKAGES: ""
-    MPI_PACKAGES: ""
-    BASIC_PACKAGES: "which findutils git util-linux"
+    GS2_FEATURE_PACKAGES: ""
+    GS2_CORE_PACKAGES: ""
+    BASIC_PACKAGES: "which findutils git-core util-linux"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
   script:
@@ -116,14 +126,14 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "standard"
   script: *default_script
 
 openmp_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   tags: [ saas-linux-medium-amd64 ]
   variables:
     CASENAME: "openmp"
@@ -134,10 +144,10 @@ openmp_tests:
 
 gfortran14_mpich:
   stage: test
-  image: fedora:40
+  image: fedora:41
   variables:
     CASENAME: "gfortran_14_mpich"
-    MPI_PACKAGES: "mpich mpich-devel"
+    MPI_PACKAGES: "environment-modules mpich mpich-devel"
     EXTRA_PACKAGES: "openblas openblas-devel diffutils"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
@@ -163,7 +173,7 @@ gfortran9_standard_tests:
 
 initialisation_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "ffpe_trap"
     EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
@@ -172,14 +182,14 @@ initialisation_tests:
 
 intel_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   artifacts:
   variables:
     CASENAME: "intel"
     EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
-    GS2_PACKAGES: "cpp gcc"
-    EXTRA_PACKAGES: "dnf-plugins-core"
+    GS2_FEATURE_PACKAGES: ""
+    EXTRA_PACKAGES: "dnf-plugins-core procps-ng"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
@@ -192,7 +202,7 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "standard+coverage+debug"
     GK_CI_INTEGRATED: ""
@@ -208,7 +218,7 @@ coverage_standard_tests:
 
 parallel_netcdf_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "parallel_netcdf_no_compression"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
@@ -217,11 +227,11 @@ parallel_netcdf_tests:
 
 nodeps_tests:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
-    GS2_PACKAGES: "gfortran"
+    GS2_FEATURE_PACKAGES: ""
     WITH_PYTHON: "no"
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
@@ -230,12 +240,18 @@ nodeps_tests:
 
 pages:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
     CASENAME: "website"
+    GK_CI_PFUNIT: ""
+    WITH_MPI: ""
+    GS2_FEATURE_PACKAGES: ""
+    GS2_CORE_PACKAGES: ""
+    BASIC_PACKAGES: "make git-core which cpp"
   script:
     - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
+    - *install_python_packages
     - su -c "make ${EXTRA_MAKE_FLAGS} doc" theuser
     - mv docs/html ./public
     - *report_pass
