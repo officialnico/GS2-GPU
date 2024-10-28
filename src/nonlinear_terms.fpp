@@ -98,7 +98,7 @@ module nonlinear_terms
      !> satisfies `delt < cfl * min(Delta_perp/v_perp)` where `v_perp
      !> * delt` is the maximum distance travelled in a single
      !> timestep.
-     real :: cfl = 0.1
+     real :: cfl = 0.95
      !> Set the error threshold used to determine when the timestep should change if
      !> [[nonlinear_terms_knobs:use_order_based_error]] is true.
      real :: error_target = 0.1
