@@ -29,6 +29,7 @@ module ingen_mod
   use file_utils, only: input_unit, get_unused_unit, open_output_file
   use file_utils, only: close_output_file, input_unit_exist, init_file_utils
   use file_utils, only: run_name
+  use diagnostics_config, only: diagnostics_type
   implicit none
 
   public :: ingen_config_type
@@ -56,6 +57,8 @@ module ingen_mod
 
   type(proc_layout_type), dimension(:), allocatable :: sweet_spots
   integer :: n_sweet_spots
+
+  type(diagnostics_type) :: gnostics
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -786,7 +789,6 @@ contains
     use species, only: init_species, nspec
     use run_parameters, only: use_old_diagnostics
     use gs2_diagnostics,only: gs2diag_read_parameters=>read_parameters
-    use gs2_diagnostics_new, only: gnostics
     use diagnostics_config, only: init_diagnostics_config
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids
@@ -990,7 +992,6 @@ if (debug) write(6,*) 'get_namelists: returning'
     use gs2_diagnostics, only: check_gs2_diagnostics
     use gs2_diagnostics, only: nwrite, dump_fields_periodically, save_for_restart
     use gs2_diagnostics, only: nsave, make_movie, nmovie, exit_when_converged, omegatol
-    use gs2_diagnostics_new, only: gnostics
     use gs2_reinit, only: delt_adj
     use gs2_time, only: code_dt, user_dt
     use hyper, only: check_hyper
