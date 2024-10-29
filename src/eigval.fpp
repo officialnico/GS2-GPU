@@ -772,7 +772,9 @@ contains
     EPS, intent(inout) :: eps_solver !The solver object to initialise
     Mat, intent(in) :: mat_operator !The matrix to find eigenpairs of
     type(EpsSettings), intent(in) :: eps_settings
-    Vec :: init_vec
+    ! Declare init_vec as length 1 array to avoid removal of scalar
+    ! overload to EPSSetInitialSpace in ~3.22
+    Vec, dimension(1) :: init_vec
     PetscErrorCode :: ierr
     logical :: restarted
 
@@ -799,19 +801,19 @@ contains
 
        !Setup vector
 #if PETSC_VERSION_LT(3,6,0)
-       call MatGetVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+       call MatGetVecs(mat_operator,PETSC_NULL_OBJECT,init_vec(1),ierr)
 #elif PETSC_VERSION_LT(3,8,0)
-       call MatCreateVecs(mat_operator,PETSC_NULL_OBJECT,init_vec,ierr)
+       call MatCreateVecs(mat_operator,PETSC_NULL_OBJECT,init_vec(1),ierr)
 #else
-       call MatCreateVecs(mat_operator,PETSC_NULL_VEC,init_vec,ierr)
+       call MatCreateVecs(mat_operator,PETSC_NULL_VEC,init_vec(1),ierr)
 #endif
-       call GnewToVec(init_vec)
+       call GnewToVec(init_vec(1))
 
        !Set the initial vector
        call EPSSetInitialSpace(eps_solver,1,init_vec,ierr)
 
        !Now destroy the vector
-       call VecDestroy(init_vec,ierr)
+       call VecDestroy(init_vec(1),ierr)
     endif
   end subroutine InitEPS
 
