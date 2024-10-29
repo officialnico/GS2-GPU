@@ -346,11 +346,13 @@ contains
 #endif
 
     if (state%init%level .ge. init_level_list%basic) then
-      write  (*,*) "ERROR: Called initialize_gs2 twice &
+       write  (*,*) "ERROR: Called initialize_gs2 twice &
         & without calling finalize_gs2"
-      stop 1
+       stop 1
     end if
-
+    !Ensure the job id reported in debug messages is set to something before we call debug message. Note
+    !that this may get set to a different value later in the Initialisation.
+    call set_job_id(0)
     call debug_message(4, 'gs2_main::initialize_gs2 starting initialization')
 
     call init_mp(state%mp_comm)
