@@ -315,6 +315,7 @@ module eigval
   ! For some reason, PETSc doesn't provide module interfaces for these procedures.
   ! They also don't name arguments in headers
   interface
+#if PETSC_VERSION_LT(3,22,0)
     subroutine MatCreateVecs(a, b, c, ierr)
       import tMat, tVec
       type(tMat), intent(in) :: a
@@ -347,7 +348,9 @@ module eigval
       procedure(advance_interface) :: c
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine MatShellSetOperation
+#endif
 
+#if SLEPC_VERSION_LT(3,22,0)
     subroutine EPSGetType(eps, epstype, ierr)
       import tEPS
       type(tEPS), intent(in) :: eps
@@ -379,7 +382,9 @@ module eigval
     subroutine SlepcFinalize(ierr)
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine SlepcFinalize
-  end interface
+#endif
+ end interface
+
 contains
 
   !> Returns true if GS2 was compiled with WITH_EIG defined
