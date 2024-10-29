@@ -988,8 +988,9 @@ if (debug) write(6,*) 'get_namelists: returning'
     use dist_fn, only: check_dist_fn
     use fields, only: check_fields
     use gs2_diagnostics, only: check_gs2_diagnostics
-    use gs2_diagnostics, only: dump_fields_periodically, save_for_restart
-    use gs2_diagnostics, only: nsave, make_movie, nmovie, exit_when_converged, nwrite, omegatol
+    use gs2_diagnostics, only: nwrite, dump_fields_periodically, save_for_restart
+    use gs2_diagnostics, only: nsave, make_movie, nmovie, exit_when_converged, omegatol
+    use gs2_diagnostics_new, only: gnostics
     use gs2_reinit, only: delt_adj
     use gs2_time, only: code_dt, user_dt
     use hyper, only: check_hyper
@@ -1008,16 +1009,16 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: use_le_layout
     use standard_header, only: standard_header_type
     use file_utils, only: run_name
-
     implicit none
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
-    real :: alne, dbetadrho_spec
-    logical :: le_ok = .true.
-    integer :: nmesh
+    real :: alne, dbetadrho_spec, local_omegatol
+    logical :: le_ok = .true., local_exit_when_converged, local_dump_fields_periodically
+    logical :: local_save_for_restart, local_make_movie
+    integer :: nmesh, local_nwrite, local_nmovie, local_nsave
     integer, dimension(4) :: pfacs
 
     if (present(header)) then
@@ -1189,52 +1190,72 @@ if (debug) write(6,*) 'get_namelists: returning'
     call check_nonlinear_terms(report_unit,delt_adj)
     if (nonlin) then
     else
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('This is a linear calculation.')")
-       write (report_unit, *)        
+       write (report_unit, *)
        write (report_unit, fmt="('The time step (code_dt) = ',e10.4)") code_dt
        write (report_unit, fmt="('The time step (user_dt) = ',e10.4)") user_dt
        write (report_unit, fmt="('The maximum number of time steps is ',i7)") nstep
-       if (exit_when_converged) then
+       if (use_old_diagnostics) then
+          local_exit_when_converged = exit_when_converged
+          local_omegatol = omegatol
+       else
+          local_exit_when_converged = gnostics%exit_when_converged
+          local_omegatol = gnostics%omegatol
+       end if
+
+       if (local_exit_when_converged) then
           write (report_unit, fmt="('When the frequencies for each k have converged, the run will stop.')")
-          write (report_unit, fmt="('The convergence has to be better than one part in ',e10.4)") 1./omegatol
+          write (report_unit, fmt="('The convergence has to be better than one part in ',e10.4)") 1./local_omegatol
        end if
 
        if (wstar_units) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('The timestep for each ky is scaled by a factor of 1/ky.')")
        end if
     end if
 
-    write (report_unit, *) 
-    write (report_unit, fmt="('Data will be written to ',a,' every ',i4,' timesteps.')") trim(run_name)//'.out.nc', nwrite
-    write (report_unit, *) 
-
     if (use_old_diagnostics) then
-
-       if (dump_fields_periodically) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('Data will be written to dump.fields.t=* every ',i4,' timesteps.')") 10*nmovie
-          write (report_unit, *) 
-       end if
-
-       if (make_movie) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('Movie data will be written to runname.movie.nc every ',i4,' timesteps.')") nmovie
-          write (report_unit, *) 
-       end if
-
-       if (save_for_restart .and. nsave > 0) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('Restart data will be written every ',i4,' timesteps.')") nsave
-          write (report_unit, *) 
-       end if
-
-       write (report_unit, *) 
-       write (report_unit, fmt="('------------------------------------------------------------')")
-       write (report_unit, *) 
-
+       local_nwrite = nwrite
+       local_dump_fields_periodically = dump_fields_periodically
+       local_make_movie = make_movie
+       local_nmovie = nmovie
+       local_save_for_restart = save_for_restart
+       local_nsave = nsave
+    else
+       local_nwrite = gnostics%nwrite
+       local_dump_fields_periodically = gnostics%dump_fields_periodically
+       local_make_movie = gnostics%make_movie
+       local_nmovie = gnostics%nmovie
+       local_save_for_restart = gnostics%save_for_restart
+       local_nsave = gnostics%nsave
     end if
+
+    write (report_unit, *)
+    write (report_unit, fmt="('Data will be written to ',a,' every ',i4,' timesteps.')") trim(run_name)//'.out.nc', local_nwrite
+    write (report_unit, *)
+
+    if (local_dump_fields_periodically) then
+       write (report_unit, *)
+       write (report_unit, fmt="('Data will be written to dump.fields.t=* every ',i4,' timesteps.')") 10*local_nmovie
+       write (report_unit, *)
+    end if
+
+    if (local_make_movie) then
+       write (report_unit, *)
+       write (report_unit, fmt="('Movie data will be written to runname.movie.nc every ',i4,' timesteps.')") local_nmovie
+       write (report_unit, *)
+    end if
+
+    if (local_save_for_restart .and. local_nsave > 0) then
+       write (report_unit, *)
+       write (report_unit, fmt="('Restart data will be written every ',i4,' timesteps.')") local_nsave
+       write (report_unit, *)
+    end if
+
+    write (report_unit, *)
+    write (report_unit, fmt="('------------------------------------------------------------')")
+    write (report_unit, *)
 
     call check_kt_grids(report_unit)
 
