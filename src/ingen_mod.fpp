@@ -786,6 +786,8 @@ contains
     use species, only: init_species, nspec
     use run_parameters, only: use_old_diagnostics
     use gs2_diagnostics,only: gs2diag_read_parameters=>read_parameters
+    use gs2_diagnostics_new, only: gnostics
+    use diagnostics_config, only: init_diagnostics_config
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
@@ -845,7 +847,9 @@ if (debug) write(6,*) 'get_namelists: done init_theta_grid, ntgrid=',ntgrid
 ! CMR 18/11/2009:  reduce duplication by calling gs2diag_read_parameters 
 !
    if (use_old_diagnostics) then
-     call gs2diag_read_parameters(.false.)
+      call gs2diag_read_parameters(.false.)
+   else
+      call init_diagnostics_config(gnostics)
    end if
 
 if (debug) write(6,*) 'get_namelists: returning'
