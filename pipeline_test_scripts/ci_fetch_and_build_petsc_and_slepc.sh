@@ -17,8 +17,8 @@ EOF
 
 # Handle options
 DESTINATION=${PWD}
-PETSC_VERSION=3.19.6
-SLEPC_VERSION=3.19.2
+PETSC_VERSION=3.22.1
+SLEPC_VERSION=3.22.1
 FORCE=""
 
 #Parse arguments
@@ -45,7 +45,8 @@ do
   esac
 done
 
-PETSC_ORIGIN=https://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-${PETSC_VERSION}.tar.gz
+PETSC_BASE_URL=https://web.cels.anl.gov/projects/petsc/download/release-snapshots
+PETSC_ORIGIN=${PETSC_BASE_URL}/petsc-${PETSC_VERSION}.tar.gz
 SLEPC_ORIGIN=https://slepc.upv.es/download/distrib/slepc-${SLEPC_VERSION}.tar.gz
 
 DESTINATION=$(readlink -f ${DESTINATION})
