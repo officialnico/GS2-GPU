@@ -1,6 +1,6 @@
 # GS2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12646925.svg)](https://doi.org/10.5281/zenodo.12646925)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14022029.svg)](https://doi.org/10.5281/zenodo.14022029)
 
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Coverage Status](https://coveralls.io/repos/bitbucket/gyrokinetics/gs2/badge.svg?branch=master)](https://coveralls.io/bitbucket/gyrokinetics/gs2?branch=master)

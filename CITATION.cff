@@ -131,9 +131,9 @@ authors:
     given-names: Ferdinand
     orcid: https://orcid.org/0000-0002-4857-5159
 
-version: 8.2.0
-date-released: 2024-07-12
+version: 8.2.1
+date-released: 2024-11-01
 repository-code: https://bitbucket.org/gyrokinetics/gs2/
 url: https://gyrokinetics.gitlab.io/gs2/
-doi: 10.5281/zenodo.12646925
+doi: 10.5281/zenodo.14022029
 license: 'MIT'
