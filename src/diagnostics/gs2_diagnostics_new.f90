@@ -565,17 +565,15 @@ contains
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
-       if (gnostics%write_final_fields) then
-          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
-       end if
+       if (gnostics%write_final_fields) call do_write_final_fields(gnostics%write_ascii, &
+            file_id=gnostics%file_id)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
        if (gnostics%write_kpar) call do_write_kpar(gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
-       if (gnostics%write_final_epar) then
-          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
-       end if
+       if (gnostics%write_final_epar) call do_write_final_epar(gnostics%write_ascii, &
+            file_id=gnostics%file_id)
        
        ! definition here assumes we are not using wstar_units
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
@@ -584,18 +582,16 @@ contains
     end if
 
     phi0 = get_phi0()
-    if (gnostics%write_final_moments) then
+    if (gnostics%write_final_moments) &
       call do_write_final_moments(phi0, use_normalisation=gnostics%write_eigenfunc, &
-                                  write_text=gnostics%write_ascii, write_netcdf=.false., &
+                                  write_text=gnostics%write_ascii, &
                                   file_id=gnostics%file_id)
-    end if
 
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
-    if (gnostics%write_final_antot) then
-      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
-    end if
+    if (gnostics%write_final_antot) call do_write_final_antot(gnostics%write_ascii, &
+         file_id=gnostics%file_id)
 
     if (proc0) call dump_ant_amp
     

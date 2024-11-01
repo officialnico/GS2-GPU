@@ -127,7 +127,7 @@
 !==============================
 &nonlinear_terms_knobs
  nonlinear_mode = "on" ! Include nonlinear terms? ('on','off')
- cfl = 0.5 ! The maximum delt < cfl * min(Delta_perp/v_perp)
+ cfl = 1.0 ! The maximum delt < cfl * min(Delta_perp/v_perp)
 /
 
 !==============================

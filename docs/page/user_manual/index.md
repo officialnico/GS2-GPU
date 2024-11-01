@@ -76,7 +76,7 @@ see if yours is already in there!
 
 For example, to compile GS2 on the UK national supercomputer, Archer2, you would run:
 
-    make GK_SYSTEM=archer2
+    make GK_SYSTEM=archer2 -I Makefiles
 
 Instead of setting them on the command line, you can also set the `GK_SYSTEM` environment
 variable in your `.cshrc` or `.bashrc`. Add the following:
@@ -84,14 +84,17 @@ variable in your `.cshrc` or `.bashrc`. Add the following:
 (tcsh)
 
     setenv GK_SYSTEM 'your system'
+    setenv MAKEFLAGS '-IMakefiles'
 
 (bash)
 
     export GK_SYSTEM='your system'
+    export MAKEFLAGS='-IMakefiles'
 
 After setting those environment variables, you just type `make` to get an executable. The
 default target is automatically chosen depending on where you are making. Other common
-targets are: `test_make`, `clean`, `distclean`, `tar`, and `depend`.
+targets are: `test_make`, `clean`, `distclean`, `tar`, and `depend`. Note that with make
+version >= 4.4 one shouldn't need to specify `MAKEFLAGS`.
 
 We have prepared some compile-time switches. To invoke them, add `SWITCH=value`
 to your make command. For example, if you want to use the debug flags:

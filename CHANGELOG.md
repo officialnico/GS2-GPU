@@ -1,4 +1,37 @@
-## 8.2 (2024-07-12)
+## 8.2.1 (2024-11-01)
+
+### New features
+
+* Adds support for PETSc/SLEPc v3.22
+
+### Breaking Changes
+
+* The default `cfl` factor has been increased from 0.1 to 0.95. This
+  is intended to avoid performance regression in 8.2.0 due to fix of
+  cfl estimate for 2D. Possible that this change will require user
+  intervention to reproduce old results.
+
+### Known issues
+
+No new known issues.
+
+### Merged Pull Requests
+
+* Call set_job_id as early as possible in initialize_gs2 [PR #1034 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1034)
+* Bugfix/avoid potentially unused variables in ingen [PR #1035 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1035)
+* Bugfix/update petsc slepc versions 3 22 1 [PR #1036 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1036)
+* Minor/improve python package handling in ci [PR #1033 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1033)
+* Increase the default cfl factor [PR #1030 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1030)
+* Restore guidance about setting MAKEFLAGS [PR #1032 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1032)
+* Set unlimted = true in glo dimension creation in cases where processor has no local data [PR #1029 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1029)
+* Bugfix/correct 2d cfl limit [PR #634 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/634)
+* Always initialise duinv to zero. [PR #1009 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1009)
+* Write final epar to netcdf in new diagnostics [PR #1026 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1026)
+* Bugfix/sort files compare response [PR #1010 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1010)
+* Merge 8.2.0 into next [PR #1005 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1005)
+* Make sure ford preprocesses all source files [PR #1006 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/1006)
+
+## 8.2.0 (2024-07-12)
 
 ### New features
 
