@@ -22,6 +22,16 @@ module collisions
   public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
   public :: collisions_config_type, set_collisions_config, get_collisions_config
   
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: vnew, vnew_s, vnew_D, vnew_E, delvnew, vnewh, pitch_weights, vpdiff, vpdiffle
+  public :: c1le, betaale, qle, ec1le, ebetaale, eqle
+  public :: z0le, s0le, w0le, bz0le, bs0le, bw0le, aj0le, vperp_aj1le, vpa_aj0_le
+  public :: c1, betaa, ql, ec1, ebetaa, eql, s0, w0, z0, bs0, bw0, bz0
+  public :: nxi_lim, cfac, drag, has_lorentz, has_diffuse, const_v, conserve_moments
+  public :: conservative, resistivity, lorentz_switch, ediff_switch, ei_coll_only
+  public :: special_wfb_lorentz, vpar_zero_mean, conserve_forbid_zero, force_collisions
+  public :: hypermult, vnfac, vnslow, vnm_init, timesteps_between_collisions
+
   interface solfp1
      module procedure solfp1_le_layout
      module procedure solfp1_standard_layout
@@ -3040,6 +3050,7 @@ contains
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
+    use gs2_export_probe, only: probe_active, probe_le
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3049,7 +3060,9 @@ contains
 
     if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
+       if (probe_active) call probe_le('coll_after_ediffuse', gle)
        if (conserve_moments) call conserve_diffuse (gle)
+       if (probe_active) call probe_le('coll_after_ediffuse_conserve', gle)
     end if
 
     if (has_lorentz) then
@@ -3083,9 +3096,12 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
+       if (probe_active) call probe_le('coll_after_drag', gle)
 
        call solfp_lorentz (gle, diagnostics)
+       if (probe_active) call probe_le('coll_after_lorentz', gle)
        if (conserve_moments) call conserve_lorentz (gle)
+       if (probe_active) call probe_le('coll_after_lorentz_conserve', gle)
     end if
   end subroutine solfp1_le_layout
 

@@ -24,6 +24,7 @@ contains
     use job_manage, only: time_message
     use mp, only: get_mp_times
     use build_config, only: gs2_has_lowflow
+    use gs2_export_probe, only: probe_active, probe_g, probe_le
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gold, g1
@@ -71,6 +72,7 @@ contains
              call g_adjust (g, phinew, bparnew, direction = from_g_gs2)
              if (heating_flag) call g_adjust (gold, phi, bpar, direction = from_g_gs2)
           end if
+          if (probe_active) call probe_g('coll_h_in', g)
           if (heating_flag) then
              allocate (gc3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
              call copy(g, gc3)
@@ -81,6 +83,7 @@ contains
 
           ! map data from g_layout to le_layout
           if (g_to_c) call gather (g2le, g, gle)
+          if (probe_active) call probe_le('coll_gle_in', gle)
 
 # ifdef LOWFLOW
           call get_and_set_gvpa(gle)
@@ -89,9 +92,11 @@ contains
              ! update distribution function to take into account collisions
              call solfp1 (gle, diagnostics)
           end if
+          if (probe_active) call probe_le('coll_gle_out', gle)
 
           ! remap from le_layout to g_layout
           if (c_to_g) call scatter (g2le, gle, g)
+          if (probe_active) call probe_g('coll_h_out', g)
           deallocate (gle)
           if (heating_flag) then
              ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.
@@ -133,11 +138,13 @@ contains
              call g_adjust (g, phinew, bparnew, direction = from_g_gs2)
              if (heating_flag) call g_adjust (gold, phi, bpar, direction = from_g_gs2)
           end if
+          if (probe_active) call probe_g('coll_h_in', g)
 
           if (heating_flag) call copy(g, gc3)
 
           ! update distribution function to take into account collisions
           call solfp1 (g, g1, gc1, gc2, diagnostics)
+          if (probe_active) call probe_g('coll_h_out', g)
 
           if (heating_flag) then
              call integrate_moment (gc1, c_rate(:,:,:,:,1))

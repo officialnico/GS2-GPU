@@ -16,6 +16,12 @@ module hyper
   public :: set_hyper_config
   public :: get_hyper_config
   
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: D_hypervisc, D_hyperres, omega_osc, D_hyper
+  public :: akx4_max, aky4_max, aky_max, akperp4_max, kperp2_max, kperp2_max_zonal
+  public :: hyper_option_switch, const_amp, include_kpar, isotropic_shear, damp_zonal_only
+  public :: hyper_on, gridnorm, D_hyper3D, P_hyper3D, ky_cut, kx_cut, isotropic_model
+
 ! D_v, D_eta are hyper coefficients, normalized correctly 
 ! i.e., either by unity or by 1/k_perp**2*nexp
 

@@ -23,6 +23,10 @@ module init_g
   public :: init_g_config_type
   public :: set_init_g_config
   public :: get_init_g_config
+
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  ! (and gpu/spec/09a_exporter_notes.md: not listed in 09 §4.2)
+  public :: ginitopt_switch
   
   ! knobs
   integer :: ginitopt_switch

@@ -26,7 +26,7 @@ endif
 # dependencies. `fortdep` searches for module `use` statements, and
 # we`re deliberately _not_ using a module for `git_hash`, otherwise
 # basically the entire project needs to be rebuilt on new commits.
-needs_git_hash := gs2 multigs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester box_to_ballooning_space
+needs_git_hash := gs2 multigs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester box_to_ballooning_space gs2_export
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
@@ -38,11 +38,16 @@ parallel_targets += dump_response #Calculates the field response matrix for curr
 parallel_targets += ffttester #A program which test the fft transforms used in GS2
 parallel_targets += generate_fftw_wisdom #Utility to produce fftw wisdom files for given problem size
 
+# GPU-port tooling: built only on request (`make gs2_export`), deliberately not part of gs2_all so that
+# default builds, `make tests` and CI keep their current target set.
+gpu_port_targets := gs2_export #Dumps GS2 grids/coefficients/state (+ optional stage traces) to netCDF for the JAX port
+
 ############################################################################# PROGRAMS
 gs2_all: $(serial_targets) $(parallel_targets)
 
 $(foreach prog,$(parallel_targets),$(eval $(call build_program,$(prog),$(LDFLAGS))))
 $(foreach prog,$(serial_targets),$(eval $(call build_program,$(prog),$(SERIAL_LDFLAGS))))
+$(foreach prog,$(gpu_port_targets),$(eval $(call build_program,$(prog),$(LDFLAGS))))
 
 ############################################################################# LIBRARIES
 ### LIBGS2

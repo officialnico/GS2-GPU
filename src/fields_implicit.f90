@@ -12,6 +12,9 @@ module fields_implicit
   public :: field_subgath, dump_response, read_response
   public :: dump_response_to_file_imp
 
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: aminv, nfield, nidx
+
 !///////////////////////////////////////////////////////
 !// DERIVED TYPES FOR FIELD MATRIX REPRESENTATION
 !///////////////////////////////////////////////////////
@@ -323,6 +326,7 @@ contains
     use job_manage, only: time_message
     use mp, only: get_mp_times
     use array_utils, only: copy
+    use gs2_export_probe, only: probe_active, probe_pass, probe_point
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -333,12 +337,15 @@ contains
     if(.not.no_driver) call antenna_amplitudes (apar_ext)
        
     if (allocated(kx_shift) .or. allocated(theta0_shift)) call exb_shear (gnew, phinew, aparnew, bparnew, istep) 
+    if (probe_active) call probe_point('after_exb_shear')
     
     call copy(gnew, g)
     call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv 1')
+    if (probe_active) probe_pass = 1
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+    if (probe_active) call probe_point('after_timeadv')
     call debug_message(4, 'fields_implicit::advance_implicit called timeadv 1')
     if(reset) return !Return is resetting
 
@@ -350,23 +357,29 @@ contains
     call get_mp_times(total_time = mp_total)
 
     call getfield (phinew, aparnew, bparnew)
+    if (probe_active) call probe_point('after_getfield')
 
     phinew   = phinew  + phi
     aparnew  = aparnew + apar
     bparnew  = bparnew + bpar
+    if (probe_active) call probe_point('after_field_update')
 
     call time_message(.false.,time_field,' Field Solver')
     call get_mp_times(total_time = mp_total_after)
     time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     if (remove_zonal_flows_switch) call remove_zonal_flows
+    if (probe_active) call probe_point('after_remove_zonal_flows')
     
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv')
+    if (probe_active) probe_pass = 2
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+    if (probe_active) call probe_point('after_timeadv')
     call debug_message(4, 'fields_implicit::advance_implicit called timeadv')
 
     ! Advance collisions, if separate from timeadv
     call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
+    if (probe_active) call probe_point('after_collisions_advance')
 
   end subroutine advance_implicit
 

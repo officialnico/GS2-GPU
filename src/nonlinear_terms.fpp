@@ -23,6 +23,11 @@ module nonlinear_terms
   public :: set_nonlinear_terms_config
   public :: get_nonlinear_terms_config
   
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: cflx, cfly, max_vel_components, istep_last, initializing, nonlinear_mode_switch
+  public :: use_cfl_limit, use_2d_cfl, error_target, istep_error_start, use_order_based_error
+  public :: include_apar, include_bpar, include_phi, zip, nl_forbid_force_zero
+
   !> Public type allowing tests to access otherwise-private routines
   type :: nonlinear_terms_testing
     contains
@@ -448,6 +453,7 @@ contains
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
     use array_utils, only: copy, zero_array
+    use gs2_export_probe, only: probe_active, probe_g, probe_real
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -518,9 +524,11 @@ contains
           max_vel_components = epsilon(0.0)
 
           call add_nl (g, g1, phi, apar, bpar)
+          if (probe_active) call probe_g('nl_before_center', g1)
 
           ! takes g1 at grid points and returns 2*g1 at cell centers
           call nl_center (g1, bd)
+          if (probe_active) call probe_g('nl_after_center', g1)
 
           ! Currently the module level max_vel_components contains the
           ! maximum x and y velocities found from the nonlinear term
@@ -567,6 +575,7 @@ contains
                 call max_allreduce(max_vel_components)
                 ! This call can update the value of reset.
                 call set_cfl_time_step_and_check_if_too_large
+                if (probe_active) call probe_real('nl_cfl', max_vel_components)
              else
                 ! Do a nonblocking reduce and check later in
                 ! [[gs2_reinit:check_time_step]].
@@ -580,6 +589,7 @@ contains
              ! but for now just put this here to be on the safe side. The cost should
              ! be low.
              call set_cfl_time_step_and_check_if_too_large
+             if (probe_active) call probe_real('nl_cfl', max_vel_components)
           end if
 
           if(reset) then

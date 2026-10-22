@@ -95,6 +95,19 @@ module dist_fn
   public :: dump_homogeneous_solution, dump_current_source_term, get_field_inconsistency
   public :: check_getan
 
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: vpar, wdrift, wdriftttp, a, b, r, ainv, g_h, g_adj, ufac
+  public :: source_coeffs_phim, source_coeffs_phip, source_coeffs_aparm, source_coeffs_aparp
+  public :: gamtot3, awgt, inv_phi_denominator_g, inv_bpar_denominator_g
+  public :: n_links, save_h, connections, no_connections, jump, ikx_indexed, exb_first
+  public :: get_rightmost_it
+  public :: fexp, bkdiff, gridfac, driftknob, tpdriftknob, poisfac, vparknob, t0, source0
+  public :: phi_ext, afilter, exponential_boundary_factor, wfb, omprimfac, btor_slab, mach
+  public :: g_exb_start_time, g_exb_error_limit, g_exb_start_timestep, hyper_in_initialisation
+  public :: start_from_previous_solution, boundary_off_grid, exponential_boundary
+  public :: nonad_zero, lf_default, lf_decompose, esv, opt_source, source_option_switch
+  public :: zero_forbid, mult_imp
+
   ! knobs
   real, dimension (:), allocatable :: fexp, bkdiff  ! (nspec)
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
@@ -4023,6 +4036,7 @@ contains
     use unit_tests, only: debug_message
     use collisions, only: split_collisions
     use gs2_time, only: code_dt
+    use gs2_export_probe, only: probe_active, probe_point
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4060,12 +4074,14 @@ contains
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
             phi, apar, bpar, istep, bkdiff(1))
     end if
+    if (probe_active) call probe_point('after_add_explicit_terms')
 
     call debug_message(verb, &
         'dist_fn::timeadv calculated nonlinear term')
     if(reset .and. immediate_reset) return !Return if resetting
     !Solve for gnew
     call invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
+    if (probe_active) call probe_point('after_invert_rhs')
     call debug_message(verb, &
         'dist_fn::timeadv calculated rhs')
 
@@ -4075,6 +4091,7 @@ contains
        !data (indicated by istep==0) as these terms are typically not
        !linearly independent.
        call hyper_diff (gnew, phinew)
+       if (probe_active) call probe_point('after_hyper')
        call debug_message(verb, &
             'dist_fn::timeadv calculated hypviscosity')
     end if
@@ -4082,6 +4099,7 @@ contains
     !Add collisions
     if( .not. split_collisions) then
       call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, mode)
+      if (probe_active) call probe_point('after_vspace_derivatives')
       call debug_message(verb, &
           'dist_fn::timeadv calculated collisions etc')
     end if
@@ -4089,6 +4107,7 @@ contains
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
     if (def_parity) call enforce_parity(parity_redist)
+    if (probe_active) call probe_point('after_parity')
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin .and. strang_split) then
@@ -6155,6 +6174,7 @@ contains
     use constants, only: zi, pi
     use dist_fn_arrays, only: g_work, gnew
     use array_utils, only: zero_array
+    use gs2_export_probe, only: probe_active, probe_point
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -6180,8 +6200,10 @@ contains
 
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
+    if (probe_active) call probe_point('source')
 
     call invert_rhs_1 (phinew, bparnew, source = g_work)
+    if (probe_active) call probe_point('after_invert_rhs_1')
 
     select case (boundary_option_switch)
     case (boundary_option_linked)

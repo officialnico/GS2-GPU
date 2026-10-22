@@ -1,3 +1,15 @@
+# GS2-GPU
+
+This repository is a fork of [GS2](https://bitbucket.org/gyrokinetics/gs2) 8.2.1 that adds a
+faithful GPU port of GS2's time step in [JAX](https://github.com/jax-ml/jax) (float64). Fortran
+GS2 stays the front end: `bin/gs2_export` runs GS2's own initialisation and exports everything the
+time step reads, and the `gs2gpu` package advances the run on a GPU with GS2's numerics, writing a
+GS2-format `out.nc`. On 31 validation cases it reproduces GS2 to within GS2's own round-off spread.
+See **[gpu/README.md](gpu/README.md)** for the workflow, validation and limitations.
+
+The GS2 code, documentation and licence (MIT) below are those of the upstream project; please cite
+GS2 as described in [Citing GS2](#citing-gs2).
+
 # GS2
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14022029.svg)](https://doi.org/10.5281/zenodo.14022029)

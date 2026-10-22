@@ -22,6 +22,9 @@ module run_parameters
   public :: use_old_diagnostics
   public :: set_overrides, get_knobs_config, knobs_config_type, set_run_parameters_config
   
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: eqzip_option_switch, seed
+
   real :: beta, zeff, tite, fphi, fapar, fbpar, k0, rhostar
   logical :: has_phi, has_apar, has_bpar, neo_test
   real :: delt, avail_cpu_time, margin_cpu_time, max_sim_time

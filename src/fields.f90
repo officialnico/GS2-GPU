@@ -588,10 +588,15 @@ contains
     use fields_test, only: advance_test
     use fields_local, only: advance_local
     use fields_gf_local, only: advance_gf_local
+    use gs2_export_probe, only: probe_active, probe_in_advance, probe_istep, probe_pass, probe_point
 
     implicit none
     integer, intent (in) :: istep
 
+    if (probe_active) then
+       probe_in_advance = .true. ; probe_istep = istep ; probe_pass = 0
+       call probe_point('advance_begin', istep)
+    end if
     select case (fieldopt_switch)
     case (fieldopt_implicit)
        call advance_implicit (istep, remove_zonal_flows_switch)
@@ -602,6 +607,10 @@ contains
     case (fieldopt_gf_local)
        call advance_gf_local (istep, remove_zonal_flows_switch)
     end select
+    if (probe_active) then
+       call probe_point('advance_end', istep)
+       probe_in_advance = .false. ; probe_pass = 0
+    end if
   end subroutine advance
 
   !> FIXME : Add documentation  

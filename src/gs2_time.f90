@@ -16,6 +16,10 @@ module gs2_time
   public :: get_adams_bashforth_coefficients
   public :: wunits, woutunits, tunits
 
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  ! (and gpu/spec/09a_exporter_notes.md: not listed in 09 §4.2)
+  public :: user_dt_cfl
+
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
   real :: code_dt_prev1 = dt_not_set

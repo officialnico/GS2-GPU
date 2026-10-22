@@ -4255,6 +4255,7 @@ contains
     use mp, only: get_mp_times
     use job_manage, only: time_message
     use array_utils, only: copy
+    use gs2_export_probe, only: probe_active, probe_pass, probe_point
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4278,6 +4279,7 @@ contains
       'fields_local::advance_local calling g_exb')
     !Apply flow shear if active
     if(abs(g_exb*g_exbfac).gt.epsilon(0.)) call exb_shear(gnew,phinew,aparnew,bparnew,istep,field_local_allreduce_sub)
+    if (probe_active) call probe_point('after_exb_shear')
 
     !Update g and fields
     call copy(gnew,g)
@@ -4293,8 +4295,10 @@ contains
       'fields_local::advance_local calling timeadv 1')
 
     !Find gnew given fields at time step midpoint
+    if (probe_active) probe_pass = 1
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep)
+    if (probe_active) call probe_point('after_timeadv')
     if(reset) return !Return is resetting
 
     !Add in antenna driving if present
@@ -4311,6 +4315,7 @@ contains
 
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
+    if (probe_active) call probe_point('after_getfield')
 
     !If we do the update in getfield_local don't do it here
     if(.not.do_update)then
@@ -4318,6 +4323,7 @@ contains
        if (has_apar) aparnew = aparnew + apar
        if (has_bpar) bparnew = bparnew + bpar
     endif
+    if (probe_active) call probe_point('after_field_update')
 
     !For timing
     !Barrier usage ensures that proc0 measures the longest time taken on
@@ -4329,15 +4335,19 @@ contains
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows
+    if (probe_active) call probe_point('after_remove_zonal_flows')
 
     call debug_message(verb, &
       'fields_local::advance_local calling timeadv 2')
     !Evolve gnew to next half time point
+    if (probe_active) probe_pass = 2
     call timeadv (phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, diagnostics) 
+    if (probe_active) call probe_point('after_timeadv')
 
     ! Advance collisions, if separate from timeadv
     call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
+    if (probe_active) call probe_point('after_collisions_advance')
 
   end subroutine advance_local
 

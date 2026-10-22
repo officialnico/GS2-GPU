@@ -198,3 +198,10 @@ Temporary Items
 *.msi
 *.msm
 *.msp
+
+# GPU port
+gpu/.venv/
+gpu/**/__pycache__/
+gpu/refdata/
+gpu/*.egg-info/
+gpu/.pytest_cache/

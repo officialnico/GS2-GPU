@@ -21,6 +21,10 @@ module le_grids
 
   public :: le_grids_config_type, set_le_grids_config, get_le_grids_config
   
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: bouncefuzz, trapped_particles, wfbbc_option_switch, ngauss, npassing, nesuper
+  public :: genquad, radau_gauss_grid, split_passing_region, new_trap_int_split
+
   interface integrate_moment
      module procedure integrate_moment_c34
      module procedure integrate_moment_r34

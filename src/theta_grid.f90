@@ -20,6 +20,9 @@ module theta_grid
   public :: set_theta_grid_config
   public :: get_theta_grid_config
 
+  ! GS2 GPU export (gs2_export): read-only access, see gpu/spec/09_export_infra.md §4
+  public :: field_line_average_weight, cvdriftknob, gbdriftknob, eqopt_switch
+
   real, dimension (:), allocatable :: theta, theta2, delthet, delthet2
   real, dimension (:), allocatable :: bset
   real, dimension (:), allocatable :: bmag, gradpar

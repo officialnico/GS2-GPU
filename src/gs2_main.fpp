@@ -669,6 +669,7 @@ contains
     use standard_header, only: standard_header_type
     use exit_codes, only: EXIT_MAX_SIM_TIME
     use file_utils, only: open_output_file, close_output_file
+    use gs2_export_probe, only: probe_active, probe_point
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
     integer :: istep, progress_unit
@@ -742,6 +743,7 @@ contains
          call set_initval_overrides_to_current_vals(state%init%initval_ov)
          state%init%initval_ov%override = .true.
          call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+         if (probe_active) call probe_point('after_reset_time_step', istep)
 
          ! Now we've reset set the flag back to .false.
          reset = .false.
@@ -769,6 +771,7 @@ contains
             code_dt_prev2, code_dt_max, header=local_header)
 
        call update_time
+       if (probe_active) call probe_point('step_end_pre_diag', istep)
        call time_message(.false.,state%timers%diagnostics,' Diagnostics')
 
        call debug_message(state%verb+1, 'gs2_main::evolve_equations calling diagnostics')
@@ -783,6 +786,7 @@ contains
        end if
 
        if (state%exit) state%converged = .true.
+       if (probe_active) call probe_point('step_end', istep)
        if (state%exit) call debug_message(state%verb+1, &
          'gs2_main::evolve_equations exit true after diagnostics')
 
@@ -809,6 +813,7 @@ contains
             call set_initval_overrides_to_current_vals(state%init%initval_ov)
             state%init%initval_ov%override = .true.
             call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+            if (probe_active) call probe_point('after_reset_time_step', istep)
 
             ! Switch off the reset flag now, otherwise it can still be active
             ! on the next iteration.
